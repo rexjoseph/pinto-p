@@ -1,0 +1,27 @@
+artifacts
+cache
+coverage
+coverage.json
+node_modules
+package-lock.json
+temp
+archived
+.DS_Store
+.env
+
+# Diamond Cut Outputs
+diamondCut-*.json
+
+# .vscode
+
+#Editors
+.idea/
+
+# Foundry
+cache/
+out/
+.openzeppelin
+.gas-snapshot
+
+# forge libraries.
+lib/

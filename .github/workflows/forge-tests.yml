@@ -1,0 +1,48 @@
+name: Forge Tests
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main]
+
+env:
+  FORKING_RPC: ${{ secrets.ANVIL_FORK_URL }}
+  ARBITRUM_FORKING_RPC: ${{ secrets.ARBITRUM_FORKING_RPC }}
+
+jobs:
+  forge-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Cache Node Modules
+        id: node-modules-cache
+        uses: actions/cache@v3
+        with:
+          path: "**/node_modules"
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install Dependencies
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: yarn install --immutable
+
+      - name: Run Forge build
+        run: |
+          forge --version
+          forge clean
+          forge build
+
+      - name: Run Forge tests
+        run: forge test
