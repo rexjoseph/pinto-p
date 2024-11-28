@@ -97,14 +97,15 @@ library LibConvert {
                 convertData
             );
         } else if (kind == LibConvertData.ConvertKind.ANTI_LAMBDA_LAMBDA) {
-            (
-                cp.toToken,
-                cp.fromToken,
-                cp.toAmount,
-                cp.fromAmount,
-                cp.account,
-                cp.decreaseBDV
-            ) = LibLambdaConvert.antiConvert(convertData);
+            revert("Convert: Anti-lambda-lambda not supported");
+            // (
+            //     cp.toToken,
+            //     cp.fromToken,
+            //     cp.toAmount,
+            //     cp.fromAmount,
+            //     cp.account,
+            //     cp.decreaseBDV
+            // ) = LibLambdaConvert.antiConvert(convertData);
         } else {
             revert("Convert: Invalid payload");
         }

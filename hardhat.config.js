@@ -247,6 +247,30 @@ task("PI-1", "Deploys Pinto improvment set 1").setAction(async function () {
   });
 });
 
+task("PI-2", "Deploys Pinto improvment set 1").setAction(async function () {
+  const mock = false;
+  let owner;
+  if (mock) {
+    await hre.run("updateOracleTimeouts");
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: ["ConvertFacet", "ConvertGettersFacet"],
+    libraryNames: ["LibSilo", "LibTokenSilo", "LibConvert", "LibPipelineConvert"],
+    facetLibraries: {
+      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"]
+    },
+    initArgs: [],
+    object: !mock,
+    verbose: true,
+    account: owner
+  });
+});
+
 task("getWhitelistedWells", "Lists all whitelisted wells and their non-pinto tokens").setAction(
   async () => {
     console.log("-----------------------------------");
