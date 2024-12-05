@@ -284,7 +284,7 @@ contract MockSeasonFacet is SeasonFacet {
     function calcCaseIdE(int256 deltaB, uint128 endSoil) external {
         s.sys.soil = endSoil;
         s.sys.beanSown = endSoil;
-        calcCaseIdandUpdate(deltaB);
+        calcCaseIdAndHandleRain(deltaB);
     }
 
     function setCurrentSeasonE(uint32 _season) public {
@@ -348,7 +348,7 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.weather.lastDeltaSoil = uint128(_lastDeltaSoil);
         s.sys.beanSown = beanSown;
         s.sys.soil = endSoil;
-        mockCalcCaseIdandUpdate(deltaB);
+        mockcalcCaseIdAndHandleRain(deltaB);
     }
 
     function resetSeasonStart(uint256 amount) public {
@@ -627,7 +627,7 @@ contract MockSeasonFacet is SeasonFacet {
     /**
      * @notice mock updates case id and beanstalk state. disables oracle failure.
      */
-    function mockCalcCaseIdandUpdate(int256 deltaB) public returns (uint256 caseId) {
+    function mockcalcCaseIdAndHandleRain(int256 deltaB) public returns (uint256 caseId) {
         uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
         // prevents infinite L2SR and podrate
         if (beanSupply == 0) {

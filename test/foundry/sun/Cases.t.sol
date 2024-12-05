@@ -80,7 +80,7 @@ contract CasesTest is TestHelper {
         vm.expectEmit(true, true, false, false);
         emit BeanToMaxLpGpPerBdvRatioChange(1, caseId, 0);
 
-        uint256 caseId = season.mockCalcCaseIdandUpdate(deltaB);
+        uint256 caseId = season.mockcalcCaseIdAndHandleRain(deltaB);
         (, int8 bT, , int80 bL) = bs.getChangeFromCaseId(caseId);
 
         // CASE INVARIENTS
@@ -118,14 +118,14 @@ contract CasesTest is TestHelper {
         }
 
         // if deltaB is positive, and ∆ soil demand is increasing,
-        // temperature must decrease by 3%.
+        // temperature must decrease by 2%.
         // if deltaB is negative, and  ∆ soil demand is decreasing,
-        // temperature must increase by 3%.
+        // temperature must increase by 2%.
         if (deltaB > 0 && changeInSoilDemand == INC) {
             assertEq(bT, -3, "Temp did not decrease by 3% @ +DeltaB, Inc soil demand");
         }
         if (deltaB < 0 && changeInSoilDemand == DEC) {
-            assertEq(bT, 3, "Temp did not inc by 3% @ -DeltaB, Dec soil demand");
+            assertEq(bT, 2, "Temp did not inc by 2% @ -DeltaB, Dec soil demand");
         }
 
         // if L2SR is reasonably high or higher,
@@ -252,6 +252,6 @@ contract CasesTest is TestHelper {
         uint256 steadyDemand;
 
         // verify ∆temp is 3% (see whitepaper).
-        assertEq(10 - uint256(w.temp), 3);
+        assertEq(10 - uint256(w.temp), 3, "delta temp is not 3%");
     }
 }

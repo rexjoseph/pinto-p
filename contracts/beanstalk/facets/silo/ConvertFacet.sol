@@ -91,7 +91,8 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         if (cp.fromToken != cp.toToken) LibSilo._mow(cp.account, cp.toToken);
 
         // Withdraw the tokens from the deposit.
-        (pipeData.grownStalk, fromBdv) = LibConvert._withdrawTokens(
+        uint256 deltaRainRoots;
+        (pipeData.grownStalk, fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
             cp.fromToken,
             stems,
             amounts,
@@ -130,6 +131,7 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             cp.toAmount,
             toBdv,
             pipeData.grownStalk,
+            deltaRainRoots,
             cp.account
         );
 

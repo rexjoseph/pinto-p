@@ -34,7 +34,7 @@ library LibDibbler {
     /// @dev Simplifies conversion of Beans to Pods:
     /// `pods = beans * (1 + temperature)`
     /// `pods = beans * (100% + temperature) / 100%`
-    uint256 private constant ONE_HUNDRED_PCT = 100 * TEMPERATURE_PRECISION;
+    uint256 private constant ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
 
     /// @dev If less than `SOIL_SOLD_OUT_THRESHOLD` Soil is left, consider
     /// Soil to be "sold out"; affects how Temperature is adjusted.
@@ -101,7 +101,7 @@ library LibDibbler {
      *
      * ## Above Peg
      *
-     * | t   | Max pods  | s.sys.soil         | soil                    | temperature              | maxTemperature |
+     * | t   | Max pods  | s.sys.soil            | soil                    | temperature              | maxTemperature |
      * |-----|-----------|-----------------------|-------------------------|--------------------------|----------------|
      * | 0   | 500e6     | ~37e6 500e6/(1+1250%) | ~495e6 500e6/(1+1%))    | 1e6 (1%)                 | 1250 (1250%)   |
      * | 12  | 500e6     | ~37e6                 | ~111e6 500e6/(1+348%))  | 348.75e6 (27.9% * 1250)  | 1250           |
@@ -240,9 +240,12 @@ library LibDibbler {
      */
     function morningTemperature() internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        uint256 delta = block.number.sub(s.sys.season.sunriseBlock).mul(L2_BLOCK_TIME).div(
-            L1_BLOCK_TIME
-        );
+        uint256 delta = block
+            .number
+            .sub(s.sys.season.sunriseBlock)
+            .mul(L2_BLOCK_TIME)
+            .div(L1_BLOCK_TIME)
+            .div(2); // dividing by 2 increases the morning auction time from 25 to 50 L1 blocks (5 min -> 10 min)
 
         // check most likely case first
         if (delta > 24) {
@@ -256,7 +259,7 @@ library LibDibbler {
                     if (delta < 2) {
                         if (delta < 1) {
                             // delta == 0, same block as sunrise
-                            return TEMPERATURE_PRECISION;
+                            return _scaleTemperature(10000000000);
                         } else {
                             // delta == 1
                             return _scaleTemperature(76079978576);
@@ -378,16 +381,16 @@ library LibDibbler {
         uint256 maxTemperature = s.sys.weather.temp;
         if (maxTemperature == 0) return 0;
 
-        scaledTemperature = Math.max(
-            // To save gas, `pct` is pre-calculated to 12 digits. Here we
-            // perform the following transformation:
-            // (1e2)    maxTemperature
-            // (1e12)    * pct
-            // (1e6)     / TEMPERATURE_PRECISION
-            // (1e8)     = scaledYield
-            maxTemperature.mulDiv(pct, TEMPERATURE_PRECISION, LibPRBMathRoundable.Rounding.Up),
-            // Floor at TEMPERATURE_PRECISION (1%)
-            TEMPERATURE_PRECISION
+        // To save gas, `pct` is pre-calculated to 12 digits. Here we
+        // perform the following transformation:
+        // (1e2)    maxTemperature
+        // (1e12)    * pct
+        // (1e6)     / TEMPERATURE_PRECISION
+        // (1e8)     = scaledYield
+        scaledTemperature = maxTemperature.mulDiv(
+            pct,
+            TEMPERATURE_PRECISION,
+            LibPRBMathRoundable.Rounding.Up
         );
     }
 
@@ -407,7 +410,7 @@ library LibDibbler {
         uint256 beans,
         uint256 _morningTemperature
     ) internal pure returns (uint256 pods) {
-        pods = beans.mulDiv(_morningTemperature.add(ONE_HUNDRED_PCT), ONE_HUNDRED_PCT);
+        pods = beans.mulDiv(_morningTemperature.add(ONE_HUNDRED_TEMP), ONE_HUNDRED_TEMP);
     }
 
     /**
@@ -421,8 +424,8 @@ library LibDibbler {
     ) internal pure returns (uint256) {
         return
             soil.mulDiv(
-                maxTemperature.add(ONE_HUNDRED_PCT),
-                _morningTemperature.add(ONE_HUNDRED_PCT)
+                maxTemperature.add(ONE_HUNDRED_TEMP),
+                _morningTemperature.add(ONE_HUNDRED_TEMP)
             );
     }
 
@@ -449,8 +452,8 @@ library LibDibbler {
     ) internal pure returns (uint256) {
         return
             soil.mulDiv(
-                _morningTemperature.add(ONE_HUNDRED_PCT),
-                maxTemperature.add(ONE_HUNDRED_PCT),
+                _morningTemperature.add(ONE_HUNDRED_TEMP),
+                maxTemperature.add(ONE_HUNDRED_TEMP),
                 LibPRBMathRoundable.Rounding.Up
             );
     }

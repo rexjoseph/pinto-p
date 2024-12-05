@@ -26,13 +26,8 @@ contract MockConvertFacet is ConvertFacet {
     ) external {
         LibSilo._mow(msg.sender, token);
         // if (account == address(0)) account = msg.sender;
-        (uint256 stalkRemoved, uint256 bdvRemoved) = LibConvert._withdrawTokens(
-            token,
-            stems,
-            amounts,
-            maxTokens,
-            LibTractor._user()
-        );
+        (uint256 stalkRemoved, uint256 bdvRemoved, uint256 deltaRainRoots) = LibConvert
+            ._withdrawTokens(token, stems, amounts, maxTokens, LibTractor._user());
 
         emit MockConvert(stalkRemoved, bdvRemoved);
     }
@@ -41,11 +36,19 @@ contract MockConvertFacet is ConvertFacet {
         address token,
         uint256 amount,
         uint256 bdv,
-        uint256 grownStalk // address account
+        uint256 grownStalk,
+        uint256 deltaRainRoots // address account
     ) external {
         LibSilo._mow(msg.sender, token);
         // if (account == address(0)) account = msg.sender;
-        LibConvert._depositTokensForConvert(token, amount, bdv, grownStalk, LibTractor._user());
+        LibConvert._depositTokensForConvert(
+            token,
+            amount,
+            bdv,
+            grownStalk,
+            deltaRainRoots,
+            LibTractor._user()
+        );
     }
 
     function convertInternalE(

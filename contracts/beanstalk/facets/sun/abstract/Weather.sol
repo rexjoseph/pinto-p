@@ -82,13 +82,14 @@ abstract contract Weather is Sun {
      * mechanism can be found in the Beanstalk whitepaper.
      * An explanation of state variables can be found in {AppStorage}.
      */
-    function calcCaseIdandUpdate(int256 deltaB) internal returns (uint256) {
+    function calcCaseIdAndHandleRain(int256 deltaB) internal returns (uint256) {
         uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
         // prevents infinite L2SR and podrate
         if (beanSupply == 0) {
             s.sys.weather.temp = 1;
             return 9; // Reasonably low
         }
+
         // Calculate Case Id
         (uint256 caseId, bool oracleFailure) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
         updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, oracleFailure);

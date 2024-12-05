@@ -7,6 +7,7 @@ const { MAX_UINT32 } = require("./utils/constants.js");
 const { takeSnapshot, revertToSnapshot } = require("./utils/snapshot");
 const { getAllBeanstalkContracts } = require("../../utils/contracts");
 const { initializeUsersForToken } = require("./utils/testHelpers.js");
+const { mine } = require("@nomicfoundation/hardhat-network-helpers");
 
 // TODO
 // Tests to add
@@ -26,6 +27,9 @@ describe("newField", function () {
     [beanstalk, mockBeanstalk] = await getAllBeanstalkContracts(this.diamond.address);
 
     bean = await initializeUsersForToken(BEAN, [user, user2], to6("10000"));
+
+    // Advanced block to get temperature to be max temperature (1%).
+    await mine(400);
   });
 
   beforeEach(async function () {
@@ -269,7 +273,7 @@ describe("newField", function () {
   describe("Morning Auction", async function () {
     it("correctly scales up the temperature", async function () {
       let ScaleValues = [
-        "1000000", // Delta = 0
+        "10000000000", // Delta = 0
         "279415312704", // Delta = 1
         "409336034395", // 2
         "494912626048", // 3
@@ -296,16 +300,11 @@ describe("newField", function () {
         "989825252096", // 24
         "1000000000000" // 25
       ];
-
       // loop from i = 0 to 25:
       initTemp = 100;
       for (let i = 0; i <= 25; i++) {
         temperature = await mockBeanstalk.mockGetMorningTemp(to6("100"), i);
-        if (i == 0) {
-          expect(temperature).to.be.equal(ScaleValues[i]);
-        } else {
-          expect(temperature).to.be.equal(ScaleValues[i] * initTemp);
-        }
+        expect(temperature).to.be.equal(ScaleValues[i] * initTemp);
       }
     });
 
@@ -531,6 +530,9 @@ describe("twoField", function () {
     mockBeanstalk.setActiveField(this.activeField, 1);
 
     bean = await initializeUsersForToken(BEAN, [user, user2], to6("10000"));
+
+    // Advanced block to get temperature to be max temperature (1%).
+    await mine(400);
   });
 
   beforeEach(async function () {

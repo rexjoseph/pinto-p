@@ -5131,6 +5131,25 @@
   {
     "inputs": [
       {
+        "internalType": "address[]",
+        "name": "tokens",
+        "type": "address[]"
+      }
+    ],
+    "name": "getHighestNonGerminatingStems",
+    "outputs": [
+      {
+        "internalType": "int96[]",
+        "name": "highestNonGerminatingStems",
+        "type": "int96[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "account",
         "type": "address"
@@ -9512,6 +9531,11 @@
       {
         "internalType": "uint256",
         "name": "grownStalk",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deltaRainRoots",
         "type": "uint256"
       }
     ],

@@ -58,7 +58,7 @@ contract MockFieldFacet is FieldFacet {
                     if (delta < 2) {
                         // delta == 0, same block as sunrise
                         if (delta < 1) {
-                            return LibDibbler.TEMPERATURE_PRECISION;
+                            return _scaleTemperature(10000000000, initalTemp);
                         } else {
                             // delta == 1
                             return _scaleTemperature(279415312704, initalTemp);
@@ -164,20 +164,16 @@ contract MockFieldFacet is FieldFacet {
         uint256 pct,
         uint256 initalTemp
     ) private pure returns (uint256 scaledTemperature) {
-        scaledTemperature = Math.max(
-            // To save gas, `pct` is pre-calculated to 12 digits. Here we
-            // perform the following transformation:
-            // (1e2)    maxTemperature
-            // (1e12)    * pct
-            // (1e6)     / TEMPERATURE_PRECISION
-            // (1e8)     = scaledYield
-            initalTemp.mulDiv(
-                pct,
-                LibDibbler.TEMPERATURE_PRECISION,
-                LibPRBMathRoundable.Rounding.Up
-            ),
-            // Floor at TEMPERATURE_PRECISION (1%)
-            LibDibbler.TEMPERATURE_PRECISION
+        // To save gas, `pct` is pre-calculated to 12 digits. Here we
+        // perform the following transformation:
+        // (1e2)    maxTemperature
+        // (1e12)    * pct
+        // (1e6)     / TEMPERATURE_PRECISION
+        // (1e8)     = scaledYield
+        scaledTemperature = initalTemp.mulDiv(
+            pct,
+            LibDibbler.TEMPERATURE_PRECISION,
+            LibPRBMathRoundable.Rounding.Up
         );
     }
 

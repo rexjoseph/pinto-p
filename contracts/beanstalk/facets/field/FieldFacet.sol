@@ -297,6 +297,13 @@ contract FieldFacet is Invariable, ReentrancyGuard {
     }
 
     /**
+     * @notice Returns the number of Pods that were made Harvestable during the last Season as a result of flooding.
+     */
+    function floodHarvestablePods() public view returns (uint256) {
+        return s.sys.rain.floodHarvestablePods;
+    }
+
+    /**
      * @notice Returns true if there exists un-harvestable pods.
      * @param fieldId The index of the Field to query.
      */

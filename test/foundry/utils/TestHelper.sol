@@ -10,6 +10,7 @@ import "forge-std/Test.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {MockSeasonFacet} from "contracts/mocks/mockFacets/MockSeasonFacet.sol";
+import {MockChainlinkAggregator} from "contracts/mocks/MockChainlinkAggregator.sol";
 
 ///// TEST HELPERS //////
 import {BeanstalkDeployer} from "test/foundry/utils/BeanstalkDeployer.sol";
@@ -28,6 +29,9 @@ import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 
 ///// ECOSYSTEM //////
 import {Pipeline} from "contracts/pipeline/Pipeline.sol";
+
+// OTHER INTERFACES //
+import {IUSDC} from "contracts/interfaces/IUSDC.sol";
 
 /**
  * @title TestHelper
@@ -342,8 +346,8 @@ contract TestHelper is
 
     function updateAllChainlinkOraclesWithPreviousData() internal {
         address[] memory lp = bs.getWhitelistedLpTokens();
-        address chainlinkOracle;
         for (uint256 i; i < lp.length; i++) {
+            address chainlinkOracle;
             // oracles will need to be added here,
             // as obtaining the chainlink oracle to well is not feasible on chain.
             if (lp[i] == BEAN_ETH_WELL) {
@@ -351,8 +355,29 @@ contract TestHelper is
             } else if (lp[i] == BEAN_WSTETH_WELL) {
                 chainlinkOracle = chainlinkOracles[1];
             }
-            updateChainlinkOracleWithPreviousData(chainlinkOracle);
+
+            if (chainlinkOracle != address(0)) {
+                updateChainlinkOracleWithPreviousData(chainlinkOracle);
+            } else {
+                // otherwise, assume this is a fork of Base mainnet, get non-bean token from well and update it's oracle
+                (address tokenInWell, ) = bs.getNonBeanTokenAndIndexFromWell(lp[i]);
+                // get chainlink oracle for tokenInWell
+                chainlinkOracle = bs.getOracleImplementationForToken(tokenInWell).target;
+
+                updateForkedChainlinkOracle(chainlinkOracle, tokenInWell);
+            }
         }
+    }
+
+    function updateForkedChainlinkOracle(address chainlinkOracle, address tokenInWell) internal {
+        // save latest answer
+        (, int256 answer, , , ) = MockChainlinkAggregator(chainlinkOracle).latestRoundData();
+
+        // overwrite chainlinkOracle with a MockChainlinkAggregator, add mock rounds
+        deployCodeTo("MockChainlinkAggregator.sol", new bytes(0), chainlinkOracle);
+        MockChainlinkAggregator(chainlinkOracle).setDecimals(6);
+        mockAddRound(chainlinkOracle, answer, 4500);
+        mockAddRound(chainlinkOracle, answer, 900);
     }
 
     function setDeltaBForWellsWithEntropy(
@@ -502,12 +527,34 @@ contract TestHelper is
      * and warps the time to that timestamp.
      */
     function warpToNextSeasonTimestamp() internal noGasMetering {
-        uint256 nextTimestamp = season.getNextSeasonStart();
+        uint256 nextTimestamp = bs.getNextSeasonStart();
         vm.warp(nextTimestamp);
     }
 
     function warpToNextSeasonAndUpdateOracles() internal noGasMetering {
         warpToNextSeasonTimestamp();
         updateAllChainlinkOraclesWithPreviousData();
+    }
+
+    function mintBaseUSDCToAddress(address to, uint256 amount) internal {
+        vm.prank(USDC_MINTER_BASE);
+        IUSDC(USDC_BASE).mint(to, amount);
+    }
+
+    function addNonPintoLiquidityToWell(
+        address well,
+        uint256 amount,
+        address user,
+        address nonPintoToken
+    ) internal {
+        // erc20 approve
+        vm.prank(user);
+        IERC20(nonPintoToken).approve(well, type(uint256).max);
+        // deposit into well
+        uint256[] memory tokenAmountsIn = new uint256[](2);
+        tokenAmountsIn[0] = 0;
+        tokenAmountsIn[1] = amount;
+        vm.prank(user);
+        IWell(well).addLiquidity(tokenAmountsIn, 0, user, type(uint256).max);
     }
 }
