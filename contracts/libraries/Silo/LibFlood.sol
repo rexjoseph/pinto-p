@@ -63,6 +63,10 @@ library LibFlood {
      */
     function handleRain(uint256 caseId) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
+
+        // reset floodHarvestablePods from prior season
+        s.sys.rain.floodHarvestablePods = 0;
+
         // cases % 36  3-8 represent the case where the pod rate is less than 5% and P > 1.
         if (caseId.mod(36) < 3 || caseId.mod(36) > 8) {
             if (s.sys.season.raining) {
@@ -255,6 +259,9 @@ library LibFlood {
         );
 
         sopFieldBeans = sopFieldBeans > maxHarvestable ? maxHarvestable : sopFieldBeans;
+
+        // save floodHarvestablePods, so that it can be used in soil available calculation
+        s.sys.rain.floodHarvestablePods = uint128(sopFieldBeans);
 
         s.sys.fields[s.sys.activeField].harvestable = s
             .sys

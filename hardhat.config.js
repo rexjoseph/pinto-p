@@ -30,7 +30,7 @@ const {
   PINTO_WSOL_WELL_BASE,
   nameToAddressMap,
   addressToNameMap,
-  addressToSlotMap
+  addressToBalanceSlotMap
 } = require("./test/hardhat/utils/constants.js");
 const { task } = require("hardhat/config");
 const { upgradeWithNewFacets } = require("./scripts/diamond.js");
@@ -41,6 +41,9 @@ const { resolveDependencies } = require("./scripts/resolveDependencies");
 task("callSunrise", "Calls the sunrise function", async function () {
   beanstalk = await getBeanstalk(L2_PINTO);
   const account = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
+
+  // ensure account has enough eth for gas
+  await mintEth(account.address);
 
   // Simulate the transaction to check if it would succeed
   const lastTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
@@ -247,7 +250,7 @@ task("PI-1", "Deploys Pinto improvment set 1").setAction(async function () {
   });
 });
 
-task("PI-2", "Deploys Pinto improvment set 1").setAction(async function () {
+task("PI-2", "Deploys Pinto improvment set 2").setAction(async function () {
   const mock = false;
   let owner;
   if (mock) {
@@ -265,6 +268,194 @@ task("PI-2", "Deploys Pinto improvment set 1").setAction(async function () {
       ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"]
     },
     initArgs: [],
+    object: !mock,
+    verbose: true,
+    account: owner
+  });
+});
+
+task("test-temp-changes", "Tests temperature changes after upgrade").setAction(async function () {
+  // Fork from specific block
+  await network.provider.request({
+    method: "hardhat_reset",
+    params: [
+      {
+        forking: {
+          jsonRpcUrl: process.env.BASE_RPC,
+          blockNumber: 22927326 // this block is shortly before a season where a dump would cause the temp to increase
+        }
+      }
+    ]
+  });
+
+  const beanstalk = await getBeanstalk(L2_PINTO);
+
+  const RESERVES = "0x4FAE5420F64c282FD908fdf05930B04E8e079770";
+  const PINTO_CBTC_WELL = "0x3e11226fe3d85142B734ABCe6e58918d5828d1b4";
+
+  // impersonate reserves address
+  const reserves = await impersonateSigner(RESERVES);
+  await mintEth(RESERVES);
+
+  // Get Well contract and tokens
+  const well = await ethers.getContractAt("IWell", PINTO_CBTC_WELL);
+  const tokens = await well.tokens();
+  const pinto = tokens[0];
+  const cbBTC = tokens[1];
+
+  console.log("\nExecuting swap from Pinto to cbBTC...");
+  try {
+    // Get current fee data to base our txn fees on
+    const feeData = await ethers.provider.getFeeData();
+
+    // Multiply the fees to ensure they're high enough (this took some trial and error)
+    const adjustedMaxFeePerGas = feeData.maxFeePerGas.mul(5);
+    const adjustedPriorityFeePerGas = feeData.maxPriorityFeePerGas.mul(2);
+
+    const txParams = {
+      maxFeePerGas: adjustedMaxFeePerGas,
+      maxPriorityFeePerGas: adjustedPriorityFeePerGas,
+      gasLimit: 1000000
+    };
+
+    console.log("Adjusted Tx Params:", {
+      maxFeePerGas: adjustedMaxFeePerGas.toString(),
+      maxPriorityFeePerGas: adjustedPriorityFeePerGas.toString(),
+      gasLimit: txParams.gasLimit
+    });
+
+    // withdraw from internal balance
+    console.log("\nTransferring Pinto from internal to external balance...");
+    const transferTx = await beanstalk.connect(reserves).transferInternalTokenFrom(
+      PINTO, // token address
+      RESERVES, // sender
+      RESERVES, // recipient
+      to6("26000"), // amount
+      0, // toMode (0 for external)
+      txParams // gas parameters
+    );
+
+    var receipt = await transferTx.wait();
+    console.log("Transfer complete!");
+    console.log("Transaction hash:", transferTx.hash);
+    console.log("Gas used:", receipt.gasUsed.toString());
+
+    // approve spending pinto to the well
+    console.log("\nApproving Pinto spend to Well...");
+    const pintoToken = await ethers.getContractAt("IERC20", pinto);
+    const approveTx = await pintoToken
+      .connect(reserves)
+      .approve(well.address, ethers.constants.MaxUint256, txParams);
+    receipt = await approveTx.wait();
+    console.log("Approval complete!");
+    console.log("Transaction hash:", approveTx.hash);
+    console.log("Gas used:", receipt.gasUsed.toString());
+
+    // log pinto balance of reserves
+    const pintoBalance = await pintoToken.balanceOf(reserves.address);
+    console.log("\nPinto balance of reserves:", pintoBalance.toString());
+
+    // Execute swap
+    const amountIn = to6("26000"); // 26000 Pinto with 6 decimals
+    const deadline = ethers.constants.MaxUint256;
+
+    console.log("Swapping...");
+    const tx = await well.connect(reserves).swapFrom(
+      pinto, // fromToken
+      cbBTC, // toToken
+      amountIn, // amountIn
+      0, // minAmountOut (0 for testing)
+      reserves.address, // recipient
+      deadline, // deadline
+      txParams
+    );
+
+    receipt = await tx.wait();
+    console.log("Swap complete!");
+    console.log("Transaction hash:", tx.hash);
+    console.log("Gas used:", receipt.gasUsed.toString());
+  } catch (error) {
+    console.error("Error during swap:", error);
+    throw error;
+  }
+
+  // Get initial max temperature
+  const initialMaxTemp = await beanstalk.maxTemperature();
+  console.log("\nInitial max temperature:", initialMaxTemp.toString());
+
+  // Run the upgrade
+  console.log("\nRunning temp-changes-upgrade...");
+  await hre.run("PI-3");
+
+  // Run sunrise
+  console.log("\nRunning sunrise...");
+  await hre.run("callSunrise");
+
+  // Get final max temperature
+  const finalMaxTemp = await beanstalk.maxTemperature();
+  console.log("\nFinal max temperature:", finalMaxTemp.toString());
+
+  // Log the difference
+  console.log("\nTemperature change:", finalMaxTemp.sub(initialMaxTemp).toString());
+});
+
+task("PI-3", "Deploys Pinto improvment set 3").setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    // await hre.run("updateOracleTimeouts");
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [
+      "ConvertFacet",
+      "PipelineConvertFacet",
+      "FieldFacet",
+      "SeasonFacet",
+      "ApprovalFacet",
+      "ConvertGettersFacet",
+      "ClaimFacet",
+      "SiloFacet",
+      "SiloGettersFacet",
+      "SeasonGettersFacet"
+    ],
+    libraryNames: [
+      "LibConvert",
+      "LibPipelineConvert",
+      "LibSilo",
+      "LibTokenSilo",
+      "LibEvaluate",
+      "LibGauge",
+      "LibIncentive",
+      "LibShipping",
+      "LibWellMinting",
+      "LibFlood",
+      "LibGerminate",
+      "LibDibbler",
+      "LibCases"
+    ],
+    facetLibraries: {
+      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      SeasonFacet: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate"
+      ],
+      ClaimFacet: ["LibSilo", "LibTokenSilo"],
+      SiloFacet: ["LibSilo", "LibTokenSilo"],
+      SeasonGettersFacet: ["LibWellMinting"]
+    },
+    initArgs: [],
+    initFacetName: "InitPI3",
     object: !mock,
     verbose: true,
     account: owner
@@ -449,7 +640,7 @@ task("getTokens", "Gets tokens to an address")
       await setBalanceAtSlot(
         tokenAddress,
         taskArgs.receiver,
-        addressToSlotMap[tokenAddress],
+        addressToBalanceSlotMap[tokenAddress],
         amount,
         false
       );
@@ -737,24 +928,28 @@ task("resolveUpgradeDependencies", "Resolves upgrade dependencies")
     "Comma-separated list of library names that were changed in the upgrade"
   )
   .setAction(async function (taskArgs) {
-    // compile first to update the artifacts
+    // Compile first to update the artifacts
     console.log("Compiling contracts to get updated artifacts...");
     await hre.run("compile");
-    let facetNames;
-    let libraryNames;
-    // get the facet and library names
+    let facetNames = [];
+    let libraryNames = [];
+    // Validate input
     if (!taskArgs.facets && !taskArgs.libraries) {
       throw new Error("Either 'facets' or 'libraries' parameters are required.");
     }
-    if (!taskArgs.facets) {
-      console.log("No facets changed, resolving dependencies for libraries only");
-      taskArgs.facets = [];
-      libraryNames = taskArgs.libraries.split(",");
+    // Process 'facets' if provided
+    if (taskArgs.facets) {
+      facetNames = taskArgs.facets.split(",").map((name) => name.trim());
+      console.log("Resolving dependencies for facets:", facetNames);
+    } else {
+      console.log("No facets changed, resolving dependencies for libraries only.");
     }
-    if (!taskArgs.libraries) {
-      console.log("No libraries changed, resolving dependencies for facets only");
-      taskArgs.libraries = [];
-      facetNames = taskArgs.facets.split(",");
+    // Process 'libraries' if provided
+    if (taskArgs.libraries) {
+      libraryNames = taskArgs.libraries.split(",").map((name) => name.trim());
+      console.log("Resolving dependencies for libraries:", libraryNames);
+    } else {
+      console.log("No libraries changed, resolving dependencies for facets only.");
     }
     resolveDependencies(facetNames, libraryNames);
   });
@@ -805,7 +1000,7 @@ task("singleSidedDeposits", "Deposits non-bean tokens into wells and then into b
       try {
         // Set token balance and approve
         console.log(`Setting balance and approving ${tokenName}`);
-        const balanceSlot = addressToSlotMap[tokens[1]];
+        const balanceSlot = addressToBalanceSlotMap[tokens[1]];
         await setBalanceAtSlot(tokens[1], taskArgs.account, balanceSlot, amount, false);
         await nonBeanToken.connect(signer).approve(wells[i], ethers.constants.MaxUint256);
 

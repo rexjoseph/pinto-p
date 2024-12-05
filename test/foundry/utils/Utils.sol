@@ -16,11 +16,18 @@ contract Utils is Test {
     address payable constant BEANSTALK =
         payable(address(0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5));
 
+    address constant PINTO = address(0xD1A0D188E861ed9d15773a2F3574a2e94134bA8f);
+
+    // bean tokens
+    address constant L2_PINTO = address(0xb170000aeeFa790fa61D6e837d1035906839a3c8);
+
     address internal constant BEAN = 0xBEA0000029AD1c77D3d5D23Ba2D8893dB9d1Efab;
     address internal constant WETH = LibWeth.WETH;
     address internal constant L1_WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address internal constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address internal constant USDC_BASE = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+    address internal constant USDC_MINTER_BASE = 0x880AD1D79c50f9FA0050CDdAd139E52e06B9C725;
     address internal constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
     address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address internal constant BEAN_ETH_WELL = 0xBEA0e11282e2bB5893bEcE110cF199501e872bAd;

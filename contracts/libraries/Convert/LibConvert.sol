@@ -97,15 +97,14 @@ library LibConvert {
                 convertData
             );
         } else if (kind == LibConvertData.ConvertKind.ANTI_LAMBDA_LAMBDA) {
-            revert("Convert: Anti-lambda-lambda not supported");
-            // (
-            //     cp.toToken,
-            //     cp.fromToken,
-            //     cp.toAmount,
-            //     cp.fromAmount,
-            //     cp.account,
-            //     cp.decreaseBDV
-            // ) = LibLambdaConvert.antiConvert(convertData);
+            (
+                cp.toToken,
+                cp.fromToken,
+                cp.toAmount,
+                cp.fromAmount,
+                cp.account,
+                cp.decreaseBDV
+            ) = LibLambdaConvert.antiConvert(convertData);
         } else {
             revert("Convert: Invalid payload");
         }
@@ -437,18 +436,22 @@ library LibConvert {
         uint256[] memory amounts,
         uint256 maxTokens,
         address user
-    ) internal returns (uint256, uint256) {
+    ) internal returns (uint256, uint256, uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         require(stems.length == amounts.length, "Convert: stems, amounts are diff lengths.");
 
         AssetsRemovedConvert memory a;
         uint256 i = 0;
+        uint256 stalkIssuedPerBdv;
 
         // a bracket is included here to avoid the "stack too deep" error.
         {
             a.bdvsRemoved = new uint256[](stems.length);
             a.stalksRemoved = new uint256[](stems.length);
             a.depositIds = new uint256[](stems.length);
+
+            // calculated here to avoid stack too deep error.
+            stalkIssuedPerBdv = LibTokenSilo.stalkIssuedPerBdv(token);
 
             // get germinating stem and stemTip for the token
             LibGerminate.GermStem memory germStem = LibGerminate.getGerminatingStem(token);
@@ -505,11 +508,12 @@ library LibConvert {
         LibTokenSilo.decrementTotalDeposited(token, a.active.tokens, a.active.bdv);
 
         // all deposits converted are not germinating.
-        LibSilo.burnActiveStalk(
+        (, uint256 deltaRainRoots) = LibSilo.burnActiveStalk(
             user,
-            a.active.stalk.add(a.active.bdv.mul(s.sys.silo.assetSettings[token].stalkIssuedPerBdv))
+            a.active.stalk.add(a.active.bdv.mul(stalkIssuedPerBdv))
         );
-        return (a.active.stalk, a.active.bdv);
+
+        return (a.active.stalk, a.active.bdv, deltaRainRoots);
     }
 
     function _depositTokensForConvert(
@@ -517,6 +521,7 @@ library LibConvert {
         uint256 amount,
         uint256 bdv,
         uint256 grownStalk,
+        uint256 deltaRainRoots,
         address user
     ) internal returns (int96 stem) {
         require(bdv > 0 && amount > 0, "Convert: BDV or amount is 0.");
@@ -536,6 +541,8 @@ library LibConvert {
                 user,
                 bdv.mul(LibTokenSilo.stalkIssuedPerBdv(token)).add(grownStalk)
             );
+            // if needed, credit previously burned rain roots from withdrawal to the user.
+            if (deltaRainRoots > 0) LibSilo.mintRainRoots(user, deltaRainRoots);
         } else {
             LibTokenSilo.incrementTotalGerminating(token, amount, bdv, side);
             // safeCast not needed as stalk is <= max(uint128)

@@ -89,7 +89,8 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
 
         // withdraw tokens from deposits and calculate the total grown stalk and bdv.
         uint256 grownStalk;
-        (grownStalk, fromBdv) = LibConvert._withdrawTokens(
+        uint256 deltaRainRoots;
+        (grownStalk, fromBdv, deltaRainRoots) = LibConvert._withdrawTokens(
             inputToken,
             stems,
             amounts,
@@ -111,6 +112,7 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
             toAmount,
             toBdv,
             grownStalk,
+            deltaRainRoots,
             LibTractor._user()
         );
 

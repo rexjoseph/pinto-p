@@ -768,7 +768,8 @@ interface IMockFBeanstalk {
         address token,
         uint256 amount,
         uint256 bdv,
-        uint256 grownStalk
+        uint256 grownStalk,
+        uint256 deltaRainRoots
     ) external;
 
     function determineReward(uint256 secondsLate) external view returns (uint256);
@@ -831,6 +832,8 @@ interface IMockFBeanstalk {
         uint256 amount,
         uint8 mode
     ) external payable;
+
+    function floodHarvestablePods() external view returns (uint256);
 
     function forceSunrise() external;
 
@@ -1235,6 +1238,8 @@ interface IMockFBeanstalk {
 
     function incrementTotalSoilE(uint128 amount) external;
 
+    function initialSoil() external view returns (uint256);
+
     function initOracleForAllWhitelistedWells() external;
 
     function isApprovedForAll(address _owner, address _operator) external view returns (bool);
@@ -1263,7 +1268,7 @@ interface IMockFBeanstalk {
 
     function mockBDVIncrease(uint256 amount) external pure returns (uint256);
 
-    function mockCalcCaseIdandUpdate(int256 deltaB) external returns (uint256 caseId);
+    function mockcalcCaseIdAndHandleRain(int256 deltaB) external returns (uint256 caseId);
 
     function mockChangeBDVSelector(address token, bytes4 selector) external;
 

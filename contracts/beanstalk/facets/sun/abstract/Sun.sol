@@ -45,8 +45,11 @@ abstract contract Sun is Oracle, Distribution {
             s.sys.season.standardMintedBeans = uint256(deltaB);
             BeanstalkERC20(s.sys.bean).mint(address(this), uint256(deltaB));
             LibShipping.ship(uint256(deltaB));
+            uint256 newHarvestable = s.sys.fields[s.sys.activeField].harvestable -
+                priorHarvestable +
+                s.sys.rain.floodHarvestablePods;
+            setSoilAbovePeg(newHarvestable, caseId);
 
-            setSoilAbovePeg(s.sys.fields[s.sys.activeField].harvestable - priorHarvestable, caseId);
             s.sys.season.abovePeg = true;
         } else {
             setSoilBelowPeg(deltaB);
@@ -69,7 +72,7 @@ abstract contract Sun is Oracle, Distribution {
      */
     function setSoilAbovePeg(uint256 newHarvestable, uint256 caseId) internal {
         uint256 newSoil = newHarvestable.mul(100).div(100 + s.sys.weather.temp);
-        if (caseId.mod(36) >= 24) {
+        if (caseId.mod(36) >= 27) {
             newSoil = newSoil.mul(s.sys.evaluationParameters.soilCoefficientHigh).div(C.PRECISION); // high podrate
         } else if (caseId.mod(36) < 8) {
             newSoil = newSoil.mul(s.sys.evaluationParameters.soilCoefficientLow).div(C.PRECISION); // low podrate

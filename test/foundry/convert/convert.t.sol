@@ -7,6 +7,7 @@ import {IWell, IERC20} from "contracts/interfaces/basin/IWell.sol";
 import {MockConvertFacet} from "contracts/mocks/mockFacets/MockConvertFacet.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
+import "forge-std/console.sol";
 
 /**
  * @title ConvertTest
@@ -677,6 +678,124 @@ contract ConvertTest is TestHelper {
         (amount, bdv) = bs.getDeposit(farmers[0], well, 2e6);
         assertEq(amount, lpCombined, "new deposit dne lpMinted");
         assertApproxEqAbs(bdv, bs.bdv(well, lpCombined), 2, "new deposit dne bdv");
+    }
+
+    ///////////////////// CONVERT RAIN ROOTS /////////////////////
+
+    function test_convertBeanToWell_retainRainRoots(uint256 deltaB, uint256 beansConverted) public {
+        // deposit and end germination
+        multipleBeanDepositSetup();
+
+        season.rainSunrise(); // start raining
+        season.rainSunrise(); // sop
+
+        // mow to get rain roots
+        bs.mow(farmers[0], BEAN);
+
+        // bound fuzzed values
+        deltaB = bound(deltaB, 100, 7000e6);
+        setDeltaBforWell(int256(deltaB), well, WETH);
+        beansConverted = bound(beansConverted, 100, deltaB);
+
+        // snapshot rain roots state
+        uint256 expectedAmtOut = bs.getAmountOut(BEAN, well, beansConverted);
+        uint256 expectedFarmerRainRoots = bs.balanceOfRainRoots(farmers[0]);
+        uint256 expectedTotalRainRoots = bs.totalRainRoots();
+
+        // create encoding for a bean -> well convert.
+        bytes memory convertData = convertEncoder(
+            LibConvertData.ConvertKind.BEANS_TO_WELL_LP,
+            well, // well
+            beansConverted, // amountIn
+            0 // minOut
+        );
+
+        // convert beans to well
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = beansConverted;
+        vm.expectEmit();
+        emit Convert(farmers[0], BEAN, well, beansConverted, expectedAmtOut);
+        vm.prank(farmers[0]);
+        convert.convert(convertData, new int96[](1), amounts);
+
+
+        // assert that the farmer did not lose any rain roots as a result of the convert
+        assertEq(
+            bs.totalRainRoots(),
+            expectedTotalRainRoots,
+            "total rain roots should not change after convert"
+        );
+
+        assertEq(
+            bs.balanceOfRainRoots(farmers[0]),
+            expectedFarmerRainRoots,
+            "rain roots of user should not change after convert"
+        );
+    }
+
+    function test_convertWellToBean_retainRainRoots(uint256 deltaB, uint256 lpConverted) public {
+        // deposit and end germination
+        uint256 lpMinted = multipleWellDepositSetup();
+
+        season.rainSunrise(); // start raining
+        season.rainSunrise(); // sop
+
+        // mow to get rain roots
+        bs.mow(farmers[0], BEAN);
+
+        // snapshot rain roots state
+        uint256 expectedFarmerRainRoots = bs.balanceOfRainRoots(farmers[0]);
+        uint256 expectedTotalRainRoots = bs.totalRainRoots();
+
+        // bound the fuzzed values
+        uint256 minLp = getMinLPin();
+        deltaB = bound(deltaB, 1e6, 1000 ether);
+        setReserves(well, bean.balanceOf(well) + deltaB, weth.balanceOf(well));
+        uint256 initalWellBeanBalance = bean.balanceOf(well);
+        uint256 initalLPbalance = MockToken(well).totalSupply();
+        uint256 initalBeanBalance = bean.balanceOf(BEANSTALK);
+
+        uint256 maxLpIn = bs.getMaxAmountIn(well, BEAN);
+        lpConverted = bound(lpConverted, minLp, lpMinted / 2);
+
+        // if the maximum LP that can be used is less than
+        // the amount that the user wants to convert,
+        // cap the amount to the maximum LP that can be used.
+        if (lpConverted > maxLpIn) lpConverted = maxLpIn;
+
+        uint256 expectedAmtOut = bs.getAmountOut(well, BEAN, lpConverted);
+
+        // create encoding for a well -> bean convert.
+        bytes memory convertData = convertEncoder(
+            LibConvertData.ConvertKind.WELL_LP_TO_BEANS,
+            well, // well
+            lpConverted, // amountIn
+            0 // minOut
+        );
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = lpConverted;
+
+        vm.expectEmit();
+        emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut);
+
+        // convert well lp to beans
+        vm.prank(farmers[0]);
+        (int96 toStem, , , , ) = convert.convert(convertData, new int96[](1), amounts);
+        int96 germinatingStem = bs.getGerminatingStem(address(well));
+
+        // assert that the farmer did not lose any rain roots as a result of the convert
+        assertEq(
+            bs.totalRainRoots(),
+            expectedTotalRainRoots,
+            "total rain roots should not change after convert"
+        );
+
+        assertEq(
+            bs.balanceOfRainRoots(farmers[0]),
+            expectedFarmerRainRoots,
+            "rain roots of user should not change after convert"
+        );
     }
 
     //////////// REVERT ON PENALTY ////////////

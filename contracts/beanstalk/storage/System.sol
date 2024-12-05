@@ -186,7 +186,8 @@ struct SeedGauge {
 struct Rain {
     uint256 pods;
     uint256 roots;
-    bytes32[4] _buffer;
+    uint128 floodHarvestablePods;
+    bytes32[3] _buffer;
 }
 
 /**

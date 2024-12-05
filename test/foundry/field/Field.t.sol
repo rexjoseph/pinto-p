@@ -105,7 +105,7 @@ contract FieldTest is TestHelper {
         }
 
         _beforeEachSow(soil, soil, from == true ? 1 : 0);
-        sowAssertEq(farmers[0], beanBalanceBefore, totalBeanSupplyBefore, soil, (soil * 101) / 100);
+        sowAssertEq(farmers[0], beanBalanceBefore, totalBeanSupplyBefore, soil, _minPods(soil));
         assertEq(field.totalSoil(), 0, "total Soil");
     }
 
@@ -133,7 +133,7 @@ contract FieldTest is TestHelper {
             beanBalanceBefore,
             totalBeanSupplyBefore,
             beansToSow,
-            (beansToSow * 101) / 100
+            _minPods(beansToSow)
         );
         assertEq(uint256(field.totalSoil()), soil - beansToSow, "total Soil");
     }
@@ -168,7 +168,7 @@ contract FieldTest is TestHelper {
             beanBalanceBefore,
             totalBeanSupplyBefore,
             beansToSow,
-            (beansToSow * 101) / 100
+            _minPods(beansToSow)
         );
         assertEq(field.totalSoil(), soil - beansToSow, "total Soil");
     }
@@ -202,7 +202,7 @@ contract FieldTest is TestHelper {
             beanBalanceBefore,
             totalBeanSupplyBefore,
             amountSown,
-            (amountSown * 101) / 100
+            _minPods(amountSown)
         );
 
         assertEq(field.totalSoil(), 0);
@@ -231,8 +231,8 @@ contract FieldTest is TestHelper {
         ) = beforeEachSow2farmers(soilAvailable, farmers[0], farmer1Sow, farmers[1], farmer2Sow);
 
         uint256 totalAmountSown = farmer1Sow + farmer2Sow;
-        uint256 farmer1Pods = (farmer1Sow * 101) / 100;
-        uint256 farmer2Pods = (farmer2Sow * 101) / 100;
+        uint256 farmer1Pods = _minPods(farmer1Sow);
+        uint256 farmer2Pods = _minPods(farmer2Sow);
         uint256 totalPodsIssued = farmer1Pods + farmer2Pods;
 
         assertEq(
@@ -281,11 +281,16 @@ contract FieldTest is TestHelper {
         assertEq(uint256(w.thisSowTime), type(uint32).max);
     }
 
+    function _minPods(uint256 sowAmount) internal view returns (uint256) {
+        // 1% of max temperature.
+        return sowAmount + (sowAmount * bs.maxTemperature()) / 1e6 / 100 / 100;
+    }
+
     function _beforeEachSow(uint256 soilAmount, uint256 sowAmount, uint8 from) public {
-        vm.roll(30);
+        // vm.roll(30);
         season.setSoilE(soilAmount);
         vm.expectEmit();
-        emit Sow(farmers[0], 0, 0, sowAmount, (sowAmount * 101) / 100);
+        emit Sow(farmers[0], 0, 0, sowAmount, _minPods(sowAmount)); // 1% of 1%
         vm.prank(farmers[0]);
         if (from == 0) {
             field.sow(sowAmount, 0, LibTransfer.From.EXTERNAL);
@@ -308,11 +313,11 @@ contract FieldTest is TestHelper {
         uint256 sowAmount,
         uint256 internalBalance
     ) public {
-        vm.roll(30);
+        // vm.roll(30);
         season.setSoilE(soilAmount);
         vm.expectEmit();
         if (internalBalance > sowAmount) internalBalance = sowAmount;
-        emit Sow(farmers[0], 0, 0, internalBalance, (internalBalance * 101) / 100);
+        emit Sow(farmers[0], 0, 0, internalBalance, _minPods(internalBalance));
         vm.prank(farmers[0]);
         field.sow(sowAmount, 0, LibTransfer.From.INTERNAL_TOLERANT);
     }
@@ -330,9 +335,10 @@ contract FieldTest is TestHelper {
         if (amount0 > soil) amount0 = soil;
         soil -= amount0;
 
+        uint256 expectedPodsFarmer0 = _minPods(amount0);
         vm.startPrank(farmer0);
         vm.expectEmit(true, true, true, true);
-        emit Sow(farmer0, 0, 0, amount0, (amount0 * 101) / 100);
+        emit Sow(farmer0, 0, 0, amount0, expectedPodsFarmer0);
         field.sowWithMin(amount0, 0, 0, LibTransfer.From.EXTERNAL);
         vm.stopPrank();
 
@@ -341,9 +347,10 @@ contract FieldTest is TestHelper {
         if (amount1 > soil) amount1 = soil;
         soil -= amount1;
 
+        uint256 expectedPodsFarmer1 = _minPods(amount1);
         vm.startPrank(farmer1);
         vm.expectEmit(true, true, true, true);
-        emit Sow(farmer1, 0, (amount0 * 101) / 100, amount1, (amount1 * 101) / 100);
+        emit Sow(farmer1, 0, expectedPodsFarmer0, amount1, expectedPodsFarmer1);
         field.sowWithMin(amount1, 0, 0, LibTransfer.From.EXTERNAL);
         vm.stopPrank();
 
@@ -382,7 +389,7 @@ contract FieldTest is TestHelper {
         assertEq(plotIndexes.length, 0, "plotIndexes length");
 
         sowAmount = bound(sowAmount, 100, type(uint128).max);
-        uint256 pods = (sowAmount * 101) / 100;
+        uint256 pods = _minPods(sowAmount);
         portion = bound(portion, 1, pods - 1);
         field.incrementTotalHarvestableE(activeField, portion);
         sowAmountForFarmer(farmers[0], sowAmount);
@@ -449,7 +456,7 @@ contract FieldTest is TestHelper {
             sowAmountForFarmer(farmers[0], sowAmount);
         }
         verifyPlotIndexAndPlotLengths(farmers[0], activeField, sows);
-        uint256 pods = (sowAmount * 101) / 100;
+        uint256 pods = _minPods(sowAmount);
         MockFieldFacet.Plot[] memory plots = field.getPlotsFromAccount(farmers[0], activeField);
         for (uint256 i; i < sows; i++) {
             assertEq(plots[i].index, i * pods, "plotIndexes");
@@ -536,7 +543,7 @@ contract FieldTest is TestHelper {
             }
         }
 
-        uint256 pods = (sowAmount * 101) / 100;
+        uint256 pods = _minPods(sowAmount);
         MockFieldFacet.Plot[] memory plots;
         for (uint256 j; j < field.fieldCount(); j++) {
             verifyPlotIndexAndPlotLengths(farmers[0], j, sowsPerField);

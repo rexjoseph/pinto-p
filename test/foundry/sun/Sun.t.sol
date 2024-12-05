@@ -8,6 +8,9 @@ import {IWell, IERC20, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
+import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
+import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
+import "forge-std/console.sol";
 
 /**
  * @notice Tests the functionality of the sun, the distrubution of beans and soil.
@@ -19,6 +22,9 @@ contract SunTest is TestHelper {
 
     uint256 constant SUPPLY_BUDGET_FLIP = 1_000_000_000e6;
 
+    using PRBMath for uint256;
+    using LibPRBMathRoundable for uint256;
+
     function setUp() public {
         initializeBeanstalkTestState(true, true);
     }
@@ -27,7 +33,7 @@ contract SunTest is TestHelper {
      * @notice tests bean issuance with only the silo.
      * @dev 100% of new bean signorage should be issued to the silo.
      */
-    function test_sunOnlySilo(int256 deltaB, uint256 caseId) public {
+    function test_sunOnlySilo(int256 deltaB, uint256 caseId, uint256 blocksToRoll) public {
         uint32 currentSeason = bs.season();
         uint256 initialBeanBalance = bean.balanceOf(BEANSTALK);
         uint256 initalPods = bs.totalUnharvestable(0);
@@ -39,6 +45,9 @@ contract SunTest is TestHelper {
             -int256(uint256(type(uint128).max)),
             int256(uint256(type(uint128).max))
         );
+
+        blocksToRoll = bound(blocksToRoll, 0, 30);
+        vm.roll(blocksToRoll);
 
         // soil event check.
         uint256 soilIssued;
@@ -100,17 +109,22 @@ contract SunTest is TestHelper {
         bs.incrementTotalPodsE(0, podsInField);
 
         // soil event check.
-        uint256 soilIssued;
+        uint256 soilIssuedAfterMorningAuction;
+        uint256 soilIssuedRightNow;
         uint256 beansToField;
         uint256 beansToSilo;
         if (deltaB > 0) {
             (beansToField, beansToSilo) = calcBeansToFieldAndSilo(uint256(deltaB), podsInField);
-            soilIssued = getSoilIssuedAbovePeg(beansToField, caseId);
+            (soilIssuedAfterMorningAuction, soilIssuedRightNow) = getSoilIssuedAbovePeg(
+                beansToField,
+                caseId
+            );
         } else {
-            soilIssued = uint256(-deltaB);
+            soilIssuedAfterMorningAuction = uint256(-deltaB);
+            soilIssuedRightNow = uint256(-deltaB);
         }
         vm.expectEmit();
-        emit Soil(currentSeason + 1, soilIssued);
+        emit Soil(currentSeason + 1, soilIssuedAfterMorningAuction);
 
         season.sunSunrise(deltaB, caseId);
 
@@ -121,7 +135,7 @@ contract SunTest is TestHelper {
         // 3) totalunharvestable() should decrease by the amount issued to the field.
         if (deltaB >= 0) {
             assertEq(bean.balanceOf(BEANSTALK), uint256(deltaB), "invalid bean minted +deltaB");
-            assertEq(bs.totalSoil(), soilIssued, "invalid soil @ +deltaB");
+            assertEq(bs.totalSoil(), soilIssuedRightNow, "invalid soil @ +deltaB");
             assertEq(
                 bs.totalUnharvestable(0),
                 podsInField - beansToField,
@@ -136,7 +150,7 @@ contract SunTest is TestHelper {
                 0,
                 "invalid bean minted -deltaB"
             );
-            assertEq(bs.totalSoil(), soilIssued, "invalid soil @ -deltaB");
+            assertEq(bs.totalSoil(), soilIssuedRightNow, "invalid soil @ -deltaB");
             assertEq(bs.totalUnharvestable(0), podsInField, "invalid pods @ -deltaB");
         }
     }
@@ -237,8 +251,11 @@ contract SunTest is TestHelper {
                     podsInField1 -= beansToField1;
 
                     // Verify soil amount. Field 1 is the active Field.
-                    uint256 soilIssued = getSoilIssuedAbovePeg(beansToField1, caseId);
-                    assertEq(bs.totalSoil(), soilIssued, "invalid soil @ +deltaB");
+                    (
+                        uint256 soilIssuedAfterMorningAuction,
+                        uint256 soilIssuedRightNow
+                    ) = getSoilIssuedAbovePeg(beansToField1, caseId);
+                    assertEq(bs.totalSoil(), soilIssuedRightNow, "invalid soil @ +deltaB");
                 }
 
                 // Verify amount of change in Silo. Min of 5/11 mints.
@@ -339,8 +356,11 @@ contract SunTest is TestHelper {
                     podsInField0 -= beanToField0;
 
                     // Verify soil amount. Field 0 is the active Field.
-                    uint256 soilIssued = getSoilIssuedAbovePeg(beanToField0, caseId);
-                    assertEq(bs.totalSoil(), soilIssued, "invalid soil @ +deltaB");
+                    (
+                        uint256 soilIssuedAfterMorningAuction,
+                        uint256 soilIssuedRightNow
+                    ) = getSoilIssuedAbovePeg(beanToField0, caseId);
+                    assertEq(bs.totalSoil(), soilIssuedRightNow, "invalid soil @ +deltaB");
                 }
 
                 // Verify amount of change in Field 1.
@@ -634,13 +654,22 @@ contract SunTest is TestHelper {
     function getSoilIssuedAbovePeg(
         uint256 podsRipened,
         uint256 caseId
-    ) internal view returns (uint256 soilIssued) {
-        soilIssued = (podsRipened * 100) / (100 + (bs.maxTemperature() / 1e6));
-        if (caseId % 36 >= 24) {
-            soilIssued = (soilIssued * 0.5e18) / 1e18; // high podrate
+    ) internal view returns (uint256 soilIssuedAfterMorningAuction, uint256 soilIssuedRightNow) {
+        uint256 TEMPERATURE_PRECISION = 1e6;
+        uint256 ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
+
+        soilIssuedAfterMorningAuction = (podsRipened * 100) / (100 + (bs.maxTemperature() / 1e6));
+
+        if (caseId % 36 >= 27) {
+            soilIssuedAfterMorningAuction = (soilIssuedAfterMorningAuction * 0.5e18) / 1e18; // high podrate
         } else if (caseId % 36 < 8) {
-            soilIssued = (soilIssued * 1.5e18) / 1e18; // low podrate
+            soilIssuedAfterMorningAuction = (soilIssuedAfterMorningAuction * 1.5e18) / 1e18; // low podrate
         }
+
+        soilIssuedRightNow = soilIssuedAfterMorningAuction.mulDiv(
+            bs.maxTemperature() + ONE_HUNDRED_TEMP,
+            bs.temperature() + ONE_HUNDRED_TEMP
+        );
     }
 
     function setInstantaneousReserves(address well, uint256 reserve0, uint256 reserve1) public {
