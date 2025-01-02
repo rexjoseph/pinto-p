@@ -31,8 +31,15 @@ library LibFlood {
      * @param well The Well that the SOP occurred in.
      * @param token The token that was swapped for Beans.
      * @param amount The amount of tokens which was received for swapping Beans.
+     * @param beans The amount of Beans which were minted to the Well.
      */
-    event SeasonOfPlentyWell(uint256 indexed season, address well, address token, uint256 amount);
+    event SeasonOfPlentyWell(
+        uint256 indexed season,
+        address well,
+        address token,
+        uint256 amount,
+        uint256 beans
+    );
 
     /**
      * @notice Emitted when Beans are minted to the Field during the Season of Plenty.
@@ -48,6 +55,13 @@ library LibFlood {
      * @dev formula: L_n = L_n-1 +/- bL
      */
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
+
+    /**
+     * @notice Emitted when the rain status changes.
+     * @param season The current Season
+     * @param raining True if it started raining this season, false if it stopped raining.
+     */
+    event RainStatus(uint256 indexed season, bool raining);
 
     // @dev In-memory struct used to store current deltaB, and then reduction amount per-well.
     struct WellDeltaB {
@@ -71,6 +85,7 @@ library LibFlood {
         if (caseId.mod(36) < 3 || caseId.mod(36) > 8) {
             if (s.sys.season.raining) {
                 s.sys.season.raining = false;
+                emit RainStatus(s.sys.season.current, false);
             }
             return;
         } else if (!s.sys.season.raining) {
@@ -111,6 +126,7 @@ library LibFlood {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         s.sys.season.raining = true;
+        emit RainStatus(s.sys.season.current, true);
         address[] memory wells = LibWhitelistedTokens.getCurrentlySoppableWellLpTokens();
         // Set the plenty per root equal to previous rain start.
         uint32 season = s.sys.season.current;
@@ -388,7 +404,8 @@ library LibFlood {
                 s.sys.season.current,
                 wellDeltaB.well,
                 address(sopToken),
-                amountOut
+                amountOut,
+                sopBeans
             );
         }
     }

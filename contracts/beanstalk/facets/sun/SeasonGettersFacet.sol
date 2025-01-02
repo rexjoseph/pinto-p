@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 
 import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
-import {Season, Weather, Rain, EvaluationParameters, Deposited, AssetSettings} from "contracts/beanstalk/storage/System.sol";
+import {Season, Weather, Rain, EvaluationParameters, ExtEvaluationParameters, Deposited, AssetSettings} from "contracts/beanstalk/storage/System.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {LibUsdOracle} from "contracts/libraries/Oracle/LibUsdOracle.sol";
@@ -160,6 +160,13 @@ contract SeasonGettersFacet {
     }
 
     /**
+     * @notice Returns the total instantaneous Delta B across all whitelisted Wells.
+     */
+    function totalInstantaneousDeltaB() external view returns (int256) {
+        return LibWellMinting.getTotalInstantaneousDeltaB();
+    }
+
+    /**
      * @notice Returns the last Well Oracle Snapshot for a given `well`.
      * @return snapshot The encoded cumulative balances the last time the Oracle was captured.
      */
@@ -224,12 +231,12 @@ contract SeasonGettersFacet {
         return LibCases.getDataFromCase(caseId);
     }
 
-    function getChangeFromCaseId(uint256 caseId) public view returns (uint32, int8, uint80, int80) {
+    function getChangeFromCaseId(uint256 caseId) public view returns (uint32, int32, uint80, int80) {
         LibCases.CaseData memory cd = LibCases.decodeCaseData(caseId);
         return (cd.mT, cd.bT, cd.mL, cd.bL);
     }
 
-    function getAbsTemperatureChangeFromCaseId(uint256 caseId) external view returns (int8 t) {
+    function getAbsTemperatureChangeFromCaseId(uint256 caseId) external view returns (int32 t) {
         (, t, , ) = getChangeFromCaseId(caseId);
         return t;
     }
@@ -263,6 +270,10 @@ contract SeasonGettersFacet {
 
     function getEvaluationParameters() external view returns (EvaluationParameters memory) {
         return s.sys.evaluationParameters;
+    }
+
+    function getExtEvaluationParameters() external view returns (ExtEvaluationParameters memory) {
+        return s.sys.extEvaluationParameters;
     }
 
     function getMaxBeanMaxLpGpPerBdvRatio() external view returns (uint256) {

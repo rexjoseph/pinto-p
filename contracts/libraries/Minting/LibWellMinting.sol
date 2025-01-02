@@ -15,6 +15,7 @@ import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {IInstantaneousPump} from "contracts/interfaces/basin/pumps/IInstantaneousPump.sol";
 
 /**
@@ -245,6 +246,17 @@ library LibWellMinting {
             return (deltaB);
         } catch {
             return 0;
+        }
+    }
+
+    /**
+     * @dev Calculates the total instantaneous delta B for all whitelisted Wells.
+     */
+    function getTotalInstantaneousDeltaB() internal view returns (int256 instDeltaB) {
+        address[] memory tokens = LibWhitelistedTokens.getWhitelistedWellLpTokens();
+        for (uint256 i = 0; i < tokens.length; i++) {
+            int256 wellInstDeltaB = instantaneousDeltaB(tokens[i]);
+            instDeltaB += wellInstDeltaB;
         }
     }
 }

@@ -72,6 +72,7 @@ struct System {
     Rain rain;
     EvaluationParameters evaluationParameters;
     SeasonOfPlenty sop;
+    ExtEvaluationParameters extEvaluationParameters;
     // A buffer is not included here, bc current layout of AppStorage makes it unnecessary.
 }
 
@@ -336,6 +337,59 @@ struct Implementation {
     bytes data;
 }
 
+/**
+ * @notice Evaluation parameters used to determine the state of Beanstalk.
+ * Used as hyperparameters in many aspects of the protocol, incluing the SeedGauge.
+ * --------------------------------------------------------------
+ * @param maxBeanMaxLpGpPerBdvRatio The maximum allowed ratio of the Seeds per BDV reward between
+ * Deposited Bean and the Deposited LP token with the most Seeds. 
+ * --------------------------------------------------------------
+ * @param minBeanMaxLpGpPerBdvRatio The minimum allowed ratio of the Seeds per BDV reward between
+ * Deposited Bean and the Deposited LP token with the most Seeds.
+ * --------------------------------------------------------------
+ * @param targetSeasonsToCatchUp Determines the target number of Seasons for a new Deposit with
+ * an average number of Seeds to catch up to the average Grown Stalk per BDV of existing Deposits
+ * at the time of Deposit.
+ * --------------------------------------------------------------
+ * @dev podRate = The protocol debt level (Pod supply) relative to the Pinto supply.
+ * L2SR = the protocol liquidity level relative to the bean supply.
+ * Both metrics are used as a proxy of the protocol's health.
+ * The protocol differentiates between the following 5 states of podRate and L2SR for various evaluations:
+ * - Excessively low podRate/L2SR.
+ * - Reasonably low podRate/L2SR.
+ * - Optimal podRate/L2SR.
+ * - Reasonably high podRate/L2SR.
+ * - Excessively high podRate/L2SR.
+ * The parameters below are used to mark the boundaries between these states.
+ * --------------------------------------------------------------
+ * @param podRateLowerBound The lower bound of the pod rate.
+ * @param podRateOptimal The optimal pod rate.
+ * @param podRateUpperBound The upper bound of the pod rate.
+ * --------------------------------------------------------------
+ * @dev Contrary to podRate and L2SR, there is no delta pod demand that is considered optimal.
+ * @param deltaPodDemandLowerBound The lower bound of the delta pod demand.
+ * @param deltaPodDemandUpperBound The upper bound of the delta pod demand.
+ * --------------------------------------------------------------
+ * @param lpToSupplyRatioUpperBound The upper bound of the LP to supply ratio.
+ * @param lpToSupplyRatioOptimal The optimal LP to supply ratio.
+ * @param lpToSupplyRatioLowerBound The lower bound of the LP to supply ratio.
+ * ----------------------------------------------------------------
+ * @param excessivePriceThreshold The threshold after which the price of bean is considered excessive.
+ * Referenced as Q in the Beanstalk whitepaper. Used to make adjustments in protocol cases. 
+ * See {LibEvaluate.evaluateBeanstalk}, {LibCases.setCasesV2}.
+ * --------------------------------------------------------------
+ * @param soilCoefficientHigh The coefficient to scale soil by when 
+ * podRate > upperBound and beanstalk is above peg.
+ * @param soilCoefficientLow The coefficient to scale soil by when 
+ * podRate < lowerBound and beanstalk is above peg.
+ * --------------------------------------------------------------
+ * @param baseReward The base reward for calling the sunrise function. 
+ * Used to calculate the sunrise incentive that increases as the season is delayed.
+ * @param minAvgGsPerBdv The minimum average grown stalk per BDV.
+ * Determines the floor for seeds of a whitelisted token.
+ * @param rainingMinBeanMaxLpGpPerBdvRatio The minimum Bean Max LP GP per BDV ratio when
+ * podRate is excessively low and P > 1. 
+ */
 struct EvaluationParameters {
     uint256 maxBeanMaxLpGpPerBdvRatio;
     uint256 minBeanMaxLpGpPerBdvRatio;
@@ -354,6 +408,25 @@ struct EvaluationParameters {
     uint256 baseReward;
     uint128 minAvgGsPerBdv;
     uint128 rainingMinBeanMaxLpGpPerBdvRatio;
+}
+
+/**
+ * @notice Extended evaluation parameters.
+ * @param belowPegSoilL2SRScalar The amount to scale L2SR by when adjusting soil below peg.
+ * @param soilCoefficientRelativelyHigh The coefficient to scale soil by when 
+ * optimal <= podRate < upperBound and beanstalk is above peg.
+ * @param soilCoefficientRelativelyLow The coefficient to scale soil by when 
+ * lowerBound <= podRate < optimal and beanstalk is above peg.
+ * @param abovePegDeltaBSoilScalar The scalar for the time weighted average deltaB when
+ * twaDeltaB is negative but beanstalk ended the season above peg.
+ * @param buffer The buffer for future evaluation parameters.
+ */
+struct ExtEvaluationParameters {
+    uint256 belowPegSoilL2SRScalar;
+    uint256 soilCoefficientRelativelyHigh;
+    uint256 soilCoefficientRelativelyLow;
+    uint256 abovePegDeltaBSoilScalar;
+    bytes32[63] buffer;
 }
 
 /**

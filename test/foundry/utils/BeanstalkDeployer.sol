@@ -50,7 +50,8 @@ contract BeanstalkDeployer is Utils {
         "MarketplaceFacet",
         "ClaimFacet",
         "OracleFacet",
-        "GaugeGettersFacet"
+        "GaugeGettersFacet",
+        "TractorFacet"
     ];
 
     // Facets that have a mock counter part should be appended here.

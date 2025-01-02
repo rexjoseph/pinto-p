@@ -101,6 +101,8 @@ contract VerifyDeploymentTest is TestHelper {
 
     function test_verifyEvaluationParams() public {
         IMockFBeanstalk.EvaluationParameters memory evalParams = pinto.getEvaluationParameters();
+        IMockFBeanstalk.ExtEvaluationParameters memory extEvalParams = pinto
+            .getExtEvaluationParameters();
         // log all params
         console.log("-------------------------------");
         console.log("Evaluation Parameters");
@@ -121,6 +123,8 @@ contract VerifyDeploymentTest is TestHelper {
         console.log("soilCoefficientLow: ", evalParams.soilCoefficientLow);
         console.log("baseReward: ", evalParams.baseReward);
         console.log("minAvgGsPerBdv: ", evalParams.minAvgGsPerBdv);
+        console.log("");
+        console.log("belowPegSoilL2SRScalar: ", extEvalParams.belowPegSoilL2SRScalar);
         console.log("-------------------------------");
         assertEq(
             evalParams.maxBeanMaxLpGpPerBdvRatio,
@@ -182,6 +186,10 @@ contract VerifyDeploymentTest is TestHelper {
         assertEq(
             evalParams.minAvgGsPerBdv,
             getGlobalPropertyUint("evaluationParameters.minAvgGsPerBdv")
+        );
+        assertEq(
+            extEvalParams.belowPegSoilL2SRScalar,
+            getGlobalPropertyUint("extEvaluationParameters.belowPegSoilL2SRScalar")
         );
     }
 

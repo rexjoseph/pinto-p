@@ -9,6 +9,7 @@ import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {LibGauge} from "contracts/libraries/LibGauge.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
+import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {Invariable} from "contracts/beanstalk/Invariable.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
@@ -59,9 +60,9 @@ contract SeasonFacet is Invariable, Weather {
         uint32 season = stepSeason();
         int256 deltaB = stepOracle();
         LibGerminate.endTotalGermination(season, LibWhitelistedTokens.getWhitelistedTokens());
-        uint256 caseId = calcCaseIdAndHandleRain(deltaB);
+        (uint256 caseId, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
         LibGauge.stepGauge();
-        stepSun(deltaB, caseId);
+        stepSun(deltaB, caseId, bs);
 
         return incentivize(account, mode);
     }

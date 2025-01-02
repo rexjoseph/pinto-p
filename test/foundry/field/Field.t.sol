@@ -5,6 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
 import {C} from "contracts/C.sol";
+import "forge-std/console.sol";
 
 contract FieldTest is TestHelper {
     // events
@@ -26,6 +27,9 @@ contract FieldTest is TestHelper {
 
         // max approve.
         maxApproveBeanstalk(farmers);
+
+        // set max temperature to 1% = 1e6
+        bs.setMaxTempE(1e6);
     }
 
     //////////////// REVERTS ////////////////
@@ -41,7 +45,7 @@ contract FieldTest is TestHelper {
         vm.expectRevert("Field: Soil Slippage");
         field.sow(
             beans, // amt
-            1, // min temperature
+            1e6, // min temperature
             LibTransfer.From.EXTERNAL
         );
     }
@@ -60,7 +64,7 @@ contract FieldTest is TestHelper {
         vm.expectRevert("Field: Soil Slippage");
         field.sowWithMin(
             beans, // amt
-            1, // min temperature
+            1e6, // min temperature
             soil, // min soil
             LibTransfer.From.EXTERNAL
         );
@@ -79,7 +83,7 @@ contract FieldTest is TestHelper {
         vm.expectRevert("Field: Soil Slippage");
         field.sowWithMin(
             beans, // amt
-            1, // min temperature
+            1e6, // min temperature
             soil, // min soil
             LibTransfer.From.EXTERNAL
         );
@@ -283,7 +287,7 @@ contract FieldTest is TestHelper {
 
     function _minPods(uint256 sowAmount) internal view returns (uint256) {
         // 1% of max temperature.
-        return sowAmount + (sowAmount * bs.maxTemperature()) / 1e6 / 100 / 100;
+        return sowAmount + (sowAmount * bs.maxTemperature()) / 100e6 / 100;
     }
 
     function _beforeEachSow(uint256 soilAmount, uint256 sowAmount, uint8 from) public {
@@ -536,7 +540,7 @@ contract FieldTest is TestHelper {
 
         for (uint256 j; j < field.fieldCount(); j++) {
             vm.prank(deployer);
-            field.setActiveField(j, 101);
+            field.setActiveField(j, 101e6);
             uint256 activeField = field.activeField();
             for (uint256 i; i < sowsPerField; i++) {
                 sowAmountForFarmer(farmers[0], sowAmount);

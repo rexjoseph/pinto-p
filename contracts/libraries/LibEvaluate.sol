@@ -43,7 +43,8 @@ library LibEvaluate {
 
     /// @dev If all Soil is Sown faster than this, Beanstalk considers demand for Soil to be increasing.
     uint256 internal constant SOW_TIME_DEMAND_INCR = 1200; // seconds
-    uint32 internal constant SOW_TIME_STEADY = 300; // seconds
+    uint32 internal constant SOW_TIME_STEADY_LOWER = 300; // seconds, lower means closer to the bottom of the hour
+    uint32 internal constant SOW_TIME_STEADY_UPPER = 300; // seconds, upper means closer to the top of the hour
     uint256 internal constant LIQUIDITY_PRECISION = 1e12;
 
     struct BeanstalkState {
@@ -53,6 +54,15 @@ library LibEvaluate {
         address largestLiqWell;
         bool oracleFailure;
     }
+
+    event SeasonMetrics(
+        uint256 indexed season,
+        uint256 deltaPodDemand,
+        uint256 lpToSupplyRatio,
+        uint256 podRate,
+        uint256 thisSowTime,
+        uint256 lastSowTime
+    );
 
     /**
      * @notice evaluates the pod rate and returns the caseId
@@ -160,11 +170,11 @@ library LibEvaluate {
             if (
                 w.lastSowTime == type(uint32).max || // Didn't Sow all last Season
                 w.thisSowTime < SOW_TIME_DEMAND_INCR || // Sow'd all instantly this Season
-                (w.lastSowTime > SOW_TIME_STEADY &&
-                    w.thisSowTime < w.lastSowTime.sub(SOW_TIME_STEADY)) // Sow'd all faster
+                (w.lastSowTime > SOW_TIME_STEADY_UPPER &&
+                    w.thisSowTime < w.lastSowTime.sub(SOW_TIME_STEADY_LOWER)) // Sow'd all faster
             ) {
                 deltaPodDemand = Decimal.from(1e18);
-            } else if (w.thisSowTime <= w.lastSowTime.add(SOW_TIME_STEADY)) {
+            } else if (w.thisSowTime <= w.lastSowTime.add(SOW_TIME_STEADY_UPPER)) {
                 // Sow'd all in same time
                 deltaPodDemand = Decimal.one();
             } else {
@@ -277,19 +287,28 @@ library LibEvaluate {
             s.sys.fields[s.sys.activeField].pods.sub(s.sys.fields[s.sys.activeField].harvestable),
             beanSupply
         ); // Pod Rate
+
+        emit SeasonMetrics(
+            s.sys.season.current,
+            bs.deltaPodDemand.value,
+            bs.lpToSupplyRatio.value,
+            bs.podRate.value,
+            s.sys.weather.thisSowTime,
+            s.sys.weather.lastSowTime
+        );
     }
 
     /**
      * @notice Evaluates beanstalk based on deltaB, podRate, deltaPodDemand and lpToSupplyRatio.
      * and returns the associated caseId.
      */
-    function evaluateBeanstalk(int256 deltaB, uint256 beanSupply) external returns (uint256, bool) {
+    function evaluateBeanstalk(int256 deltaB, uint256 beanSupply) external returns (uint256, BeanstalkState memory) {
         BeanstalkState memory bs = updateAndGetBeanstalkState(beanSupply);
         uint256 caseId = evalPodRate(bs.podRate) // Evaluate Pod Rate
             .add(evalPrice(deltaB, bs.largestLiqWell))
             .add(evalDeltaPodDemand(bs.deltaPodDemand))
             .add(evalLpToSupplyRatio(bs.lpToSupplyRatio)); // Evaluate Price // Evaluate Delta Soil Demand // Evaluate LP to Supply Ratio
-        return (caseId, bs.oracleFailure);
+        return (caseId, bs);
     }
 
     /**

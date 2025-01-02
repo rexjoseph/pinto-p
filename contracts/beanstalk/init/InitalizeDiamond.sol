@@ -52,10 +52,14 @@ contract InitalizeDiamond {
     uint256 internal constant EXCESSIVE_PRICE_THRESHOLD = 1.05e6;
 
     /// @dev When the Pod Rate is high, issue less Soil.
-    uint256 private constant SOIL_COEFFICIENT_HIGH = 0.5e18;
+    uint256 private constant SOIL_COEFFICIENT_HIGH = 0.25e18;
 
+    uint256 private constant SOIL_COEFFICIENT_REALATIVELY_HIGH = 0.5e18;
+    
     /// @dev When the Pod Rate is low, issue more Soil.
-    uint256 private constant SOIL_COEFFICIENT_LOW = 1.5e18;
+    uint256 private constant SOIL_COEFFICIENT_REALATIVELY_LOW = 1e18;
+
+    uint256 private constant SOIL_COEFFICIENT_LOW = 1.2e18;
 
     /// @dev Base BEAN reward to cover cost of operating a bot.
     uint256 internal constant BASE_REWARD = 5e6; // 5 BEAN
@@ -65,6 +69,12 @@ contract InitalizeDiamond {
     uint256 internal constant MAX_BEAN_MAX_LP_GP_PER_BDV_RATIO = 100e18;
     uint256 internal constant MIN_BEAN_MAX_LP_GP_PER_BDV_RATIO = 50e18;
     uint128 internal constant RAINING_MIN_BEAN_MAX_LP_GP_PER_BDV_RATIO = 10e18;
+
+    // Soil scalar.
+    uint256 internal constant BELOW_PEG_SOIL_L2SR_SCALAR = 1.0e6;
+
+    // Delta B divisor when twaDeltaB < 0 and instDeltaB > 0
+    uint256 internal constant ABOVE_PEG_DELTA_B_SOIL_SCALAR = 0.01e6; // 1% of twaDeltaB (6 decimals)
 
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
@@ -161,7 +171,7 @@ contract InitalizeDiamond {
      * @notice Initalizes field parameters.
      */
     function initalizeField() internal {
-        s.sys.weather.temp = 1;
+        s.sys.weather.temp = 1e6;
         s.sys.weather.thisSowTime = type(uint32).max;
         s.sys.weather.lastSowTime = type(uint32).max;
     }
@@ -265,12 +275,16 @@ contract InitalizeDiamond {
         s.sys.evaluationParameters.lpToSupplyRatioLowerBound = LP_TO_SUPPLY_RATIO_LOWER_BOUND;
         s.sys.evaluationParameters.excessivePriceThreshold = EXCESSIVE_PRICE_THRESHOLD;
         s.sys.evaluationParameters.soilCoefficientHigh = SOIL_COEFFICIENT_HIGH;
+        s.sys.extEvaluationParameters.soilCoefficientRelativelyHigh = SOIL_COEFFICIENT_REALATIVELY_HIGH;
+        s.sys.extEvaluationParameters.soilCoefficientRelativelyLow = SOIL_COEFFICIENT_REALATIVELY_LOW;
         s.sys.evaluationParameters.soilCoefficientLow = SOIL_COEFFICIENT_LOW;
         s.sys.evaluationParameters.baseReward = BASE_REWARD;
         s
             .sys
             .evaluationParameters
             .rainingMinBeanMaxLpGpPerBdvRatio = RAINING_MIN_BEAN_MAX_LP_GP_PER_BDV_RATIO;
+        s.sys.extEvaluationParameters.belowPegSoilL2SRScalar = BELOW_PEG_SOIL_L2SR_SCALAR;
+        s.sys.extEvaluationParameters.abovePegDeltaBSoilScalar = ABOVE_PEG_DELTA_B_SOIL_SCALAR;
     }
 
     function initalizeFarmAndTractor() internal {
