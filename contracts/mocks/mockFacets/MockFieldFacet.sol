@@ -48,7 +48,7 @@ contract MockFieldFacet is FieldFacet {
     ) external pure returns (uint256 scaledTemperature) {
         // check most likely case first
         if (delta > 24) {
-            return uint256(initalTemp).mul(LibDibbler.TEMPERATURE_PRECISION);
+            return uint256(initalTemp);
         }
 
         // Binary Search
@@ -166,13 +166,13 @@ contract MockFieldFacet is FieldFacet {
     ) private pure returns (uint256 scaledTemperature) {
         // To save gas, `pct` is pre-calculated to 12 digits. Here we
         // perform the following transformation:
-        // (1e2)    maxTemperature
+        // (1e6)    maxTemperature
         // (1e12)    * pct
-        // (1e6)     / TEMPERATURE_PRECISION
-        // (1e8)     = scaledYield
+        // (1e12)     / TEMPERATURE_DIVISOR
+        // (1e6)     = scaledYield
         scaledTemperature = initalTemp.mulDiv(
             pct,
-            LibDibbler.TEMPERATURE_PRECISION,
+            1e12,
             LibPRBMathRoundable.Rounding.Up
         );
     }
@@ -201,7 +201,7 @@ contract MockFieldFacet is FieldFacet {
         return
             LibDibbler.scaleSoilUp(
                 uint256(s.sys.soil), // min soil
-                uint256(s.sys.weather.temp).mul(LibDibbler.TEMPERATURE_PRECISION), // max temperature
+                uint256(s.sys.weather.temp), // max temperature
                 morningTemperature // temperature adjusted by number of blocks since Sunrise
             );
     }

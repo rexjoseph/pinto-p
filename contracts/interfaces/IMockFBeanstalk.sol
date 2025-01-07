@@ -5,6 +5,7 @@
 pragma solidity ^0.8.4;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Decimal} from "contracts/libraries/Decimal.sol";
 
 interface IMockFBeanstalk {
     enum CounterUpdateType {
@@ -115,6 +116,14 @@ interface IMockFBeanstalk {
         uint256 baseReward;
         uint128 minAvgGsPerBdv;
         uint128 rainingMinBeanMaxLpGpPerBdvRatio;
+    }
+
+    struct ExtEvaluationParameters {
+        uint256 belowPegSoilL2SRScalar;
+        uint256 soilCoefficientRelativelyHigh;
+        uint256 soilCoefficientRelativelyLow;
+        uint256 abovePegDeltaBSoilScalar;
+        bytes32[63] buffer;
     }
 
     struct Facet {
@@ -259,6 +268,18 @@ interface IMockFBeanstalk {
         bool isSoppable;
     }
 
+    struct D256 {
+        uint256 value;
+    }
+
+    struct BeanstalkState {
+        D256 deltaPodDemand;
+        D256 lpToSupplyRatio;
+        D256 podRate;
+        address largestLiqWell;
+        bool oracleFailure;
+    }
+
     error AddressEmptyCode(address target);
     error AddressInsufficientBalance(address account);
     error ECDSAInvalidSignature();
@@ -399,7 +420,13 @@ interface IMockFBeanstalk {
     event RemoveWhitelistStatus(address token, uint256 index);
     event RetryableTicketCreated(uint256 indexed ticketId);
     event SeasonOfPlentyField(uint256 toField);
-    event SeasonOfPlentyWell(uint256 indexed season, address well, address token, uint256 amount);
+    event SeasonOfPlentyWell(
+        uint256 indexed season,
+        address well,
+        address token,
+        uint256 amount,
+        uint256 beans
+    );
     event ShipmentRoutesSet(ShipmentRoute[] newShipmentRoutes);
     event Soil(uint32 indexed season, uint256 soil);
     event Sow(address indexed account, uint256 fieldId, uint256 index, uint256 beans, uint256 pods);
@@ -408,7 +435,7 @@ interface IMockFBeanstalk {
     event TemperatureChange(
         uint256 indexed season,
         uint256 caseId,
-        int8 absChange,
+        int32 absChange,
         uint256 fieldId
     );
     event TokenApproval(
@@ -847,7 +874,7 @@ interface IMockFBeanstalk {
         uint256 caseId
     ) external view returns (uint80 ml);
 
-    function getAbsTemperatureChangeFromCaseId(uint256 caseId) external view returns (int8 t);
+    function getAbsTemperatureChangeFromCaseId(uint256 caseId) external view returns (int32 t);
 
     function getAddressAndStem(uint256 depositId) external pure returns (address token, int96 stem);
 
@@ -893,7 +920,7 @@ interface IMockFBeanstalk {
 
     function getChangeFromCaseId(
         uint256 caseId
-    ) external view returns (uint32, int8, uint80, int80);
+    ) external view returns (uint32, int32, uint80, int80);
 
     function getCounter(address account, bytes32 counterId) external view returns (uint256 count);
 
@@ -1104,6 +1131,8 @@ interface IMockFBeanstalk {
 
     function getEvaluationParameters() external view returns (EvaluationParameters memory);
 
+    function getExtEvaluationParameters() external view returns (ExtEvaluationParameters memory);
+
     function getShipmentRoutes() external view returns (ShipmentRoute[] memory);
 
     function getSiloTokens() external view returns (address[] memory tokens);
@@ -1268,7 +1297,9 @@ interface IMockFBeanstalk {
 
     function mockBDVIncrease(uint256 amount) external pure returns (uint256);
 
-    function mockcalcCaseIdAndHandleRain(int256 deltaB) external returns (uint256 caseId);
+    function mockcalcCaseIdAndHandleRain(
+        int256 deltaB
+    ) external returns (uint256 caseId, BeanstalkState memory bs);
 
     function mockChangeBDVSelector(address token, bytes4 selector) external;
 
@@ -1577,7 +1608,7 @@ interface IMockFBeanstalk {
 
     function stepGauge() external;
 
-    function sunSunrise(int256 deltaB, uint256 caseId) external;
+    function sunSunrise(int256 deltaB, uint256 caseId, BeanstalkState memory bs) external;
 
     function sunTemperatureSunrise(int256 deltaB, uint256 caseId, uint32 t) external;
 
@@ -1606,6 +1637,8 @@ interface IMockFBeanstalk {
     function tokenSettings(address token) external view returns (AssetSettings memory);
 
     function totalDeltaB() external view returns (int256 deltaB);
+
+    function totalInstantaneousDeltaB() external view returns (int256);
 
     function totalEarnedBeans() external view returns (uint256);
 

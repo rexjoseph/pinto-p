@@ -31,8 +31,15 @@ contract FloodTest is TestHelper {
 
     uint256 constant DEPOSIT_AMOUNT = 1000e6;
 
-    event SeasonOfPlentyWell(uint256 indexed season, address well, address token, uint256 amount);
+    event SeasonOfPlentyWell(
+        uint256 indexed season,
+        address well,
+        address token,
+        uint256 amount,
+        uint256 beans
+    );
     event SeasonOfPlentyField(uint256 toField);
+    event RainStatus(uint256 indexed season, bool raining);
 
     function setUp() public {
         initializeBeanstalkTestState(true, false);
@@ -155,6 +162,32 @@ contract FloodTest is TestHelper {
         // measure actual roots
         uint256 roots = bs.balanceOfRoots(users[3]);
         assertEq(roots, 0);
+    }
+
+    function testRainStatusEvent() public {
+        Season memory s = seasonGetters.time();
+        assertFalse(s.raining);
+
+        // Increase Bean price over peg
+        setReserves(BEAN_ETH_WELL, 1000000e6, 1100e18);
+        setReserves(BEAN_WSTETH_WELL, 1000000e6, 1200e18);
+
+        warpToNextSeasonAndUpdateOracles();
+        bs.sunrise(); // not raining, caseId 108
+
+        warpToNextSeasonAndUpdateOracles();
+        vm.expectEmit();
+        emit RainStatus(7, true);
+        bs.sunrise(); // raining, caseId 114
+
+        // Decrease Bean price under peg
+        setReserves(BEAN_ETH_WELL, 1000000e6, 900e18);
+        setReserves(BEAN_WSTETH_WELL, 1000000e6, 900e18);
+
+        warpToNextSeasonAndUpdateOracles();
+        vm.expectEmit();
+        emit RainStatus(8, false);
+        bs.sunrise(); // not raining, 108
     }
 
     function testTransferRainRootsUponTransfer() public {
@@ -490,7 +523,8 @@ contract FloodTest is TestHelper {
             seasonGetters.time().current + 1, // flood will happen next season
             sopWell,
             WETH,
-            51191151829696906017
+            51191151829696906017,
+            48808848170
         );
 
         season.rainSunrise();
@@ -567,7 +601,8 @@ contract FloodTest is TestHelper {
             seasonGetters.time().current + 2, // flood will happen in two seasons
             sopWell,
             WETH,
-            25900501355272002583
+            25900501355272002583,
+            25290650473
         );
 
         season.rainSunrises(2);
@@ -630,7 +665,8 @@ contract FloodTest is TestHelper {
             seasonGetters.time().current + 1, // flood will happen in two seasons
             sopWell,
             WETH,
-            51191151829696906017
+            51191151829696906017,
+            48808848170
         );
 
         season.rainSunrise();
@@ -863,7 +899,8 @@ contract FloodTest is TestHelper {
             seasonGetters.time().current + 1, // flood will happen next season
             sopWell,
             WETH,
-            51191151829696906017
+            51191151829696906017,
+            48808848170
         );
 
         season.rainSunrise(); // first sop
@@ -963,7 +1000,8 @@ contract FloodTest is TestHelper {
             seasonGetters.time().current + 1, // flood will happen next season
             sopWell,
             WETH,
-            51191151829696906017
+            51191151829696906017,
+            48808848170
         );
 
         season.rainSunrise(); // first sop

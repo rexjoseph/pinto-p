@@ -1958,6 +1958,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "floodHarvestablePods",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -5131,6 +5144,25 @@
   {
     "inputs": [
       {
+        "internalType": "address[]",
+        "name": "tokens",
+        "type": "address[]"
+      }
+    ],
+    "name": "getHighestNonGerminatingStems",
+    "outputs": [
+      {
+        "internalType": "int96[]",
+        "name": "highestNonGerminatingStems",
+        "type": "int96[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "account",
         "type": "address"
@@ -7485,6 +7517,143 @@
     "type": "function"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "deltaPodDemand",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "lpToSupplyRatio",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "podRate",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "thisSowTime",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "lastSowTime",
+        "type": "uint256"
+      }
+    ],
+    "name": "SeasonMetrics",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "caseId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "int80",
+        "name": "absChange",
+        "type": "int80"
+      }
+    ],
+    "name": "BeanToMaxLpGpPerBdvRatioChange",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "raining",
+        "type": "bool"
+      }
+    ],
+    "name": "RainStatus",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "toField",
+        "type": "uint256"
+      }
+    ],
+    "name": "SeasonOfPlentyField",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "season",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "well",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "beans",
+        "type": "uint256"
+      }
+    ],
+    "name": "SeasonOfPlentyWell",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "abovePeg",
     "outputs": [
@@ -7546,9 +7715,9 @@
     "name": "getAbsTemperatureChangeFromCaseId",
     "outputs": [
       {
-        "internalType": "int8",
+        "internalType": "int32",
         "name": "t",
-        "type": "int8"
+        "type": "int32"
       }
     ],
     "stateMutability": "view",
@@ -7602,9 +7771,9 @@
         "type": "uint32"
       },
       {
-        "internalType": "int8",
+        "internalType": "int32",
         "name": "",
-        "type": "int8"
+        "type": "int32"
       },
       {
         "internalType": "uint80",
@@ -8230,9 +8399,14 @@
             "type": "uint256"
           },
           {
-            "internalType": "bytes32[4]",
+            "internalType": "uint128",
+            "name": "floodHarvestablePods",
+            "type": "uint128"
+          },
+          {
+            "internalType": "bytes32[3]",
             "name": "_buffer",
-            "type": "bytes32[4]"
+            "type": "bytes32[3]"
           }
         ],
         "internalType": "struct Rain",
@@ -8433,75 +8607,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "season",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "caseId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "int80",
-        "name": "absChange",
-        "type": "int80"
-      }
-    ],
-    "name": "BeanToMaxLpGpPerBdvRatioChange",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "toField",
-        "type": "uint256"
-      }
-    ],
-    "name": "SeasonOfPlentyField",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "season",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "well",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "SeasonOfPlentyWell",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "components": [
           {
             "internalType": "address",
@@ -8582,9 +8687,9 @@
       },
       {
         "indexed": false,
-        "internalType": "int8",
+        "internalType": "int32",
         "name": "absChange",
-        "type": "int8"
+        "type": "int32"
       },
       {
         "indexed": false,

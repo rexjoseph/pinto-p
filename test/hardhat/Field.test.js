@@ -2,12 +2,13 @@ const { expect } = require("chai");
 const { deploy } = require("../../scripts/deploy.js");
 const { EXTERNAL, INTERNAL, INTERNAL_TOLERANT } = require("./utils/balances.js");
 const { BEAN } = require("./utils/constants");
-const { to6 } = require("./utils/helpers.js");
+const { to6, toX } = require("./utils/helpers.js");
 const { MAX_UINT32 } = require("./utils/constants.js");
 const { takeSnapshot, revertToSnapshot } = require("./utils/snapshot");
 const { getAllBeanstalkContracts } = require("../../utils/contracts");
 const { initializeUsersForToken } = require("./utils/testHelpers.js");
 const { mine } = require("@nomicfoundation/hardhat-network-helpers");
+const { BigNumber } = require("ethers");
 
 // TODO
 // Tests to add
@@ -301,10 +302,20 @@ describe("newField", function () {
         "1000000000000" // 25
       ];
       // loop from i = 0 to 25:
-      initTemp = 100;
+      initTemp = to6("100");
       for (let i = 0; i <= 25; i++) {
         temperature = await mockBeanstalk.mockGetMorningTemp(to6("100"), i);
-        expect(temperature).to.be.equal(ScaleValues[i] * initTemp);
+        if (i == 0) {
+          // no rounding
+          expect(temperature).to.be.equal(
+            BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12)));
+        } else if (i == 25) {
+          // max temperature
+          expect(temperature).to.be.equal(initTemp);
+        } else {
+          // rounding up to the nearest integer
+        expect(temperature).to.be.equal(BigNumber.from(ScaleValues[i]).mul(initTemp).div(toX("1", 12)).add(1));
+        }
       }
     });
 
@@ -318,7 +329,7 @@ describe("newField", function () {
     // ex: if morning temp is 50% of max, then 1 bean is sown for 0.5 soil
     it("decrements soil above peg", async function () {
       const morningTemperature = to6("50");
-      const maxTemperature = 200;
+      const maxTemperature = 200e6;
       await mockBeanstalk.incrementTotalSoilE(to6("10"));
       // 200% temperature
       await mockBeanstalk.setMaxTemp(maxTemperature);
@@ -331,7 +342,7 @@ describe("newField", function () {
       await mockBeanstalk.mockSow(
         to6("10"), // beans burnt
         morningTemperature, // morning temp
-        200, // max temp (note max temp is stored with 1e2 precision)
+        200e6, // max temp (note max temp is stored with 1e6 precision)
         true // above peg?
       );
 
@@ -527,7 +538,7 @@ describe("twoField", function () {
 
     // Set active field.
     this.activeField = 1;
-    mockBeanstalk.setActiveField(this.activeField, 1);
+    mockBeanstalk.setActiveField(this.activeField, 1e6);
 
     bean = await initializeUsersForToken(BEAN, [user, user2], to6("10000"));
 

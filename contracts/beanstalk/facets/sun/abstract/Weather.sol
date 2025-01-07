@@ -44,7 +44,7 @@ abstract contract Weather is Sun {
     event TemperatureChange(
         uint256 indexed season,
         uint256 caseId,
-        int8 absChange,
+        int32 absChange,
         uint256 fieldId
     );
 
@@ -56,15 +56,6 @@ abstract contract Weather is Sun {
      * @dev formula: L_n = L_n-1 +/- bL
      */
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
-
-    /**
-     * @notice Emitted when Beans are minted to a Well during the Season of Plenty.
-     * @param season The Season in which Beans were minted for distribution.
-     * @param well The Well that the SOP occurred in.
-     * @param token The token that was swapped for Beans.
-     * @param amount The amount of tokens which was received for swapping Beans.
-     */
-    event SeasonOfPlentyWell(uint256 indexed season, address well, address token, uint256 amount);
 
     /**
      * @notice Emitted when Beans are minted to the Field during the Season of Plenty.
@@ -82,19 +73,21 @@ abstract contract Weather is Sun {
      * mechanism can be found in the Beanstalk whitepaper.
      * An explanation of state variables can be found in {AppStorage}.
      */
-    function calcCaseIdAndHandleRain(int256 deltaB) internal returns (uint256) {
+    function calcCaseIdAndHandleRain(
+        int256 deltaB
+    ) internal returns (uint256 caseId, LibEvaluate.BeanstalkState memory bs) {
         uint256 beanSupply = BeanstalkERC20(s.sys.bean).totalSupply();
         // prevents infinite L2SR and podrate
         if (beanSupply == 0) {
-            s.sys.weather.temp = 1;
-            return 9; // Reasonably low
+            s.sys.weather.temp = 1e6;
+            // Returns an uninitialized Beanstalk State.
+            return (9, bs); // Reasonably low
         }
 
         // Calculate Case Id
-        (uint256 caseId, bool oracleFailure) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
-        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, oracleFailure);
+        (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
+        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs.oracleFailure);
         LibFlood.handleRain(caseId);
-        return caseId;
     }
 
     /**
@@ -122,15 +115,17 @@ abstract contract Weather is Sun {
      * @notice Changes the current Temperature `s.weather.t` based on the Case Id.
      * @dev bT are set during edge cases such that the event emitted is valid.
      */
-    function updateTemperature(int8 bT, uint256 caseId) private {
+    function updateTemperature(int32 bT, uint256 caseId) private {
         uint256 t = s.sys.weather.temp;
         if (bT < 0) {
             if (t <= uint256(int256(-bT))) {
+                // if temp is to be decreased and the change is greater than the current temp,
+                // - then the new temp will be 1e6.
+                // - and the change in temp bT will be the difference between the new temp and the old temp.
                 // if (change < 0 && t <= uint32(-change)),
-                // then 0 <= t <= type(int8).max because change is an int8.
-                // Thus, downcasting t to an int8 will not cause overflow.
-                bT = 1 - int8(int256(t));
-                s.sys.weather.temp = 1;
+                // then 0 <= t <= type(int32).max because change is an int32.
+                bT = 1e6 - int32(int256(t));
+                s.sys.weather.temp = 1e6;
             } else {
                 s.sys.weather.temp = uint32(t - uint256(int256(-bT)));
             }

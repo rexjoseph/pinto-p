@@ -4,13 +4,14 @@ pragma abicoder v2;
 
 import {TestHelper, LibTransfer, IWell, IERC20, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {C} from "contracts/C.sol";
+import "forge-std/console.sol";
 
 contract CasesTest is TestHelper {
     // Events.
     event TemperatureChange(
         uint256 indexed season,
         uint256 caseId,
-        int8 absChange,
+        int32 absChange,
         uint256 fieldId
     );
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
@@ -29,6 +30,7 @@ contract CasesTest is TestHelper {
     uint256 constant INC = 2;
 
     // Beanstalk State parameters.
+    // @note temperature has 6 decimals (1e6 = 1%)
     // These are the variables that beanstalk measures upon sunrise.
     // (placed in storage due to stack too deep).
     uint256 price; // 0 = below peg, 1 = above peg, 2 = Q
@@ -37,7 +39,8 @@ contract CasesTest is TestHelper {
     uint256 l2SR; // 0 = Extremely low, 1 = Reasonably Low, 2 = Reasonably High, 3 = Extremely High
     int256 deltaB;
 
-    uint256 internal constant SOW_TIME_STEADY = 300; // this should match the setting in LibEvaluate.sol
+    uint256 internal constant SOW_TIME_STEADY_UPPER = 300; // this should match the setting in LibEvaluate.sol
+    uint256 internal constant SOW_TIME_STEADY_LOWER = 300; // this should match the setting in LibEvaluate.sol
     uint256 internal constant SOW_TIME_DEMAND_INCR = 1200;
 
     function setUp() public {
@@ -64,15 +67,13 @@ contract CasesTest is TestHelper {
         caseId = bound(caseId, 0, 143);
 
         // set temperature to 100%, for better testing.
-        bs.setMaxTemp(100);
+        console.log("setting max temp to 100%");
+        bs.setMaxTemp(100e6);
 
         uint256 initialTemperature = bs.maxTemperature();
         uint256 initialBeanToMaxLpGpPerBdvRatio = bs.getBeanToMaxLpGpPerBdvRatio();
 
-        price = caseId % 3;
-        podRate = (caseId / 3) % 4;
-        changeInSoilDemand = (caseId / 12) % 3;
-        l2SR = (caseId / 36) % 4;
+        (podRate, price, changeInSoilDemand, l2SR) = extractNormalizedCaseComponents(caseId);
 
         // set beanstalk state based on parameters.
         deltaB = season.setBeanstalkState(price, podRate, changeInSoilDemand, l2SR, well);
@@ -83,20 +84,34 @@ contract CasesTest is TestHelper {
         vm.expectEmit(true, true, false, false);
         emit BeanToMaxLpGpPerBdvRatioChange(1, caseId, 0);
 
-        uint256 caseId = season.mockcalcCaseIdAndHandleRain(deltaB);
-        (, int8 bT, , int80 bL) = bs.getChangeFromCaseId(caseId);
+        (uint256 updatedCaseId, ) = season.mockcalcCaseIdAndHandleRain(deltaB);
+        require(updatedCaseId == caseId, "CaseId did not match");
+        (, int32 bT, , int80 bL) = bs.getChangeFromCaseId(caseId);
 
         // CASE INVARIENTS
         // if deltaB > 0: temperature should never increase. bean2MaxLpGpRatio should never increase.
         // if deltaB < 0: temperature should never decrease. bean2MaxLpGpRatio usually does not decrease.
         int256 tempChange = int256(bs.maxTemperature()) - int256(initialTemperature);
+
         int256 ratioChange = int256(bs.getBeanToMaxLpGpPerBdvRatio()) -
             int256(initialBeanToMaxLpGpPerBdvRatio);
         if (deltaB > 0) {
             assertLe(tempChange, 0, "Temp inc @ +DeltaB");
             assertLe(ratioChange, 0, "Ratio inc @ +DeltaB");
         } else {
-            assertGe(tempChange, 0, "Temp dec @ -DeltaB");
+            // when deltaB is negative, temp only decreases when soil demand is not increasing and debt is reasonably or excessively high.
+            if (changeInSoilDemand == INC && price == BELOW_PEG && podRate >= RES_HIGH) {
+                // describeCaseId(caseId);
+                assertLe(
+                    tempChange,
+                    0,
+                    "Temp dec @ -DeltaB when soil demand is increasing and L2SR is high"
+                );
+            } else if (price == BELOW_PEG || price == ABOVE_PEG) {
+                assertGe(tempChange, 0, "Temp inc @ -DeltaB");
+            } else if (price == EX_ABOVE_PEG) {
+                assertLe(tempChange, 0, "Temp dec @ high price");
+            }
             // Bean2LP Ratio will increase if L2SR is high, or if L2SR is reasonably low and podRate is high.
             // except during the case of excessively high price.
             if (l2SR > RES_LOW || (l2SR == RES_LOW && podRate > RES_LOW)) {
@@ -125,10 +140,15 @@ contract CasesTest is TestHelper {
         // if deltaB is negative, and  ∆ soil demand is decreasing,
         // temperature must increase by 2%.
         if (deltaB > 0 && changeInSoilDemand == INC) {
-            assertEq(bT, -3, "Temp did not decrease by 3% @ +DeltaB, Inc soil demand");
+            assertEq(bT, -3e6, "Temp did not decrease by 3% @ +DeltaB, Inc soil demand");
         }
         if (deltaB < 0 && changeInSoilDemand == DEC) {
-            assertEq(bT, 2, "Temp did not inc by 2% @ -DeltaB, Dec soil demand");
+            // 2% if pod rate low, 1% if pod rate high
+            if (podRate <= RES_LOW) {
+                assertEq(bT, 2e6, "Temp did not inc by 2% @ -DeltaB, Dec soil demand");
+            } else {
+                assertEq(bT, 1e6, "Temp did not inc by 1% @ -DeltaB, Dec soil demand");
+            }
         }
 
         // if L2SR is reasonably high or higher,
@@ -155,7 +175,7 @@ contract CasesTest is TestHelper {
 
     /**
      * @notice if the time it took to sell out between this season was
-     * more than SOW_TIME_STEADY seconds faster than last season, demand is decreasing.
+     * more than SOW_TIME_STEADY_UPPER seconds faster than last season, demand is decreasing.
      */
     function testSowTimeSoldOutSlower(uint256 lastSowTime, uint256 thisSowTime) public {
         // set podrate to reasonably high,
@@ -164,13 +184,17 @@ contract CasesTest is TestHelper {
         season.setPrice(ABOVE_PEG, well);
 
         // 10% temp for easier testing.
-        bs.setMaxTempE(10);
+        bs.setMaxTempE(10e6);
         // the maximum value of lastSowTime is 3600
         // the minimum time it takes to sell out is 900 seconds.
         // (otherwise we assume increasing demand).
 
         lastSowTime = bound(lastSowTime, SOW_TIME_DEMAND_INCR + 2, 3599);
-        thisSowTime = bound(thisSowTime, lastSowTime + SOW_TIME_STEADY + 1, 3600 + SOW_TIME_STEADY);
+        thisSowTime = bound(
+            thisSowTime,
+            lastSowTime + SOW_TIME_STEADY_LOWER + 1,
+            3600 + SOW_TIME_STEADY_LOWER
+        );
 
         season.setLastSowTimeE(uint32(lastSowTime));
         season.setNextSowTimeE(uint32(thisSowTime));
@@ -186,7 +210,7 @@ contract CasesTest is TestHelper {
         uint256 steadyDemand;
 
         // verify ∆temp is 0% (see whitepaper).
-        assertEq(10 - uint256(w.temp), 0);
+        assertEq(10e6 - uint256(w.temp), 0);
     }
 
     /**
@@ -200,7 +224,7 @@ contract CasesTest is TestHelper {
         season.setPrice(ABOVE_PEG, well);
 
         // 10% temp for easier testing.
-        bs.setMaxTempE(10);
+        bs.setMaxTempE(10e6);
         // the maximum value of lastSowTime is 3600
         // the minimum time it takes to sell out is SOW_TIME_DEMAND_INCR seconds.
         // (otherwise we assume increasing demand).
@@ -221,12 +245,12 @@ contract CasesTest is TestHelper {
         uint256 steadyDemand;
 
         // verify ∆temp is 1% (see whitepaper).
-        assertEq(10 - uint256(w.temp), 1);
+        assertEq(10e6 - uint256(w.temp), 1e6);
     }
 
     /**
      * @notice if the time it took to sell out between this season was
-     * more than SOW_TIME_STEADY seconds faster than last season, demand is increasing.
+     * more than SOW_TIME_STEADY_LOWER seconds faster than last season, demand is increasing.
      */
     function testSowTimeSoldOutFaster(uint256 lastSowTime, uint256 thisSowTime) public {
         // set podrate to reasonably high,
@@ -235,12 +259,12 @@ contract CasesTest is TestHelper {
         season.setPrice(ABOVE_PEG, well);
 
         // 10% temp for easier testing.
-        bs.setMaxTempE(10);
+        bs.setMaxTempE(10e6);
         // the maximum value of lastSowTime is 3600 - SOW_TIME_STEADY - 2 due to steady demand constant
         // the minimum time it takes to sell out is 600 seconds.
         // (otherwise we assume increasing demand).
-        lastSowTime = bound(lastSowTime, SOW_TIME_STEADY + 2, 3600);
-        thisSowTime = bound(thisSowTime, 1, lastSowTime - SOW_TIME_STEADY - 1);
+        lastSowTime = bound(lastSowTime, SOW_TIME_STEADY_LOWER + 2, 3600);
+        thisSowTime = bound(thisSowTime, 1, lastSowTime - SOW_TIME_STEADY_LOWER - 1);
 
         season.setLastSowTimeE(uint32(lastSowTime));
         season.setNextSowTimeE(uint32(thisSowTime));
@@ -256,6 +280,75 @@ contract CasesTest is TestHelper {
         uint256 steadyDemand;
 
         // verify ∆temp is 3% (see whitepaper).
-        assertEq(10 - uint256(w.temp), 3, "delta temp is not 3%");
+        assertEq(10e6 - uint256(w.temp), 3e6, "delta temp is not 3%");
     }
+
+    /**
+     * @notice Extracts and normalizes the individual evaluation components from a caseId
+     * @param caseId The full case ID
+     * @return podRateCase The normalized pod rate evaluation (0, 1, 2, or 3 from original 0, 9, 18, or 27)
+     * @return priceCase The normalized price evaluation (0, 1, or 2 from original 0, 3, or 6)
+     * @return deltaPodDemandCase The delta pod demand evaluation (0, 1, or 2 - unchanged)
+     * @return lpToSupplyRatioCase The normalized LP to supply ratio evaluation (0, 1, 2, or 3 from original 0, 36, 72, or 108)
+     */
+    function extractNormalizedCaseComponents(
+        uint256 caseId
+    )
+        public
+        view
+        returns (
+            uint256 podRateCase,
+            uint256 priceCase,
+            uint256 deltaPodDemandCase,
+            uint256 lpToSupplyRatioCase
+        )
+    {
+        // L2SR
+        lpToSupplyRatioCase = caseId / 36;
+
+        // Pod Rate: ((caseId % 36) / 9)
+        podRateCase = (caseId % 36) / 9;
+
+        // Price: Get the range 0-8 first ((caseId % 36) % 9), then divide by 3
+        priceCase = ((caseId % 36) % 9) / 3;
+
+        // Soil Demand: simple modulo
+        deltaPodDemandCase = caseId % 3;
+    }
+
+    /**
+     * @notice Logs a human readable description of each component of a case ID
+     * @param caseId The full case ID to decode and log
+     */
+    /*function describeCaseId(uint256 caseId) public view {
+        (
+            uint256 podRateCase,
+            uint256 priceCase,
+            uint256 deltaPodDemandCase,
+            uint256 lpToSupplyRatioCase
+        ) = extractNormalizedCaseComponents(caseId);
+        console.log("Case ID:", caseId);
+
+        // Log LP to Supply Ratio
+        if (lpToSupplyRatioCase == 0) console.log("L2SR: Excessively Low L2SR (0)");
+        else if (lpToSupplyRatioCase == 1) console.log("L2SR: Reasonably Low L2SR (1)");
+        else if (lpToSupplyRatioCase == 2) console.log("L2SR: Reasonably High L2SR (2)");
+        else console.log("L2SR: Excessively High L2SR (3)");
+
+        // Log Pod Rate
+        if (podRateCase == 0) console.log("Pod Rate: Excessively Low Debt (0)");
+        else if (podRateCase == 1) console.log("Pod Rate: Reasonably Low Debt (1)");
+        else if (podRateCase == 2) console.log("Pod Rate: Reasonably High Debt (2)");
+        else console.log("Pod Rate: Excessively Debt (3)");
+
+        // Log Price
+        if (priceCase == 0) console.log("Price: Below Peg (P < 1) (0)");
+        else if (priceCase == 1) console.log("Price: Above Peg (P > 1) (1)");
+        else console.log("Price: Excessively Above Peg (P >> 1) (2)");
+
+        // Log Delta Pod Demand
+        if (deltaPodDemandCase == 0) console.log("Demand: Decreasing Pod Demand (0)");
+        else if (deltaPodDemandCase == 1) console.log("Demand: Steady Pod Demand (1)");
+        else console.log("Demand: Increasing Pod Demand (2)");
+    }*/
 }

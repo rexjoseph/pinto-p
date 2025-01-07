@@ -17,10 +17,16 @@
     "lpToSupplyRatioOptimal": "0.4e18",
     "lpToSupplyRatioLowerBound": "0.12e18",
     "excessivePriceThreshold": "1.05e6",
-    "soilCoefficientHigh": "0.5e18",
-    "soilCoefficientLow": "1.5e18",
+    "soilCoefficientHigh": "0.25e18",
+    "soilCoefficientLow": "1.2e18",
     "baseReward": "1e6",
     "minAvgGsPerBdv": "2e12"
+  },
+  "extEvaluationParameters": {
+    "abovePegDeltaBSoilScalar": "0.01e6",
+    "soilCoefficientRelativelyHigh": "0.5e18",
+    "soilCoefficientRelativelyLow": "1e18",
+    "belowPegSoilL2SRScalar": "1.0e18"
   },
   "whitelistData": {
     "tokens": [

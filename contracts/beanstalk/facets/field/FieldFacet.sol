@@ -346,7 +346,7 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         return
             LibDibbler.scaleSoilUp(
                 uint256(s.sys.soil), // min soil
-                uint256(s.sys.weather.temp).mul(LibDibbler.TEMPERATURE_PRECISION), // max temperature
+                uint256(s.sys.weather.temp), // max temperature (1e6 precision)
                 LibDibbler.morningTemperature() // temperature adjusted by number of blocks since Sunrise
             );
     }
@@ -367,12 +367,10 @@ contract FieldFacet is Invariable, ReentrancyGuard {
 
     /**
      * @notice Returns the max Temperature that Beanstalk is willing to offer this Season.
-     * @dev For gas efficiency, Beanstalk stores `s.weather.t` as a uint32 with precision of 1e2.
-     * Here we convert to uint256 and scale up by TEMPERATURE_PRECISION to match the
-     * precision needed for the Morning Auction functionality.
+     * @dev For gas efficiency, Beanstalk stores `s.sys.weather.temp` as a uint32 with precision of 1e6.
      */
     function maxTemperature() external view returns (uint256) {
-        return uint256(s.sys.weather.temp).mul(LibDibbler.TEMPERATURE_PRECISION);
+        return uint256(s.sys.weather.temp);
     }
 
     //////////////////// GETTERS: PODS ////////////////////

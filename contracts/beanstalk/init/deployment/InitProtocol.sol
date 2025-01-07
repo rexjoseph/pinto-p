@@ -133,7 +133,7 @@ contract InitProtocol {
     function initalizeField() internal {
         s.sys.activeField = 0;
         s.sys.fieldCount = 1;
-        s.sys.weather.temp = 1;
+        s.sys.weather.temp = 1e6;
         s.sys.weather.thisSowTime = type(uint32).max;
         s.sys.weather.lastSowTime = type(uint32).max;
     }

@@ -7,9 +7,11 @@ import {MockPump} from "contracts/mocks/well/MockPump.sol";
 import {IWell, IERC20, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
+import {Decimal} from "contracts/libraries/Decimal.sol";
 import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
+import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import "forge-std/console.sol";
 
 /**
@@ -24,6 +26,14 @@ contract SunTest is TestHelper {
 
     using PRBMath for uint256;
     using LibPRBMathRoundable for uint256;
+
+    // default beanstalk state.
+    // deltaPodDemand = 0  (Decimal.0)
+    // lpToSupplyRatio = 0 (Decimal.0)
+    // podRate = 0 (Decimal.0)
+    // largestLiqWell = address(0)
+    // oracleFailure = false
+    LibEvaluate.BeanstalkState beanstalkState;
 
     function setUp() public {
         initializeBeanstalkTestState(true, true);
@@ -46,6 +56,10 @@ contract SunTest is TestHelper {
             int256(uint256(type(uint128).max))
         );
 
+        // Set inst reserves so that instDeltaB is always negative and smaller than the twaDeltaB.
+        setInstantaneousReserves(BEAN_WSTETH_WELL, type(uint128).max, 1e6);
+        setInstantaneousReserves(BEAN_ETH_WELL, type(uint128).max, 1e6);
+
         blocksToRoll = bound(blocksToRoll, 0, 30);
         vm.roll(blocksToRoll);
 
@@ -54,12 +68,13 @@ contract SunTest is TestHelper {
         if (deltaB > 0) {
             // note: no soil is issued as no debt exists.
         } else {
-            soilIssued = uint256(-deltaB);
+            soilIssued = getSoilIssuedBelowPeg(deltaB, -1, caseId);
         }
+
         vm.expectEmit();
         emit Soil(currentSeason + 1, soilIssued);
 
-        season.sunSunrise(deltaB, caseId);
+        season.sunSunrise(deltaB, caseId, beanstalkState);
 
         // if deltaB is positive,
         // 1) beans are minted equal to deltaB.
@@ -108,6 +123,10 @@ contract SunTest is TestHelper {
         // increase pods in field.
         bs.incrementTotalPodsE(0, podsInField);
 
+        // Set inst reserves so that instDeltaB is always negative and smaller than the twaDeltaB.
+        setInstantaneousReserves(BEAN_WSTETH_WELL, type(uint128).max, 1e6);
+        setInstantaneousReserves(BEAN_ETH_WELL, type(uint128).max, 1e6);
+
         // soil event check.
         uint256 soilIssuedAfterMorningAuction;
         uint256 soilIssuedRightNow;
@@ -120,13 +139,13 @@ contract SunTest is TestHelper {
                 caseId
             );
         } else {
-            soilIssuedAfterMorningAuction = uint256(-deltaB);
-            soilIssuedRightNow = uint256(-deltaB);
+            soilIssuedAfterMorningAuction = getSoilIssuedBelowPeg(deltaB, -1, caseId);
+            soilIssuedRightNow = getSoilIssuedBelowPeg(deltaB, -1, caseId);
         }
         vm.expectEmit();
         emit Soil(currentSeason + 1, soilIssuedAfterMorningAuction);
 
-        season.sunSunrise(deltaB, caseId);
+        season.sunSunrise(deltaB, caseId, beanstalkState);
 
         // if deltaB is positive,
         // 1) beans are minted equal to deltaB.
@@ -180,6 +199,10 @@ contract SunTest is TestHelper {
         bs.incrementTotalPodsE(0, podsInField0);
         bs.incrementTotalPodsE(1, podsInField1);
 
+        // Set inst reserves so that instDeltaB is always negative and smaller than the twaDeltaB.
+        setInstantaneousReserves(BEAN_WSTETH_WELL, type(uint128).max, 1e6);
+        setInstantaneousReserves(BEAN_ETH_WELL, type(uint128).max, 1e6);
+
         // Set up second Field. Update Routes and Plan getters.
         vm.prank(deployer);
         bs.addField();
@@ -205,7 +228,7 @@ contract SunTest is TestHelper {
             // vm.expectEmit(false, false, false, false);
             // emit Soil(0, 0);
 
-            season.sunSunrise(deltaB, caseId);
+            season.sunSunrise(deltaB, caseId, beanstalkState);
 
             // if deltaB is positive,
             // 1) beans are minted equal to deltaB.
@@ -277,7 +300,7 @@ contract SunTest is TestHelper {
                 );
                 assertEq(bs.totalUnharvestable(0), podsInField0, "invalid field 0 pods @ -deltaB");
                 assertEq(bs.totalUnharvestable(1), podsInField1, "invalid field 1 pods @ -deltaB");
-                uint256 soilIssued = uint256(-deltaB);
+                uint256 soilIssued = getSoilIssuedBelowPeg(deltaB, -1, caseId);
                 vm.roll(block.number + 50);
                 assertEq(bs.totalSoil(), soilIssued, "invalid soil @ -deltaB");
             }
@@ -314,6 +337,10 @@ contract SunTest is TestHelper {
         bs.setActiveField(0, 1);
         setRoutes_all();
 
+        // Set inst reserves so that instDeltaB is always negative and smaller than the twaDeltaB.
+        setInstantaneousReserves(BEAN_WSTETH_WELL, type(uint128).max, 1e6);
+        setInstantaneousReserves(BEAN_ETH_WELL, type(uint128).max, 1e6);
+
         for (uint256 i; i < numOfSeasons; i++) {
             // deltaB cannot exceed uint128 max. Bound tighter here to handle repeated seasons.
             int256 deltaB = bound(deltaBList[i], -10_000_000e6, 10_000_000e6);
@@ -326,7 +353,7 @@ contract SunTest is TestHelper {
 
             vm.roll(block.number + 300);
 
-            season.sunSunrise(deltaB, caseId);
+            season.sunSunrise(deltaB, caseId, beanstalkState);
 
             // if deltaB is positive,
             // 1) bean are minted equal to deltaB.
@@ -494,7 +521,7 @@ contract SunTest is TestHelper {
 
         for (uint256 i; i < 19; i++) {
             vm.roll(block.number + 300);
-            season.sunSunrise(int256(deltaB), caseId);
+            season.sunSunrise(int256(deltaB), caseId, beanstalkState);
         }
 
         // Almost ready to cross supply threshold to switch from budget to payback.
@@ -514,7 +541,7 @@ contract SunTest is TestHelper {
 
         deltaB = 80_000_000e6;
         vm.roll(block.number + 300);
-        season.sunSunrise(int256(deltaB), caseId);
+        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
 
         // 3% of mint goes to budget and payback.
         // 5/8 of that goes to budget.
@@ -541,7 +568,7 @@ contract SunTest is TestHelper {
         priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
         deltaB = 1_000_000e6;
         vm.roll(block.number + 300);
-        season.sunSunrise(int256(deltaB), caseId);
+        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
         assertEq(
             bs.getInternalBalance(budget, address(bean)),
             priorBeansInBudget,
@@ -565,7 +592,7 @@ contract SunTest is TestHelper {
         priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
         deltaB = 1_000e6;
         vm.roll(block.number + 300);
-        season.sunSunrise(int256(deltaB), caseId);
+        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
         assertEq(
             bs.getInternalBalance(budget, address(bean)),
             priorBeansInBudget,
@@ -589,7 +616,7 @@ contract SunTest is TestHelper {
         priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
         deltaB = 1_000e6;
         vm.roll(block.number + 300);
-        season.sunSunrise(int256(deltaB), caseId);
+        season.sunSunrise(int256(deltaB), caseId, beanstalkState);
         assertEq(
             bs.getInternalBalance(budget, address(bean)),
             priorBeansInBudget,
@@ -613,24 +640,95 @@ contract SunTest is TestHelper {
         setInstantaneousReserves(BEAN_ETH_WELL, 1000e18, 1000e18);
         int256 twaDeltaB = -1000;
         uint32 currentSeason = bs.season();
-        vm.expectEmit();
+
         // expect the minimum of the -twaDeltaB and -instDeltaB to be used.
+        vm.expectEmit();
         emit Soil(currentSeason + 1, 1000);
-        season.sunSunrise(twaDeltaB, 1);
+        season.sunSunrise(twaDeltaB, 1, beanstalkState);
         assertEq(bs.totalSoil(), 1000);
+
+        // expect soil to be scaled to 50% due to L2SR of 0.5.
+        vm.expectEmit();
+        emit Soil(currentSeason + 2, 500);
+        // modify L2SR to 0.5.
+        beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2);
+        season.sunSunrise(twaDeltaB, 1, beanstalkState);
+        assertEq(bs.totalSoil(), 500);
+
+        // expect soil to be scaled down to 20% due to L2SR of 0.8.
+        vm.expectEmit();
+        emit Soil(currentSeason + 3, 200);
+        // modify L2SR to 0.8.
+        beanstalkState.lpToSupplyRatio = Decimal.ratio(8, 10);
+        season.sunSunrise(twaDeltaB, 1, beanstalkState);
+        assertEq(bs.totalSoil(), 200);
     }
 
-    function test_soilBelowPegInstGtZero() public {
-        // set inst reserves (instDeltaB: +415127766016)
+    function test_soilBelowPegInstGtZero(uint256 caseId, int256 twaDeltaB) public {
+        // bound caseId between 0 and 143. (144 total cases)
+        caseId = bound(caseId, 0, 143);
+        // bound twaDeltaB between -10_000_000e6 and -1.
+        twaDeltaB = bound(twaDeltaB, -10_000_000e6, -1);
+        // set inst reserves (instDeltaB: +415127766016), we only need this to be positive.
         setInstantaneousReserves(BEAN_WSTETH_WELL, 10000e6, 10000000e18);
         setInstantaneousReserves(BEAN_ETH_WELL, 100000e6, 10000000e18);
-        int256 twaDeltaB = -1000;
         uint32 currentSeason = bs.season();
+        // when instDeltaB is positive, and twaDeltaB is negative
+        // the final soil issued is 1% of the twaDeltaB, scaled as if the season was above peg.
+        uint256 soilIssued = getSoilIssuedBelowPeg(twaDeltaB, 415127766016, caseId);
+        // assert that the soil issued is equal to the scaled twaDeltaB.
         vm.expectEmit();
-        // expect the twaDeltaB to be used.
-        emit Soil(currentSeason + 1, 1000);
-        season.sunSunrise(twaDeltaB, 1);
-        assertEq(bs.totalSoil(), 1000);
+        emit Soil(currentSeason + 1, soilIssued);
+        season.sunSunrise(twaDeltaB, caseId, beanstalkState);
+        assertEq(bs.totalSoil(), soilIssued);
+    }
+
+    function test_sunriseBelowPegScaledSoil() public {
+        // Initialize well to balances.
+        // note: wstETH:stETH ratio is initialized to 1:1.
+        addLiquidityToWell(
+            BEAN_ETH_WELL,
+            10_000e6, // 10,000 Beans
+            10 ether // 10 ether.
+        );
+        addLiquidityToWell(
+            BEAN_WSTETH_WELL,
+            10_000e6, // 10,000 Beans
+            10 ether // 10 wstETH.
+        );
+
+        // Set inst reserves so that both instDeltaB and twaDeltaB are negative.
+        setInstantaneousReserves(BEAN_WSTETH_WELL, 1000e18, 1000e18);
+        setInstantaneousReserves(BEAN_ETH_WELL, 1000e18, 1000e18);
+
+        int256 twaDeltaB = -1000;
+        uint256 absTwaDeltaB = twaDeltaB < 0 ? uint256(-twaDeltaB) : uint256(twaDeltaB);
+
+        // Mint Bean such that l2sr becomes 80%.
+        bean.mint(address(this), 5_000e6);
+
+        uint256 l2sr = bs.getLiquidityToSupplyRatio();
+        assertEq(l2sr, (1e18 * 8) / 10, "L2SR should be 80%");
+
+        // expect soil to equal twaDeltaB scaled by L2SR (20%).
+        vm.expectEmit();
+        emit Soil(bs.season() + 1, (absTwaDeltaB * 20) / 100);
+        season.sunSunriseWithL2srScaling(twaDeltaB, 1);
+        assertEq(bs.totalSoil(), (absTwaDeltaB * 20) / 100);
+
+        // Make L2SR > 100%.
+        bean.burn(5_000e6);
+        vm.prank(BEAN_ETH_WELL);
+        bean.burn(5_000e6);
+        l2sr = bs.getLiquidityToSupplyRatio();
+        assertGt(l2sr, 1e18, "L2SR should be greater than 100%");
+        console.log("pinto supply", bean.totalSupply());
+        console.log("l2sr", l2sr);
+        // Expect soil to be 1% of twaDeltaB.
+        vm.expectEmit();
+        emit Soil(bs.season() + 1, (absTwaDeltaB * 1) / 100);
+        season.sunSunriseWithL2srScaling(twaDeltaB, 1);
+        assertEq(bs.totalSoil(), (absTwaDeltaB * 1) / 100);
     }
 
     ////// HELPER FUNCTIONS //////
@@ -658,18 +756,53 @@ contract SunTest is TestHelper {
         uint256 TEMPERATURE_PRECISION = 1e6;
         uint256 ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
 
-        soilIssuedAfterMorningAuction = (podsRipened * 100) / (100 + (bs.maxTemperature() / 1e6));
+        // soil issued after morning auction --> same number of Pods
+        // as became Harvestable during the last Season, according to current temperature
+        soilIssuedAfterMorningAuction = (podsRipened * ONE_HUNDRED_TEMP) / (ONE_HUNDRED_TEMP + (bs.maxTemperature()));
 
-        if (caseId % 36 >= 27) {
-            soilIssuedAfterMorningAuction = (soilIssuedAfterMorningAuction * 0.5e18) / 1e18; // high podrate
-        } else if (caseId % 36 < 8) {
-            soilIssuedAfterMorningAuction = (soilIssuedAfterMorningAuction * 1.5e18) / 1e18; // low podrate
-        }
+        // scale soil issued above peg.
+        soilIssuedAfterMorningAuction = scaleSoilAbovePeg(soilIssuedAfterMorningAuction, caseId);
 
         soilIssuedRightNow = soilIssuedAfterMorningAuction.mulDiv(
             bs.maxTemperature() + ONE_HUNDRED_TEMP,
             bs.temperature() + ONE_HUNDRED_TEMP
         );
+    }
+
+    /**
+     * @notice calculates the amount of soil issued below peg (twaDeltaB<0).
+     * @dev see {Sun.sol}.
+     */
+    function getSoilIssuedBelowPeg(
+        int256 twaDeltaB,
+        int256 instDeltaB,
+        uint256 caseId
+    ) internal pure returns (uint256) {
+        uint256 soilIssued;
+        if (instDeltaB > 0) {
+            uint256 scaledSoil = uint256(-twaDeltaB) * 0.01e6 / 1e6;
+            soilIssued = scaleSoilAbovePeg(scaledSoil, caseId);
+        } else {
+            soilIssued = uint256(-twaDeltaB);
+        }
+        return soilIssued;
+    }
+
+    /**
+     * @notice scales soil issued above peg according to pod rate and the soil coefficients
+     * @dev see {Sun.sol}.
+     */
+    function scaleSoilAbovePeg(uint256 soilIssued, uint256 caseId) internal pure returns (uint256) {
+        if (caseId % 36 >= 27) {
+            soilIssued = (soilIssued * 0.25e18) / 1e18; // exessively high podrate
+        } else if (caseId % 36 >= 18) {
+            soilIssued = (soilIssued * 0.5e18) / 1e18; // reasonably high podrate
+        } else if (caseId % 36 >= 9) {
+            soilIssued = (soilIssued * 1e18) / 1e18; // reasonably low podrate
+        } else {
+            soilIssued = (soilIssued * 1.2e18) / 1e18; // exessively low podrate
+        }
+        return soilIssued;
     }
 
     function setInstantaneousReserves(address well, uint256 reserve0, uint256 reserve1) public {
