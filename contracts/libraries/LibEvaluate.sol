@@ -53,6 +53,8 @@ library LibEvaluate {
         Decimal.D256 podRate;
         address largestLiqWell;
         bool oracleFailure;
+        uint256 largestLiquidWellTwapBeanPrice;
+        int256 twaDeltaB;
     }
 
     event SeasonMetrics(
@@ -82,28 +84,16 @@ library LibEvaluate {
     /**
      * @notice updates the caseId based on the price of bean (deltaB)
      * @param deltaB the amount of beans needed to be sold or bought to get bean to peg.
-     * @param well the well address to get the bean price from.
+     * @param beanUsdPrice the price of bean in USD.
      */
-    function evalPrice(int256 deltaB, address well) internal view returns (uint256 caseId) {
+    function evalPrice(int256 deltaB, uint256 beanUsdPrice) internal view returns (uint256 caseId) {
         EvaluationParameters storage ep = LibAppStorage.diamondStorage().sys.evaluationParameters;
-        // p > 1
         if (deltaB > 0) {
-            // Beanstalk will only use the largest liquidity well to compute the Bean price,
-            // and thus will skip the p > EXCESSIVE_PRICE_THRESHOLD check if the well oracle fails to
-            // compute a valid price this Season.
-            // deltaB > 0 implies that address(well) != address(0).
-            uint256 tokenBeanPrice = LibWell.getTokenBeanPriceFromTwaReserves(well);
-            if (tokenBeanPrice > 1) {
-                address nonBeanToken = address(LibWell.getNonBeanTokenFromWell(well));
-                uint256 nonBeanTokenDecimals = IERC20Decimals(nonBeanToken).decimals();
-                uint256 beanUsdPrice = uint256(10 ** (12 + nonBeanTokenDecimals)).div(
-                    LibWell.getUsdTokenPriceForWell(well).mul(tokenBeanPrice)
-                );
-                if (beanUsdPrice > ep.excessivePriceThreshold) {
-                    // p > excessivePriceThreshold
-                    return caseId = 6;
-                }
+            if (beanUsdPrice > ep.excessivePriceThreshold) {
+                // p > excessivePriceThreshold
+                return caseId = 6;
             }
+
             caseId = 3;
         }
         // p < 1 (caseId = 0)
@@ -288,6 +278,9 @@ library LibEvaluate {
             beanSupply
         ); // Pod Rate
 
+        // Get Token:Bean Price using largest liquidity well
+        bs.largestLiquidWellTwapBeanPrice = LibWell.getBeanUsdPriceForWell(bs.largestLiqWell);
+
         emit SeasonMetrics(
             s.sys.season.current,
             bs.deltaPodDemand.value,
@@ -302,10 +295,14 @@ library LibEvaluate {
      * @notice Evaluates beanstalk based on deltaB, podRate, deltaPodDemand and lpToSupplyRatio.
      * and returns the associated caseId.
      */
-    function evaluateBeanstalk(int256 deltaB, uint256 beanSupply) external returns (uint256, BeanstalkState memory) {
+    function evaluateBeanstalk(
+        int256 deltaB,
+        uint256 beanSupply
+    ) external returns (uint256, BeanstalkState memory) {
         BeanstalkState memory bs = updateAndGetBeanstalkState(beanSupply);
+        bs.twaDeltaB = deltaB;
         uint256 caseId = evalPodRate(bs.podRate) // Evaluate Pod Rate
-            .add(evalPrice(deltaB, bs.largestLiqWell))
+            .add(evalPrice(deltaB, bs.largestLiquidWellTwapBeanPrice))
             .add(evalDeltaPodDemand(bs.deltaPodDemand))
             .add(evalLpToSupplyRatio(bs.lpToSupplyRatio)); // Evaluate Price // Evaluate Delta Soil Demand // Evaluate LP to Supply Ratio
         return (caseId, bs);

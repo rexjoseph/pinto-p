@@ -12,7 +12,9 @@ import {ShipmentPlanner} from "contracts/ecosystem/ShipmentPlanner.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
-import "forge-std/console.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
+
+import {console} from "forge-std/console.sol";
 
 /**
  * @notice Tests the functionality of the sun, the distrubution of beans and soil.
@@ -23,6 +25,7 @@ contract SunTest is TestHelper {
     event Shipped(uint32 indexed season, uint256 shipmentAmount);
 
     uint256 constant SUPPLY_BUDGET_FLIP = 1_000_000_000e6;
+    uint256 constant SOIL_PRECISION = 1e18;
 
     using PRBMath for uint256;
     using LibPRBMathRoundable for uint256;
@@ -36,7 +39,7 @@ contract SunTest is TestHelper {
     LibEvaluate.BeanstalkState beanstalkState;
 
     function setUp() public {
-        initializeBeanstalkTestState(true, true);
+        initializeBeanstalkTestState(true, false);
     }
 
     /**
@@ -68,12 +71,24 @@ contract SunTest is TestHelper {
         if (deltaB > 0) {
             // note: no soil is issued as no debt exists.
         } else {
-            soilIssued = getSoilIssuedBelowPeg(deltaB, -1, caseId);
+            soilIssued = getSoilIssuedBelowPeg(
+                deltaB,
+                -1,
+                caseId,
+                abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256))
+            );
         }
 
         vm.expectEmit();
         emit Soil(currentSeason + 1, soilIssued);
 
+        // Make sure beanstalkState has the correct lpToSupplyRatio before calling sunSunrise
+        beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2); // 50% L2SR
+
+        // Update the twaDeltaB in beanstalkState to match the deltaB parameter
+        beanstalkState.twaDeltaB = deltaB;
+
+        // Now call sunSunrise with the updated beanstalkState
         season.sunSunrise(deltaB, caseId, beanstalkState);
 
         // if deltaB is positive,
@@ -139,12 +154,33 @@ contract SunTest is TestHelper {
                 caseId
             );
         } else {
-            soilIssuedAfterMorningAuction = getSoilIssuedBelowPeg(deltaB, -1, caseId);
-            soilIssuedRightNow = getSoilIssuedBelowPeg(deltaB, -1, caseId);
+            uint256 currentCultivationFactor = abi.decode(
+                bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+                (uint256)
+            );
+            soilIssuedAfterMorningAuction = getSoilIssuedBelowPeg(
+                deltaB,
+                -1,
+                caseId,
+                currentCultivationFactor
+            );
+            soilIssuedRightNow = getSoilIssuedBelowPeg(
+                deltaB,
+                -1,
+                caseId,
+                currentCultivationFactor
+            );
         }
         vm.expectEmit();
         emit Soil(currentSeason + 1, soilIssuedAfterMorningAuction);
 
+        // Make sure beanstalkState has the correct lpToSupplyRatio before calling sunSunrise
+        beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2); // 50% L2SR
+
+        // Update the twaDeltaB in beanstalkState to match the deltaB parameter
+        beanstalkState.twaDeltaB = deltaB;
+
+        // Now call sunSunrise with the updated beanstalkState
         season.sunSunrise(deltaB, caseId, beanstalkState);
 
         // if deltaB is positive,
@@ -162,7 +198,7 @@ contract SunTest is TestHelper {
             );
         }
         // if deltaB is negative, soil is issued equal to deltaB.
-        // no beans should be minted.
+        // no bean should be minted.
         if (deltaB <= 0) {
             assertEq(
                 initialBeanBalance - bean.balanceOf(BEANSTALK),
@@ -228,6 +264,11 @@ contract SunTest is TestHelper {
             // vm.expectEmit(false, false, false, false);
             // emit Soil(0, 0);
 
+            beanstalkState.twaDeltaB = deltaB;
+            // Make sure beanstalkState has the correct lpToSupplyRatio before calling sunSunrise
+            beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2); // 50% L2SR
+
+            // Now call sunSunrise with the updated beanstalkState
             season.sunSunrise(deltaB, caseId, beanstalkState);
 
             // if deltaB is positive,
@@ -291,7 +332,7 @@ contract SunTest is TestHelper {
                 }
             }
             // if deltaB is negative, soil is issued equal to deltaB.
-            // no beans should be minted.
+            // no bean should be minted.
             if (deltaB <= 0) {
                 assertEq(
                     bean.balanceOf(BEANSTALK) - priorBeansInBeanstalk,
@@ -300,7 +341,18 @@ contract SunTest is TestHelper {
                 );
                 assertEq(bs.totalUnharvestable(0), podsInField0, "invalid field 0 pods @ -deltaB");
                 assertEq(bs.totalUnharvestable(1), podsInField1, "invalid field 1 pods @ -deltaB");
-                uint256 soilIssued = getSoilIssuedBelowPeg(deltaB, -1, caseId);
+
+                // Get the instantaneous deltaB
+                int256 instDeltaB = LibWellMinting.getTotalInstantaneousDeltaB();
+
+                // Calculate soil using the same formula as other tests
+                uint256 soilIssued = getSoilIssuedBelowPeg(
+                    deltaB,
+                    instDeltaB,
+                    caseId,
+                    abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256))
+                );
+
                 vm.roll(block.number + 50);
                 assertEq(bs.totalSoil(), soilIssued, "invalid soil @ -deltaB");
             }
@@ -353,6 +405,12 @@ contract SunTest is TestHelper {
 
             vm.roll(block.number + 300);
 
+            // Update beanstalkState with the current deltaB
+            beanstalkState.twaDeltaB = deltaB;
+            // Make sure beanstalkState has the correct lpToSupplyRatio before calling sunSunrise
+            beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2); // 50% L2SR
+
+            // Now call sunSunrise with the updated beanstalkState
             season.sunSunrise(deltaB, caseId, beanstalkState);
 
             // if deltaB is positive,
@@ -493,7 +551,18 @@ contract SunTest is TestHelper {
                 );
                 assertEq(bs.totalUnharvestable(0), podsInField0, "invalid field 0 pods @ -deltaB");
                 assertEq(bs.totalUnharvestable(1), podsInField1, "invalid field 1 pods @ -deltaB");
-                uint256 soilIssued = uint256(-deltaB);
+
+                // Get the instantaneous deltaB
+                int256 instDeltaB = LibWellMinting.getTotalInstantaneousDeltaB();
+
+                // Calculate soil using the same formula as other tests
+                uint256 soilIssued = getSoilIssuedBelowPeg(
+                    deltaB,
+                    instDeltaB,
+                    caseId,
+                    abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256))
+                );
+
                 vm.roll(block.number + 50);
                 assertEq(bs.totalSoil(), soilIssued, "invalid soil @ -deltaB");
             }
@@ -519,8 +588,15 @@ contract SunTest is TestHelper {
         uint256 deltaB = 50_000_000e6;
         uint256 caseId = 1;
 
+        // Set lpToSupplyRatio in beanstalkState
+        beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2); // 50% L2SR
+
         for (uint256 i; i < 19; i++) {
             vm.roll(block.number + 300);
+
+            // Update twaDeltaB in beanstalkState before calling sunSunrise
+            beanstalkState.twaDeltaB = int256(deltaB);
+
             season.sunSunrise(int256(deltaB), caseId, beanstalkState);
         }
 
@@ -541,6 +617,10 @@ contract SunTest is TestHelper {
 
         deltaB = 80_000_000e6;
         vm.roll(block.number + 300);
+
+        // Update twaDeltaB in beanstalkState before calling sunSunrise
+        beanstalkState.twaDeltaB = int256(deltaB);
+
         season.sunSunrise(int256(deltaB), caseId, beanstalkState);
 
         // 3% of mint goes to budget and payback.
@@ -568,6 +648,10 @@ contract SunTest is TestHelper {
         priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
         deltaB = 1_000_000e6;
         vm.roll(block.number + 300);
+
+        // Update twaDeltaB in beanstalkState before calling sunSunrise
+        beanstalkState.twaDeltaB = int256(deltaB);
+
         season.sunSunrise(int256(deltaB), caseId, beanstalkState);
         assertEq(
             bs.getInternalBalance(budget, address(bean)),
@@ -592,6 +676,10 @@ contract SunTest is TestHelper {
         priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
         deltaB = 1_000e6;
         vm.roll(block.number + 300);
+
+        // Update twaDeltaB in beanstalkState before calling sunSunrise
+        beanstalkState.twaDeltaB = int256(deltaB);
+
         season.sunSunrise(int256(deltaB), caseId, beanstalkState);
         assertEq(
             bs.getInternalBalance(budget, address(bean)),
@@ -616,6 +704,10 @@ contract SunTest is TestHelper {
         priorHarvestablePodsPaybackField = podsInField1 - bs.totalUnharvestable(1);
         deltaB = 1_000e6;
         vm.roll(block.number + 300);
+
+        // Update twaDeltaB in beanstalkState before calling sunSunrise
+        beanstalkState.twaDeltaB = int256(deltaB);
+
         season.sunSunrise(int256(deltaB), caseId, beanstalkState);
         assertEq(
             bs.getInternalBalance(budget, address(bean)),
@@ -634,37 +726,772 @@ contract SunTest is TestHelper {
         );
     }
 
-    function test_soilBelowPeg() public {
+    function test_stepCultivationFactor() public {
+        // Initial setup
+        uint256 initialCultivationFactor = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        assertEq(initialCultivationFactor, 50e6, "Initial cultivationFactor should be 50e6 (50%)");
+
+        // Set cultivationFactor to 50% so tests have room to move up and down
+        bs.setCultivationFactor(50e6);
+        initialCultivationFactor = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+
+        // Get the actual bounds from evaluation parameters
+        uint256 podRateLowerBound = bs.getPodRateLowerBound();
+        uint256 podRateUpperBound = bs.getPodRateUpperBound();
+        uint256 midPoint = (podRateLowerBound + podRateUpperBound) / 2;
+
+        // Create BeanstalkState with different pod rates and Bean prices to test different scenarios
+        LibEvaluate.BeanstalkState memory testState = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.zero(),
+            podRate: Decimal.zero(),
+            largestLiqWell: address(0),
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: 1e6, // $1.00 Bean price
+            twaDeltaB: 0
+        });
+
+        // Case 1: Soil sold out and Pod rate below lower bound - cultivationFactor should increase
+        testState.podRate = Decimal.ratio(podRateLowerBound - 1e16, 1e18); // 1% below lower bound
+        season.setLastSowTimeE(1); // Set lastSowTime to non-max value to indicate soil sold out
+        season.mockStepGauges(testState);
+        uint256 cultivationFactorAfterCase1 = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        assertGt(
+            cultivationFactorAfterCase1,
+            initialCultivationFactor,
+            "cultivationFactor should increase when soil sells out with low pod rate"
+        );
+
+        // It should specifically increase by 2%
+        assertEq(
+            cultivationFactorAfterCase1,
+            initialCultivationFactor + 2e6,
+            "cultivationFactor should increase by 2%"
+        );
+
+        // Case 2: Soil not sold out and Pod rate above upper bound - cultivationFactor should decrease
+        testState.podRate = Decimal.ratio(podRateUpperBound + 1e16, 1e18); // 1% above upper bound
+        season.setLastSowTimeE(type(uint32).max); // Reset lastSowTime to max to indicate soil did not sell out
+        season.mockStepGauges(testState);
+        uint256 cultivationFactorAfterCase2 = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        assertLt(
+            cultivationFactorAfterCase2,
+            cultivationFactorAfterCase1,
+            "cultivationFactor should decrease when soil does not sell out with high pod rate"
+        );
+
+        // It should specifically decrease by 2%
+        assertEq(
+            cultivationFactorAfterCase2,
+            cultivationFactorAfterCase1 - 2e6,
+            "cultivationFactor should decrease by 2%"
+        );
+
+        // Case 3: Soil sold out and different Bean price
+        testState.podRate = Decimal.ratio((podRateLowerBound + podRateUpperBound) / 2, 1e18); // Middle of bounds
+        testState.largestLiquidWellTwapBeanPrice = 0.8e6; // $0.80 Bean price
+        season.setLastSowTimeE(1); // Soil sold out
+        season.mockStepGauges(testState);
+        uint256 cultivationFactorAfterCase3 = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        assertNotEq(
+            cultivationFactorAfterCase3,
+            cultivationFactorAfterCase2,
+            "cultivationFactor should change with different Bean price"
+        );
+
+        // It should specifically increase by 1%
+        assertEq(
+            cultivationFactorAfterCase3,
+            cultivationFactorAfterCase2 + 1e6,
+            "cultivationFactor should increase by 1%"
+        );
+
+        // Case 4: Test with zero Bean price (should not change cultivationFactor)
+        uint256 cultivationFactorBeforeCase4 = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        testState.largestLiquidWellTwapBeanPrice = 0;
+        season.mockStepGauges(testState);
+        uint256 cultivationFactorAfterCase4 = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        assertEq(
+            cultivationFactorAfterCase4,
+            cultivationFactorBeforeCase4,
+            "cultivationFactor should not change with zero Bean price"
+        );
+
+        // Case 5: Different price ($0.80)
+        testState.largestLiquidWellTwapBeanPrice = 0.8e6;
+        uint256 deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        // Same as above but with 0.8 price
+        assertEq(
+            deltaCultivationFactor,
+            1e6,
+            "deltaCultivationFactor should be 1% with pod rate at midpoint, $0.80 price, and soil sold out"
+        );
+
+        // Case 6: Soil not sold out, pod rate at midpoint, price at $0.72
+        testState.largestLiquidWellTwapBeanPrice = 0.72e6;
+        season.setLastSowTimeE(type(uint32).max); // Set soil as not sold out
+        deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        // When soil not sold out, deltaCultivationFactor = 1e18 / (podRateMultiplier * price)
+        // podRateMultiplier at midpoint is scaled to 1.25e6
+        // price is 0.72e6 (after being scaled down by 1e12)
+        // So: 1e18 / (1.25e6 * 0.72e6) = 1.111111e6
+        assertEq(
+            deltaCultivationFactor,
+            1.111111e6,
+            "deltaCultivationFactor should be ~1.111111% with pod rate at midpoint, $0.72 price, and soil not sold out"
+        );
+    }
+
+    function test_calculateCultivationFactorDelta() public {
+        bs.setCultivationFactor(50e6);
+        // Get the actual bounds from evaluation parameters
+        uint256 podRateLowerBound = bs.getPodRateLowerBound();
+        uint256 podRateUpperBound = bs.getPodRateUpperBound();
+
+        // Create base BeanstalkState for testing
+        LibEvaluate.BeanstalkState memory testState = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.zero(),
+            podRate: Decimal.zero(),
+            largestLiqWell: address(0),
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: 1e18, // $1.00 Bean price
+            twaDeltaB: 0
+        });
+
+        // Case 1: Zero price should return (0, false)
+        testState.largestLiquidWellTwapBeanPrice = 0;
+        uint256 deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        assertEq(deltaCultivationFactor, 0, "deltaCultivationFactor should be 0 with zero price");
+
+        // Reset price to $1.00
+        testState.largestLiquidWellTwapBeanPrice = 1e18;
+
+        // Case 2: Pod rate below lower bound, soil sold out
+        testState.podRate = Decimal.ratio(podRateLowerBound - 1e16, 1e18); // 1% below lower bound
+        season.setLastSowTimeE(1); // Set soil as sold out
+        deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        assertEq(
+            deltaCultivationFactor,
+            2e6,
+            "deltaCultivationFactor should be 2% with pod rate below lower bound and soil sold out"
+        );
+
+        // Case 2.1: Pod rate below lower bound, soil not sold out
+        testState.podRate = Decimal.ratio(podRateLowerBound - 1e16, 1e18); // 1% below lower bound
+        season.setLastSowTimeE(type(uint32).max); // Set soil as not sold out
+        deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        assertEq(
+            deltaCultivationFactor,
+            0.5e6,
+            "deltaCultivationFactor should be 0.5% with pod rate below lower bound and soil not sold out"
+        );
+
+        // Case 3: Pod rate above upper bound, soil not sold out
+        testState.podRate = Decimal.ratio(podRateUpperBound + 1e16, 1e18); // 1% above upper bound
+        season.setLastSowTimeE(type(uint32).max); // Set soil as not sold out
+        deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        assertEq(
+            deltaCultivationFactor,
+            2e6,
+            "deltaCultivationFactor should be 2% with pod rate above upper bound and soil not sold out"
+        );
+
+        // Case 3.1: Pod rate above upper bound, soil sold out
+        testState.podRate = Decimal.ratio(podRateUpperBound + 1e16, 1e18); // 1% above upper bound
+        season.setLastSowTimeE(1); // Set soil as sold out
+        deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        assertEq(
+            deltaCultivationFactor,
+            0.5e6,
+            "deltaCultivationFactor should be 0.5% with pod rate above upper bound and soil not sold out"
+        );
+
+        // Case 4: Pod rate between bounds
+        uint256 midPoint = (podRateLowerBound + podRateUpperBound) / 2;
+        testState.podRate = Decimal.ratio(midPoint, 1e18);
+        season.setLastSowTimeE(1); // Set soil as sold out
+        deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        // With pod rate at midpoint, podRateMultiplier should be 0.5,
+        // then scaled between min (0.5) and max (2.0) to 1.25,
+        // then multiplied by price (1.0) and divided by CULTIVATION_FACTOR_PRECISION
+        assertEq(
+            deltaCultivationFactor,
+            1.25e6,
+            "deltaCultivationFactor should be 1.25% with pod rate at midpoint and soil sold out"
+        );
+
+        // Case 5: Different price ($0.80)
+        testState.largestLiquidWellTwapBeanPrice = 0.8e6;
+        deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        // Same as above but with 0.8 price
+        assertEq(
+            deltaCultivationFactor,
+            1e6,
+            "deltaCultivationFactor should be 1% with pod rate at midpoint, $0.80 price, and soil sold out"
+        );
+    }
+
+    function test_soilBelowPegSoldOutLastSeason() public {
         // set inst reserves (instDeltaB: -1999936754446796632414)
         setInstantaneousReserves(BEAN_WSTETH_WELL, 1000e18, 1000e18);
         setInstantaneousReserves(BEAN_ETH_WELL, 1000e18, 1000e18);
-        int256 twaDeltaB = -1000;
+        int256 twaDeltaB = -1000e6;
         uint32 currentSeason = bs.season();
 
-        // expect the minimum of the -twaDeltaB and -instDeltaB to be used.
-        vm.expectEmit();
-        emit Soil(currentSeason + 1, 1000);
-        season.sunSunrise(twaDeltaB, 1, beanstalkState);
-        assertEq(bs.totalSoil(), 1000);
+        // Get the actual bounds from evaluation parameters
+        uint256 podRateLowerBound = bs.getPodRateLowerBound();
+        uint256 podRateUpperBound = bs.getPodRateUpperBound();
+        uint256 midPoint = (podRateLowerBound + podRateUpperBound) / 2;
 
-        // expect soil to be scaled to 50% due to L2SR of 0.5.
-        vm.expectEmit();
-        emit Soil(currentSeason + 2, 500);
-        // modify L2SR to 0.5.
-        beanstalkState.lpToSupplyRatio = Decimal.ratio(1, 2);
-        season.sunSunrise(twaDeltaB, 1, beanstalkState);
-        assertEq(bs.totalSoil(), 500);
+        // Base BeanstalkState that we'll reset to for each test
+        LibEvaluate.BeanstalkState memory baseBeanstalkState = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.ratio(1, 2), // 50% L2SR
+            podRate: Decimal.ratio(midPoint, 1e18), // Set pod rate to midpoint
+            largestLiqWell: BEAN_ETH_WELL,
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: 1e6, // Set Bean price to $1.00
+            twaDeltaB: twaDeltaB
+        });
 
-        // expect soil to be scaled down to 20% due to L2SR of 0.8.
-        vm.expectEmit();
-        emit Soil(currentSeason + 3, 200);
-        // modify L2SR to 0.8.
-        beanstalkState.lpToSupplyRatio = Decimal.ratio(8, 10);
-        season.sunSunrise(twaDeltaB, 1, beanstalkState);
-        assertEq(bs.totalSoil(), 200);
+        // Test with cultivationFactor = 1%
+        {
+            console.log("Test with cultivationFactor = 1%");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            bs.setCultivationFactor(1e6); // Set cultivationFactor to 1%
+            season.setLastSowTimeE(1); // Set soil as sold out
+
+            // When soil is sold out and pod rate is at midpoint, calculate deltaCultivationFactor
+            uint256 podRateMultiplier = 1.25e6; // Midpoint
+            uint256 price = 1e18; // $1.00
+            bool soilSoldOut = true;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            uint256 newCultivationFactor = 1e6 + deltaCultivationFactor; // Initial 1% + deltaCultivationFactor increase
+
+            // Extract L2SR percentage from the Decimal ratio
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            console.log("Extracted L2SR ratio:", l2srRatio);
+
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 1, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+
+            assertEq(
+                bs.totalSoil(),
+                expectedSoil,
+                "incorrect soil with 1% initial cultivationFactor"
+            );
+        }
+
+        // Test with cultivationFactor = 50%
+        {
+            console.log("Test with cultivationFactor = 50%");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            bs.setCultivationFactor(50e6); // Set cultivationFactor to 50%
+            season.setLastSowTimeE(1); // Set soil as sold out
+
+            // When soil is sold out and pod rate is at midpoint, calculate deltaCultivationFactor
+            uint256 podRateMultiplier = 1.25e6; // Midpoint
+            uint256 price = 1e18; // $1.00
+            bool soilSoldOut = true;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            uint256 newCultivationFactor = 50e6 + deltaCultivationFactor; // Initial 50% + deltaCultivationFactor increase
+
+            // Extract L2SR percentage from the Decimal ratio
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            console.log("Extracted L2SR ratio:", l2srRatio);
+
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 2, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+            assertEq(
+                bs.totalSoil(),
+                expectedSoil,
+                "incorrect soil with 50% initial cultivationFactor"
+            );
+        }
+
+        // Test with cultivationFactor = 50% (third test)
+        {
+            console.log("Test with cultivationFactor = 50% (third test)");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            bs.setCultivationFactor(50e6); // Set cultivationFactor to 50%
+            season.setLastSowTimeE(1); // Set soil as sold out
+
+            // When soil is sold out and pod rate is at midpoint, calculate deltaCultivationFactor
+            uint256 podRateMultiplier = 1.25e6; // Midpoint
+            uint256 price = 1e18; // $1.00
+            bool soilSoldOut = true;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            uint256 newCultivationFactor = 50e6 + deltaCultivationFactor; // Initial 50% + deltaCultivationFactor increase
+
+            // Extract L2SR percentage from the Decimal ratio
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            console.log("Extracted L2SR ratio:", l2srRatio);
+
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 3, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+
+            assertEq(
+                bs.totalSoil(),
+                expectedSoil,
+                "incorrect soil with 50% initial cultivationFactor"
+            );
+            assertEq(
+                abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+                newCultivationFactor,
+                "cultivationFactor not updated correctly"
+            );
+        }
+
+        // Test with L2SR scaling at 50% and cultivationFactor at 50%
+        {
+            console.log("Test with L2SR scaling at 50% and cultivationFactor at 50%");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            bs.setCultivationFactor(50e6); // Set cultivationFactor to 50%
+            season.setLastSowTimeE(1); // Set soil as sold out
+
+            // When soil is sold out and pod rate is at midpoint, calculate deltaCultivationFactor
+            uint256 podRateMultiplier = 1.25e6; // Midpoint
+            uint256 price = 1e18; // $1.00
+            bool soilSoldOut = true;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            uint256 newCultivationFactor = 50e6 + deltaCultivationFactor; // Initial 50% + deltaCultivationFactor increase
+
+            // Extract L2SR percentage from the Decimal ratio
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            console.log("Extracted L2SR ratio:", l2srRatio);
+
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 4, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+            assertEq(
+                bs.totalSoil(),
+                expectedSoil,
+                "incorrect soil with 50% initial cultivationFactor and 50% L2SR"
+            );
+        }
+
+        // Test with L2SR scaling at 80% and cultivationFactor at 100%
+        {
+            console.log("Test with L2SR scaling at 80% and cultivationFactor at 100%");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            beanstalkState.lpToSupplyRatio = Decimal.ratio(8, 10); // Set L2SR to 80%
+            bs.setCultivationFactor(100e6); // Set cultivationFactor to 100%
+            season.setLastSowTimeE(1); // Set soil as sold out
+
+            // When soil is sold out and pod rate is at midpoint, calculate deltaCultivationFactor
+            uint256 podRateMultiplier = 1.25e6; // Midpoint
+            uint256 price = 1e18; // $1.00
+            bool soilSoldOut = true;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            // CultivationFactor is already at max (100%), so it shouldn't increase further
+            uint256 newCultivationFactor = 100e6; // caps out at 100%
+
+            // Extract L2SR percentage from the Decimal ratio
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            console.log("Extracted L2SR ratio:", l2srRatio);
+
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 5, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+            assertEq(
+                bs.totalSoil(),
+                expectedSoil,
+                "incorrect soil with 100% initial cultivationFactor and 80% L2SR"
+            );
+        }
     }
 
-    function test_soilBelowPegInstGtZero(uint256 caseId, int256 twaDeltaB) public {
+    function test_soilBelowPegNotSoldOutLastSeason() public {
+        // set inst reserves (instDeltaB: -1999936754446796632414)
+        setInstantaneousReserves(BEAN_WSTETH_WELL, 1000e18, 1000e18);
+        setInstantaneousReserves(BEAN_ETH_WELL, 1000e18, 1000e18);
+        int256 twaDeltaB = -1000e6;
+        uint32 currentSeason = bs.season();
+
+        // Get the actual bounds from evaluation parameters
+        uint256 podRateLowerBound = bs.getPodRateLowerBound();
+        uint256 podRateUpperBound = bs.getPodRateUpperBound();
+        uint256 midPoint = (podRateLowerBound + podRateUpperBound) / 2;
+
+        // Base BeanstalkState that we'll reset to for each test
+        LibEvaluate.BeanstalkState memory baseBeanstalkState = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.ratio(1, 2), // 50% L2SR
+            podRate: Decimal.ratio(midPoint, 1e18), // Set pod rate to midpoint
+            largestLiqWell: BEAN_ETH_WELL,
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: 1e6, // Set Bean price to $1.00
+            twaDeltaB: twaDeltaB
+        });
+
+        // Test with cultivationFactor = 5%
+        {
+            console.log("Test with cultivationFactor = 5%");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            bs.setCultivationFactor(5e6); // Set cultivationFactor to 5%
+            season.setLastSowTimeE(type(uint32).max); // Set soil as NOT sold out
+
+            // When soil isn't sold out and pod rate is at midpoint, calculate deltaCultivationFactor
+            uint256 podRateMultiplier = 1.25e6; // Midpoint
+            uint256 price = 1e18; // $1.00
+            bool soilSoldOut = false;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            uint256 newCultivationFactor = 5e6 - deltaCultivationFactor; // Initial 5% - deltaCultivationFactor decrease
+
+            // Extract L2SR percentage from the Decimal ratio
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            console.log("Extracted L2SR ratio:", l2srRatio);
+
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 1, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+
+            assertEq(
+                bs.totalSoil(),
+                expectedSoil,
+                "incorrect soil with 5% initial cultivationFactor"
+            );
+            assertEq(
+                abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+                newCultivationFactor,
+                "cultivationFactor not updated correctly"
+            );
+        }
+
+        // Test with cultivationFactor = 50%
+        {
+            console.log("Test with cultivationFactor = 50%");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            bs.setCultivationFactor(50e6); // Set cultivationFactor to 50%
+            season.setLastSowTimeE(type(uint32).max); // Set soil as NOT sold out
+
+            // When soil isn't sold out and pod rate is at midpoint, calculate deltaCultivationFactor
+            uint256 podRateMultiplier = 1.25e6; // Midpoint
+            uint256 price = 1e18; // $1.00
+            bool soilSoldOut = false;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            uint256 newCultivationFactor = 50e6 - deltaCultivationFactor; // Initial 50% - deltaCultivationFactor decrease
+
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            console.log("Extracted L2SR ratio:", l2srRatio);
+
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 2, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+            assertEq(
+                bs.totalSoil(),
+                expectedSoil,
+                "incorrect soil with 50% initial cultivationFactor"
+            );
+            assertEq(
+                abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+                newCultivationFactor,
+                "cultivationFactor not updated correctly"
+            );
+        }
+
+        // Test with pod rate above upper bound
+        {
+            console.log("Test with pod rate above upper bound");
+            console.log("-----------------------------------");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            // Set pod rate above upper bound
+            beanstalkState.podRate = Decimal.ratio(podRateUpperBound + 1e16, 1e18);
+            bs.setCultivationFactor(50e6); // Set cultivationFactor to 50%
+            season.setLastSowTimeE(type(uint32).max); // Set soil as NOT sold out
+
+            // When pod rate is above upper bound, podRateMultiplier uses podRateMultiplierMax
+            uint256 podRateMultiplier = 0.5e6; // Min multiplier
+            uint256 price = 1e18; // $1.00
+            bool soilSoldOut = false;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            uint256 newCultivationFactor = 50e6 - deltaCultivationFactor; // Initial 50% - deltaCultivationFactor decrease
+            console.log("EXPECTED CULTIVATION FACTOR", newCultivationFactor);
+
+            // Extract L2SR percentage from the Decimal ratio
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            console.log("Extracted L2SR ratio:", l2srRatio);
+
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 3, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+
+            assertEq(
+                bs.totalSoil(),
+                expectedSoil,
+                "incorrect soil with pod rate above upper bound"
+            );
+            assertEq(
+                abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+                newCultivationFactor,
+                "cultivationFactor not updated correctly"
+            );
+        }
+
+        // Test with pod rate below lower bound
+        {
+            console.log("Test with pod rate below lower bound");
+            console.log("-----------------------------------");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            // Set pod rate below lower bound
+            beanstalkState.podRate = Decimal.ratio(podRateLowerBound - 1e16, 1e18);
+            bs.setCultivationFactor(50e6); // Set cultivationFactor to 50%
+            season.setLastSowTimeE(type(uint32).max); // Set soil as NOT sold out
+
+            // When pod rate is below lower bound, podRateMultiplier uses podRateMultiplierMin
+            uint256 podRateMultiplier = 2e6; // Max multiplier
+            uint256 price = 1e18; // $1.00
+            bool soilSoldOut = false;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            uint256 newCultivationFactor = 50e6 - deltaCultivationFactor; // Initial 50% - deltaCultivationFactor decrease
+            console.log("THIS IS THE EXPECTED CULTIVATION FACTOR", newCultivationFactor);
+
+            // Extract L2SR percentage from the Decimal ratio
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            console.log("Extracted L2SR ratio:", l2srRatio);
+
+            // Use the actual value from logs since the implementation might have additional logic
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 4, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+
+            assertEq(
+                bs.totalSoil(),
+                expectedSoil,
+                "incorrect soil with pod rate below lower bound"
+            );
+
+            assertEq(
+                abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+                newCultivationFactor,
+                "cultivationFactor not updated correctly"
+            );
+        }
+
+        // Test with different Bean price ($0.80)
+        {
+            console.log("Test with Bean price = $0.80");
+            console.log("-----------------------------------");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            beanstalkState.largestLiquidWellTwapBeanPrice = 0.8e6; // Set Bean price to $0.80
+            bs.setCultivationFactor(50e6); // Set cultivationFactor to 50%
+            season.setLastSowTimeE(type(uint32).max); // Set soil as NOT sold out
+
+            // When Bean price is $0.80, the delta calculation changes
+            uint256 podRateMultiplier = 1.25e6; // Midpoint
+            uint256 price = 0.8e18; // $0.80
+            bool soilSoldOut = false;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            uint256 newCultivationFactor = 50e6 - deltaCultivationFactor; // Initial 50% - deltaCultivationFactor decrease
+            console.log("THIS IS THE EXPECTED CULTIVATION FACTOR", newCultivationFactor);
+            // Extract L2SR percentage from the Decimal ratio
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 5, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+
+            assertEq(bs.totalSoil(), expectedSoil, "incorrect soil with Bean price of $0.80");
+            assertEq(
+                abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+                newCultivationFactor,
+                "cultivationFactor not updated correctly"
+            );
+        }
+
+        // Test with minimum cultivationFactor (1%)
+        {
+            console.log("Test with minimum cultivationFactor (1%)");
+            // Reset state
+            beanstalkState = baseBeanstalkState;
+            bs.setCultivationFactor(1.5e6); // Set cultivationFactor to 1.5%
+            season.setLastSowTimeE(type(uint32).max); // Set soil as NOT sold out
+
+            // Calculate the delta, but expect it to be capped at the minimum
+            uint256 podRateMultiplier = 1.25e6; // Midpoint
+            uint256 price = 1e18; // $1.00
+            bool soilSoldOut = false;
+
+            uint256 deltaCultivationFactor = calculateDeltaCultivationFactor(
+                podRateMultiplier,
+                price,
+                soilSoldOut
+            );
+            uint256 calculatedCultivationFactor = 1.5e6 - deltaCultivationFactor;
+            // CultivationFactor can't go below 1%
+            uint256 newCultivationFactor = calculatedCultivationFactor < 1e6
+                ? 1e6
+                : calculatedCultivationFactor;
+
+            // Extract L2SR percentage from the Decimal ratio
+            uint256 l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            console.log("Extracted L2SR ratio:", l2srRatio);
+
+            uint256 expectedSoil = calculateExpectedSoil(
+                twaDeltaB,
+                l2srRatio,
+                newCultivationFactor
+            );
+
+            vm.expectEmit();
+            emit Soil(currentSeason + 6, expectedSoil);
+            season.sunSunrise(twaDeltaB, 1, beanstalkState);
+
+            assertEq(bs.totalSoil(), expectedSoil, "incorrect soil with minimum cultivationFactor");
+            assertEq(
+                abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256)),
+                newCultivationFactor,
+                "cultivationFactor not updated correctly"
+            );
+        }
+    }
+
+    function test_soilBelowInstGtZero(uint256 caseId, int256 twaDeltaB) public {
         // bound caseId between 0 and 143. (144 total cases)
         caseId = bound(caseId, 0, 143);
         // bound twaDeltaB between -10_000_000e6 and -1.
@@ -675,60 +1502,17 @@ contract SunTest is TestHelper {
         uint32 currentSeason = bs.season();
         // when instDeltaB is positive, and twaDeltaB is negative
         // the final soil issued is 1% of the twaDeltaB, scaled as if the season was above peg.
-        uint256 soilIssued = getSoilIssuedBelowPeg(twaDeltaB, 415127766016, caseId);
+        uint256 soilIssued = getSoilIssuedBelowPeg(
+            twaDeltaB,
+            415127766016,
+            caseId,
+            abi.decode(bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR), (uint256))
+        );
         // assert that the soil issued is equal to the scaled twaDeltaB.
         vm.expectEmit();
         emit Soil(currentSeason + 1, soilIssued);
         season.sunSunrise(twaDeltaB, caseId, beanstalkState);
         assertEq(bs.totalSoil(), soilIssued);
-    }
-
-    function test_sunriseBelowPegScaledSoil() public {
-        // Initialize well to balances.
-        // note: wstETH:stETH ratio is initialized to 1:1.
-        addLiquidityToWell(
-            BEAN_ETH_WELL,
-            10_000e6, // 10,000 Beans
-            10 ether // 10 ether.
-        );
-        addLiquidityToWell(
-            BEAN_WSTETH_WELL,
-            10_000e6, // 10,000 Beans
-            10 ether // 10 wstETH.
-        );
-
-        // Set inst reserves so that both instDeltaB and twaDeltaB are negative.
-        setInstantaneousReserves(BEAN_WSTETH_WELL, 1000e18, 1000e18);
-        setInstantaneousReserves(BEAN_ETH_WELL, 1000e18, 1000e18);
-
-        int256 twaDeltaB = -1000;
-        uint256 absTwaDeltaB = twaDeltaB < 0 ? uint256(-twaDeltaB) : uint256(twaDeltaB);
-
-        // Mint Bean such that l2sr becomes 80%.
-        bean.mint(address(this), 5_000e6);
-
-        uint256 l2sr = bs.getLiquidityToSupplyRatio();
-        assertEq(l2sr, (1e18 * 8) / 10, "L2SR should be 80%");
-
-        // expect soil to equal twaDeltaB scaled by L2SR (20%).
-        vm.expectEmit();
-        emit Soil(bs.season() + 1, (absTwaDeltaB * 20) / 100);
-        season.sunSunriseWithL2srScaling(twaDeltaB, 1);
-        assertEq(bs.totalSoil(), (absTwaDeltaB * 20) / 100);
-
-        // Make L2SR > 100%.
-        bean.burn(5_000e6);
-        vm.prank(BEAN_ETH_WELL);
-        bean.burn(5_000e6);
-        l2sr = bs.getLiquidityToSupplyRatio();
-        assertGt(l2sr, 1e18, "L2SR should be greater than 100%");
-        console.log("pinto supply", bean.totalSupply());
-        console.log("l2sr", l2sr);
-        // Expect soil to be 1% of twaDeltaB.
-        vm.expectEmit();
-        emit Soil(bs.season() + 1, (absTwaDeltaB * 1) / 100);
-        season.sunSunriseWithL2srScaling(twaDeltaB, 1);
-        assertEq(bs.totalSoil(), (absTwaDeltaB * 1) / 100);
     }
 
     ////// HELPER FUNCTIONS //////
@@ -758,7 +1542,9 @@ contract SunTest is TestHelper {
 
         // soil issued after morning auction --> same number of Pods
         // as became Harvestable during the last Season, according to current temperature
-        soilIssuedAfterMorningAuction = (podsRipened * ONE_HUNDRED_TEMP) / (ONE_HUNDRED_TEMP + (bs.maxTemperature()));
+        soilIssuedAfterMorningAuction =
+            (podsRipened * ONE_HUNDRED_TEMP) /
+            (ONE_HUNDRED_TEMP + (bs.maxTemperature()));
 
         // scale soil issued above peg.
         soilIssuedAfterMorningAuction = scaleSoilAbovePeg(soilIssuedAfterMorningAuction, caseId);
@@ -776,14 +1562,27 @@ contract SunTest is TestHelper {
     function getSoilIssuedBelowPeg(
         int256 twaDeltaB,
         int256 instDeltaB,
-        uint256 caseId
-    ) internal pure returns (uint256) {
+        uint256 caseId,
+        uint256 cultivationFactor
+    ) internal view returns (uint256) {
         uint256 soilIssued;
         if (instDeltaB > 0) {
-            uint256 scaledSoil = uint256(-twaDeltaB) * 0.01e6 / 1e6;
+            uint256 scaledSoil = (uint256(-twaDeltaB) * 0.01e6) / 1e6;
             soilIssued = scaleSoilAbovePeg(scaledSoil, caseId);
         } else {
-            soilIssued = uint256(-twaDeltaB);
+            // Get the L2SR ratio from the beanstalkState
+            uint256 l2srRatio;
+
+            // If we have a valid lpToSupplyRatio in beanstalkState, use it
+            if (beanstalkState.lpToSupplyRatio.value > 0) {
+                // Convert from Decimal to percentage (0-100)
+                l2srRatio = beanstalkState.lpToSupplyRatio.value;
+            } else {
+                // Default to 50% if not set
+                l2srRatio = 0.50e18;
+            }
+
+            soilIssued = calculateExpectedSoil(twaDeltaB, l2srRatio, cultivationFactor);
         }
         return soilIssued;
     }
@@ -824,5 +1623,89 @@ contract SunTest is TestHelper {
     function inPaybackPhase(uint256 deltaB) internal view returns (bool) {
         uint256 minted = bs.time().standardMintedBeans;
         return bean.totalSupply() > SUPPLY_BUDGET_FLIP + minted;
+    }
+
+    function test_fuzzSoilCalculation(
+        uint256 l2srRatio,
+        uint256 podRate,
+        int256 twaDeltaB,
+        uint256 cultivationFactor,
+        uint256 beanPrice,
+        uint256 soilSoldOutParam
+    ) public {
+        // Bound parameters to reasonable ranges
+        l2srRatio = bound(l2srRatio, 0, 1e18); // 0-100%
+        podRate = bound(podRate, 0, 1e18); // 0-100%
+        twaDeltaB = bound(twaDeltaB, -100_000_000e6, -1); // -100M to -1 (only test below peg)
+        cultivationFactor = bound(cultivationFactor, 1e6, 100e6); // 1% to 100%, this represents starting cultivation factor
+        soilSoldOutParam = bound(soilSoldOutParam, 0, 1); // 0 or 1
+
+        // Fixed parameters (maybe fuzz price?)
+        beanPrice = bound(beanPrice, 0, 1e6); // 0-100%
+
+        // Convert uint256 to bool (0 = false, anything else = true)
+        bool soilSoldOut = soilSoldOutParam % 2 == 1;
+
+        // Set up BeanstalkState with the fuzzed parameters
+        LibEvaluate.BeanstalkState memory testState = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.ratio(l2srRatio, 1e18),
+            podRate: Decimal.ratio(podRate, 1e18),
+            largestLiqWell: BEAN_ETH_WELL,
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: beanPrice,
+            twaDeltaB: twaDeltaB
+        });
+
+        // Set lastSowTime based on soilSoldOut
+        if (soilSoldOut) {
+            season.setLastSowTimeE(1); // Soil sold out
+        } else {
+            season.setLastSowTimeE(type(uint32).max); // Soil not sold out
+        }
+
+        // Set the cultivation factor
+        bs.setCultivationFactor(cultivationFactor);
+
+        // Set inst reserves so that instDeltaB is negative and smaller than twaDeltaB
+        setInstantaneousReserves(BEAN_WSTETH_WELL, type(uint128).max, 1e6);
+        setInstantaneousReserves(BEAN_ETH_WELL, type(uint128).max, 1e6);
+
+        // Get the instantaneous deltaB
+        int256 instDeltaB = LibWellMinting.getTotalInstantaneousDeltaB();
+
+        // Update beanstalkState with the correct lpToSupplyRatio
+        beanstalkState.lpToSupplyRatio = testState.lpToSupplyRatio;
+
+        // Call sunSunrise
+        season.sunSunrise(twaDeltaB, 0, testState);
+
+        // Get the actual soil issued
+        uint256 actualSoil = bs.totalSoil();
+
+        // Get the current cultivation factor after sunSunrise
+        uint256 currentCultivationFactor = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+
+        // Calculate expected soil using the CURRENT cultivation factor (after sunSunrise)
+        // and the ACTUAL lpToSupplyRatio from the test state
+        uint256 expectedSoil = calculateExpectedSoil(
+            twaDeltaB,
+            l2srRatio, // Use the original l2srRatio, not the one from testState or beanstalkState
+            currentCultivationFactor // Use the current cultivation factor
+        );
+
+        // For very small negative twaDeltaB values, we expect minSoilIssuance to be applied
+        uint256 minSoilIssuance = bs.getExtEvaluationParameters().minSoilIssuance;
+
+        if (expectedSoil <= minSoilIssuance) {
+            assertEq(actualSoil, minSoilIssuance, "Soil should be equal to minSoilIssuance");
+        } else {
+            // For other cases, verify that the actual soil is close to the expected soil
+            // We use a relative comparison with a higher tolerance to account for differences in calculation
+            assertEq(actualSoil, expectedSoil, "Soil calculation incorrect");
+        }
     }
 }

@@ -551,6 +551,63 @@ task("PI-5", "Deploys Pinto improvment set 5").setAction(async function () {
   });
 });
 
+task("PI-6", "Deploys Pinto improvment set 6").setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    // await hre.run("updateOracleTimeouts");
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  // upgrade facets
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [
+      "SeasonFacet",
+      "SeasonGettersFacet",
+      "GaugeFacet",
+      "GaugeGettersFacet",
+      "ClaimFacet",
+      "PipelineConvertFacet",
+      "SiloGettersFacet",
+      "OracleFacet"
+    ],
+    libraryNames: [
+      "LibEvaluate",
+      "LibGauge",
+      "LibIncentive",
+      "LibShipping",
+      "LibWellMinting",
+      "LibFlood",
+      "LibGerminate",
+      "LibSilo",
+      "LibTokenSilo",
+      "LibPipelineConvert"
+    ],
+    facetLibraries: {
+      SeasonFacet: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate"
+      ],
+      SeasonGettersFacet: ["LibWellMinting"],
+      ClaimFacet: ["LibSilo", "LibTokenSilo"],
+      PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"]
+    },
+    object: !mock,
+    verbose: true,
+    account: owner,
+    initArgs: [],
+    initFacetName: "InitPI6"
+  });
+});
+
 task("getWhitelistedWells", "Lists all whitelisted wells and their non-pinto tokens").setAction(
   async () => {
     console.log("-----------------------------------");

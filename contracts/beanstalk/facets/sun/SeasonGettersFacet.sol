@@ -231,7 +231,9 @@ contract SeasonGettersFacet {
         return LibCases.getDataFromCase(caseId);
     }
 
-    function getChangeFromCaseId(uint256 caseId) public view returns (uint32, int32, uint80, int80) {
+    function getChangeFromCaseId(
+        uint256 caseId
+    ) public view returns (uint32, int32, uint80, int80) {
         LibCases.CaseData memory cd = LibCases.decodeCaseData(caseId);
         return (cd.mT, cd.bT, cd.mL, cd.bL);
     }

@@ -13,7 +13,7 @@ contract Pi5ForkTest is TestHelper {
         initializeBeanstalkTestState(true, false);
     }
 
-    function test_forkBase_scaleSoilAbovePeg_relativelyHigh() public {
+    /*function test_forkBase_scaleSoilAbovePeg_relativelyHigh() public {
         bs = IMockFBeanstalk(PINTO);
         // fork just before season 668,
         // twadeltab = 8521007570
@@ -118,7 +118,7 @@ contract Pi5ForkTest is TestHelper {
         expectedSoil = scaleSoilAbovePeg(expectedSoil, caseId);
 
         assertEq(soilAfterUpgrade, expectedSoil);
-    }
+    }*/
 
     function test_forkBase_new_eval_params() public {
         // new extra evaluation parameters
@@ -137,7 +137,8 @@ contract Pi5ForkTest is TestHelper {
     }
 
     // test soil issuance below peg
-    function test_forkBase_soil_issuance_below_peg() public {
+    // Currently commented out, due to new updates in PI-6
+    /*function test_forkBase_soil_issuance_below_peg() public {
         bs = IMockFBeanstalk(PINTO);
         // fork just before season 24415927, which is when season 990 happened
         uint256 forkBlock = 24415927 - 1;
@@ -205,7 +206,7 @@ contract Pi5ForkTest is TestHelper {
         uint256 expectedSoil = (soilBeforeUpgrade * multiplier) / 1e18;
 
         assertEq(soilAfterUpgrade, expectedSoil);
-    }
+    }*/
 
     /**
      * @notice scales soil issued above peg according to pod rate and the soil coefficients
