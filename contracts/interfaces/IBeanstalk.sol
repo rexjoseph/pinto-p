@@ -53,4 +53,12 @@ interface IBeanstalk {
     function advancedFarm(
         AdvancedFarmCall[] calldata data
     ) external payable returns (bytes[] memory results);
+
+    // Price and well-related functions
+    function getWhitelistedWellLpTokens() external view returns (address[] memory);
+    function getBeanIndex(IERC20[] memory tokens) external view returns (uint256);
+    function getUsdTokenPrice(address token) external view returns (uint256);
+    function getTokenUsdPrice(address token) external view returns (uint256);
+    function bdv(address token, uint256 amount) external view returns (uint256);
+    function poolCurrentDeltaB(address pool) external view returns (int256 deltaB);
 }

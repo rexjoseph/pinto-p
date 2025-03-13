@@ -16,6 +16,11 @@ import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedToken
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 import {LibDibbler} from "contracts/libraries/LibDibbler.sol";
+import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
+import {Gauge} from "contracts/beanstalk/storage/System.sol";
+import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 
 /**
  * @title Sun
@@ -29,7 +34,7 @@ abstract contract Sun is Oracle, Distribution {
     using Decimal for Decimal.D256;
 
     uint256 internal constant SOIL_PRECISION = 1e6;
-
+    uint256 internal constant CULTIVATION_FACTOR_PRECISION = 1e6;
     /**
      * @notice Emitted during Sunrise when Beanstalk adjusts the amount of available Soil.
      * @param season The Season in which Soil was adjusted.
@@ -40,10 +45,9 @@ abstract contract Sun is Oracle, Distribution {
     //////////////////// SUN INTERNAL ////////////////////
 
     /**
-     * @param twaDeltaB Pre-calculated twaDeltaB from {Oracle.stepOracle}.
      * @param caseId Pre-calculated Weather case from {Weather.calcCaseId}.
      * @param bs Pre-calculated Beanstalk state from {LibEvaluate.evaluateBeanstalk}.
-     * Includes deltaPodDemand, lpToSupplyRatio, podRate.
+     * Includes deltaPodDemand, lpToSupplyRatio, podRate, largestLiquidWellTwapBeanPrice, twaDeltaB.
      *
      * - When below peg (twaDeltaB<0), Beanstalk wants to issue debt for beans to be sown(burned),
      * and removed from the supply, pushing the price up. It does that by fetching both the time
@@ -63,11 +67,8 @@ abstract contract Sun is Oracle, Distribution {
      * as became Harvestable during the last Season. It then scales that soil based
      * on the pod rate.
      */
-    function stepSun(
-        int256 twaDeltaB,
-        uint256 caseId,
-        LibEvaluate.BeanstalkState memory bs
-    ) internal {
+    function stepSun(uint256 caseId, LibEvaluate.BeanstalkState memory bs) internal {
+        int256 twaDeltaB = bs.twaDeltaB;
         // Above peg
         if (twaDeltaB > 0) {
             uint256 priorHarvestable = s.sys.fields[s.sys.activeField].harvestable;
@@ -81,8 +82,8 @@ abstract contract Sun is Oracle, Distribution {
             setSoilAbovePeg(newHarvestable, caseId);
 
             s.sys.season.abovePeg = true;
-            // Below peg
         } else {
+            // Below peg
             int256 instDeltaB = LibWellMinting.getTotalInstantaneousDeltaB();
             uint256 soil;
             if (instDeltaB > 0) {
@@ -151,7 +152,7 @@ abstract contract Sun is Oracle, Distribution {
     }
 
     /**
-     * @dev Scales the soil amount below peg as a function of L2SR.
+     * @dev Scales the soil amount below peg as a function of L2SR, soil distribution period, and cultivationFactor.
      * @param soilAmount The amount of soil to scale.
      * @return The scaled amount of soil.
      */
@@ -159,6 +160,9 @@ abstract contract Sun is Oracle, Distribution {
         uint256 soilAmount,
         Decimal.D256 memory lpToSupplyRatio
     ) internal view returns (uint256) {
+        // If soilAmount is 0, return 0 directly
+        if (soilAmount == 0) return 0;
+
         Decimal.D256 memory scalar = Decimal.ratio(
             s.sys.extEvaluationParameters.belowPegSoilL2SRScalar,
             1e6
@@ -171,7 +175,29 @@ abstract contract Sun is Oracle, Distribution {
         }
 
         // (1 - L2SR * scalar) * soilAmount
-        return Decimal.one().sub(scaledL2SR).mul(Decimal.from(soilAmount)).asUint256();
+        uint256 scaledAmount = Decimal
+            .one()
+            .sub(scaledL2SR)
+            .mul(Decimal.from(soilAmount))
+            .asUint256();
+
+        // Scale by 1 hour (in seconds) / soilDistributionPeriod to distribute soil availability over the target distribution period
+        scaledAmount = Math.mulDiv(
+            scaledAmount,
+            3600,
+            s.sys.extEvaluationParameters.soilDistributionPeriod
+        );
+
+        // Apply cultivationFactor scaling (cultivationFactor is a percentage with 6 decimal places, where 100e6 = 100%)
+        uint256 cultivationFactor = abi.decode(
+            LibGaugeHelpers.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        return
+            Math.max(
+                Math.mulDiv(scaledAmount, cultivationFactor, 100e6),
+                s.sys.extEvaluationParameters.minSoilIssuance
+            );
     }
 
     /**

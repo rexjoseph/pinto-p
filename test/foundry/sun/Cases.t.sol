@@ -165,6 +165,11 @@ contract CasesTest is TestHelper {
                 }
             }
         }
+
+        // At reasonably low L2SR, price above peg, bean2MaxLpGpPerBdvRatio should decrease by 2%
+        if (l2SR < RES_LOW && l2SR > EX_LOW && price == ABOVE_PEG) {
+            assertEq(bL, -2e18, "Ratio did not dec by 2% @ Rea Low L2SR");
+        }
     }
 
     //////// SOWING //////

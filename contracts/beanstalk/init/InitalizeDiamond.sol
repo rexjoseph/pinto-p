@@ -15,6 +15,8 @@ import {LibDiamond} from "contracts/libraries/LibDiamond.sol";
 import {LibCases} from "contracts/libraries/LibCases.sol";
 import {LibGauge} from "contracts/libraries/LibGauge.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
+import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {C} from "contracts/C.sol";
 
 /**
@@ -55,7 +57,7 @@ contract InitalizeDiamond {
     uint256 private constant SOIL_COEFFICIENT_HIGH = 0.25e18;
 
     uint256 private constant SOIL_COEFFICIENT_REALATIVELY_HIGH = 0.5e18;
-    
+
     /// @dev When the Pod Rate is low, issue more Soil.
     uint256 private constant SOIL_COEFFICIENT_REALATIVELY_LOW = 1e18;
 
@@ -66,8 +68,8 @@ contract InitalizeDiamond {
 
     // Gauge
     uint256 internal constant TARGET_SEASONS_TO_CATCHUP = 4320;
-    uint256 internal constant MAX_BEAN_MAX_LP_GP_PER_BDV_RATIO = 100e18;
-    uint256 internal constant MIN_BEAN_MAX_LP_GP_PER_BDV_RATIO = 50e18;
+    uint256 internal constant MAX_BEAN_MAX_LP_GP_PER_BDV_RATIO = 150e18; // 150%
+    uint256 internal constant MIN_BEAN_MAX_LP_GP_PER_BDV_RATIO = 50e18; // 50%
     uint128 internal constant RAINING_MIN_BEAN_MAX_LP_GP_PER_BDV_RATIO = 10e18;
 
     // Soil scalar.
@@ -75,6 +77,21 @@ contract InitalizeDiamond {
 
     // Delta B divisor when twaDeltaB < 0 and instDeltaB > 0
     uint256 internal constant ABOVE_PEG_DELTA_B_SOIL_SCALAR = 0.01e6; // 1% of twaDeltaB (6 decimals)
+
+    // Soil distribution period
+    uint256 internal constant SOIL_DISTRIBUTION_PERIOD = 24 * 60 * 60; // 24 hours
+
+    // GAUGE DATA:
+
+    // Cultivation Factor
+    uint256 internal constant INIT_CULTIVATION_FACTOR = 50e6; // 50%
+    uint256 internal constant MIN_DELTA_CULTIVATION_FACTOR = 0.5e6; // 0.5%
+    uint256 internal constant MAX_DELTA_CULTIVATION_FACTOR = 2e6; // 2%
+    uint256 internal constant MIN_CULTIVATION_FACTOR = 1e6; // 1%
+    uint256 internal constant MAX_CULTIVATION_FACTOR = 100e6; // 100%
+
+    // Min Soil Issuance
+    uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
 
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
@@ -90,7 +107,7 @@ contract InitalizeDiamond {
         initalizeSeason();
         initalizeField();
         initalizeFarmAndTractor();
-        initalizeSeedGauge(INIT_BEAN_TO_MAX_LP_GP_RATIO, INIT_AVG_GSPBDV);
+        initializeGauges();
 
         address[] memory tokens = new address[](2);
         tokens[0] = bean;
@@ -174,6 +191,8 @@ contract InitalizeDiamond {
         s.sys.weather.temp = 1e6;
         s.sys.weather.thisSowTime = type(uint32).max;
         s.sys.weather.lastSowTime = type(uint32).max;
+
+        s.sys.extEvaluationParameters.minSoilIssuance = MIN_SOIL_ISSUANCE;
     }
 
     /**
@@ -275,8 +294,14 @@ contract InitalizeDiamond {
         s.sys.evaluationParameters.lpToSupplyRatioLowerBound = LP_TO_SUPPLY_RATIO_LOWER_BOUND;
         s.sys.evaluationParameters.excessivePriceThreshold = EXCESSIVE_PRICE_THRESHOLD;
         s.sys.evaluationParameters.soilCoefficientHigh = SOIL_COEFFICIENT_HIGH;
-        s.sys.extEvaluationParameters.soilCoefficientRelativelyHigh = SOIL_COEFFICIENT_REALATIVELY_HIGH;
-        s.sys.extEvaluationParameters.soilCoefficientRelativelyLow = SOIL_COEFFICIENT_REALATIVELY_LOW;
+        s
+            .sys
+            .extEvaluationParameters
+            .soilCoefficientRelativelyHigh = SOIL_COEFFICIENT_REALATIVELY_HIGH;
+        s
+            .sys
+            .extEvaluationParameters
+            .soilCoefficientRelativelyLow = SOIL_COEFFICIENT_REALATIVELY_LOW;
         s.sys.evaluationParameters.soilCoefficientLow = SOIL_COEFFICIENT_LOW;
         s.sys.evaluationParameters.baseReward = BASE_REWARD;
         s
@@ -285,10 +310,31 @@ contract InitalizeDiamond {
             .rainingMinBeanMaxLpGpPerBdvRatio = RAINING_MIN_BEAN_MAX_LP_GP_PER_BDV_RATIO;
         s.sys.extEvaluationParameters.belowPegSoilL2SRScalar = BELOW_PEG_SOIL_L2SR_SCALAR;
         s.sys.extEvaluationParameters.abovePegDeltaBSoilScalar = ABOVE_PEG_DELTA_B_SOIL_SCALAR;
+
+        // Initialize soilDistributionPeriod to 24 hours (in seconds)
+        s.sys.extEvaluationParameters.soilDistributionPeriod = SOIL_DISTRIBUTION_PERIOD;
     }
 
     function initalizeFarmAndTractor() internal {
         LibTractor._resetPublisher();
         LibTractor._setVersion("1.0.0");
+    }
+
+    function initializeGauges() internal {
+        initalizeSeedGauge(INIT_BEAN_TO_MAX_LP_GP_RATIO, INIT_AVG_GSPBDV);
+        // GAUGE //
+        Gauge memory cultivationFactorGauge = Gauge(
+            abi.encode(INIT_CULTIVATION_FACTOR),
+            address(this),
+            IGaugeFacet.cultivationFactor.selector,
+            abi.encode(
+                MIN_DELTA_CULTIVATION_FACTOR,
+                MAX_DELTA_CULTIVATION_FACTOR,
+                MIN_CULTIVATION_FACTOR,
+                MAX_CULTIVATION_FACTOR
+            )
+        );
+
+        LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
     }
 }

@@ -39,6 +39,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param rain See {Rain}.
  * @param evaluationParameters See {EvaluationParameters}.
  * @param sop See {SeasonOfPlenty}.
+ * @param gauges See {Gauge}.
  */
 struct System {
     address bean;
@@ -73,6 +74,7 @@ struct System {
     EvaluationParameters evaluationParameters;
     SeasonOfPlenty sop;
     ExtEvaluationParameters extEvaluationParameters;
+    GaugeData gaugeData;
     // A buffer is not included here, bc current layout of AppStorage makes it unnecessary.
 }
 
@@ -337,12 +339,33 @@ struct Implementation {
     bytes data;
 }
 
+struct GaugeData {
+    GaugeId[] gaugeIds;
+    mapping(GaugeId => Gauge) gauges;
+}
+
+/**
+ * @notice Gauge is a generic struct that contains the logic for a "gauge".
+ * A "gauge" updates a `value` based on some data and its implmentation.
+ * Any parameter that changes as a function of other parameters can be implemented as a gauge.
+ * @param value // value(s) that is being controlled by the gauge. Can be multiple values
+ * @param target The address in which `selector` is called at.
+ * @param selector The logic that changes the gauge value.
+ * @param data Additional data that the gauge may ultilize.
+ */
+struct Gauge {
+    bytes value;
+    address target;
+    bytes4 selector;
+    bytes data;
+}
+
 /**
  * @notice Evaluation parameters used to determine the state of Beanstalk.
  * Used as hyperparameters in many aspects of the protocol, incluing the SeedGauge.
  * --------------------------------------------------------------
  * @param maxBeanMaxLpGpPerBdvRatio The maximum allowed ratio of the Seeds per BDV reward between
- * Deposited Bean and the Deposited LP token with the most Seeds. 
+ * Deposited Bean and the Deposited LP token with the most Seeds.
  * --------------------------------------------------------------
  * @param minBeanMaxLpGpPerBdvRatio The minimum allowed ratio of the Seeds per BDV reward between
  * Deposited Bean and the Deposited LP token with the most Seeds.
@@ -375,20 +398,20 @@ struct Implementation {
  * @param lpToSupplyRatioLowerBound The lower bound of the LP to supply ratio.
  * ----------------------------------------------------------------
  * @param excessivePriceThreshold The threshold after which the price of bean is considered excessive.
- * Referenced as Q in the Beanstalk whitepaper. Used to make adjustments in protocol cases. 
+ * Referenced as Q in the Beanstalk whitepaper. Used to make adjustments in protocol cases.
  * See {LibEvaluate.evaluateBeanstalk}, {LibCases.setCasesV2}.
  * --------------------------------------------------------------
- * @param soilCoefficientHigh The coefficient to scale soil by when 
+ * @param soilCoefficientHigh The coefficient to scale soil by when
  * podRate > upperBound and beanstalk is above peg.
- * @param soilCoefficientLow The coefficient to scale soil by when 
+ * @param soilCoefficientLow The coefficient to scale soil by when
  * podRate < lowerBound and beanstalk is above peg.
  * --------------------------------------------------------------
- * @param baseReward The base reward for calling the sunrise function. 
+ * @param baseReward The base reward for calling the sunrise function.
  * Used to calculate the sunrise incentive that increases as the season is delayed.
  * @param minAvgGsPerBdv The minimum average grown stalk per BDV.
  * Determines the floor for seeds of a whitelisted token.
  * @param rainingMinBeanMaxLpGpPerBdvRatio The minimum Bean Max LP GP per BDV ratio when
- * podRate is excessively low and P > 1. 
+ * podRate is excessively low and P > 1.
  */
 struct EvaluationParameters {
     uint256 maxBeanMaxLpGpPerBdvRatio;
@@ -413,12 +436,13 @@ struct EvaluationParameters {
 /**
  * @notice Extended evaluation parameters.
  * @param belowPegSoilL2SRScalar The amount to scale L2SR by when adjusting soil below peg.
- * @param soilCoefficientRelativelyHigh The coefficient to scale soil by when 
+ * @param soilCoefficientRelativelyHigh The coefficient to scale soil by when
  * optimal <= podRate < upperBound and beanstalk is above peg.
- * @param soilCoefficientRelativelyLow The coefficient to scale soil by when 
+ * @param soilCoefficientRelativelyLow The coefficient to scale soil by when
  * lowerBound <= podRate < optimal and beanstalk is above peg.
  * @param abovePegDeltaBSoilScalar The scalar for the time weighted average deltaB when
  * twaDeltaB is negative but beanstalk ended the season above peg.
+ * @param soilDistributionPeriod The target period (in seconds) over which to distribute soil (e.g., 24*60*60 for 24 hours).
  * @param buffer The buffer for future evaluation parameters.
  */
 struct ExtEvaluationParameters {
@@ -426,7 +450,9 @@ struct ExtEvaluationParameters {
     uint256 soilCoefficientRelativelyHigh;
     uint256 soilCoefficientRelativelyLow;
     uint256 abovePegDeltaBSoilScalar;
-    bytes32[63] buffer;
+    uint256 soilDistributionPeriod;
+    uint256 minSoilIssuance;
+    bytes32[61] buffer;
 }
 
 /**
@@ -458,4 +484,11 @@ enum ShipmentRecipient {
     FIELD,
     INTERNAL_BALANCE,
     EXTERNAL_BALANCE
+}
+
+/**
+ * @notice The id of the gauge. new gauges should be appended to the end of the enum.
+ */
+enum GaugeId {
+    CULTIVATION_FACTOR
 }

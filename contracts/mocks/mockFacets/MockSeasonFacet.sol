@@ -26,6 +26,8 @@ import {LibReceiving} from "contracts/libraries/LibReceiving.sol";
 import {LibFlood} from "contracts/libraries/Silo/LibFlood.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
 
 /**
  * @title Mock Season Facet
@@ -153,14 +155,20 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
         (uint256 caseId, LibEvaluate.BeanstalkState memory bs) = calcCaseIdAndHandleRain(deltaB);
-        stepSun(deltaB, caseId, bs);
+        stepSun(caseId, bs);
     }
 
-    function sunSunrise(int256 deltaB, uint256 caseId, LibEvaluate.BeanstalkState memory bs) public {
+    function sunSunrise(
+        int256 deltaB,
+        uint256 caseId,
+        LibEvaluate.BeanstalkState memory bs
+    ) public {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
-        stepSun(deltaB, caseId, bs);
+        bs.twaDeltaB = deltaB;
+        stepGauges(bs);
+        stepSun(caseId, bs);
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId, bool oracleFailure) public {
@@ -169,14 +177,15 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.sunriseBlock = uint64(block.number);
         updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, oracleFailure);
         stepSun(
-            deltaB,
             caseId,
             LibEvaluate.BeanstalkState({
                 deltaPodDemand: Decimal.zero(),
                 lpToSupplyRatio: Decimal.zero(),
                 podRate: Decimal.zero(),
                 largestLiqWell: address(0),
-                oracleFailure: false
+                oracleFailure: false,
+                largestLiquidWellTwapBeanPrice: 0,
+                twaDeltaB: deltaB
             })
         ); // Do not scale soil down using L2SR
     }
@@ -191,14 +200,15 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.weather.temp = t;
         s.sys.season.sunriseBlock = uint64(block.number);
         stepSun(
-            deltaB,
             caseId,
             LibEvaluate.BeanstalkState({
                 deltaPodDemand: Decimal.zero(),
                 lpToSupplyRatio: Decimal.zero(),
                 podRate: Decimal.zero(),
                 largestLiqWell: address(0),
-                oracleFailure: false
+                oracleFailure: false,
+                largestLiquidWellTwapBeanPrice: 0,
+                twaDeltaB: deltaB
             })
         ); // Do not scale soil down using L2SR
     }
@@ -438,6 +448,30 @@ contract MockSeasonFacet is SeasonFacet {
 
     function setUsdEthPrice(uint256 price) external {
         s.sys.usdTokenPrice[BEAN_ETH_WELL] = price;
+    }
+
+    function mockStepGauges(LibEvaluate.BeanstalkState memory bs) external {
+        LibGaugeHelpers.engage(abi.encode(bs));
+    }
+
+    function calculateCultivationFactorDeltaE(
+        LibEvaluate.BeanstalkState memory bs
+    ) external returns (uint256) {
+        uint256 cultivationFactor = abi.decode(
+            LibGaugeHelpers.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        Gauge memory g = s.sys.gaugeData.gauges[GaugeId.CULTIVATION_FACTOR];
+        (bytes memory newCultivationFactorBytes, ) = LibGaugeHelpers.getGaugeResult(
+            g,
+            abi.encode(bs)
+        );
+        uint256 newCultivationFactor = abi.decode(newCultivationFactorBytes, (uint256));
+        if (newCultivationFactor > cultivationFactor) {
+            return newCultivationFactor - cultivationFactor;
+        } else {
+            return cultivationFactor - newCultivationFactor;
+        }
     }
 
     function mockStepGauge() external {

@@ -7,20 +7,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Call, IWell, IERC20} from "../../interfaces/basin/IWell.sol";
 import {IBeanstalkWellFunction} from "../../interfaces/basin/IBeanstalkWellFunction.sol";
 import {C} from "../../C.sol";
-
-interface IBeanstalk {
-    function bdv(address token, uint256 amount) external view returns (uint256);
-
-    function poolCurrentDeltaB(address pool) external view returns (int256 deltaB);
-
-    function getUsdTokenPrice(address token) external view returns (uint256);
-
-    function getTokenUsdPrice(address token) external view returns (uint256);
-
-    function getBeanIndex(IERC20[] memory tokens) external view returns (uint256);
-
-    function getWhitelistedWellLpTokens() external view returns (address[] memory tokens);
-}
+import {IBeanstalk} from "../../interfaces/IBeanstalk.sol";
 
 interface dec {
     function decimals() external view returns (uint256);

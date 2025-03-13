@@ -100,14 +100,17 @@ contract GaugeTest is TestHelper {
         uint256 scaledRatio = bs.getBeanToMaxLpGpPerBdvRatioScaled();
         uint256 minBeanMaxLpGpPerBdvRatio = bs.getMinBeanMaxLpGpPerBdvRatio();
         uint256 maxBeanMaxLpGpPerBdvRatio = bs.getMaxBeanMaxLpGpPerBdvRatio();
+
         // scaled ratio should never fall below 50%.
         assertGe(scaledRatio, minBeanMaxLpGpPerBdvRatio);
 
-        // scaled ratio should never exceed 100%.
+        // scaled ratio should never exceed 150%.
         assertLe(scaledRatio, maxBeanMaxLpGpPerBdvRatio);
 
-        // the scaledRatio should increase half as fast as the initBeanToMaxLPRatio.
-        assertEq(scaledRatio - minBeanMaxLpGpPerBdvRatio, initBeanToMaxLPRatio / 2);
+        // With the new max of 150%, the scaling formula has changed
+        // The scaledRatio now increases by 1% for every 1% increase in initBeanToMaxLPRatio
+        // Starting from 50% at 0 and reaching 150% at 100%
+        assertEq(scaledRatio, minBeanMaxLpGpPerBdvRatio + initBeanToMaxLPRatio);
     }
 
     ////////////////////// L2SR //////////////////////
@@ -307,9 +310,9 @@ contract GaugeTest is TestHelper {
             "invalid lp gauge points"
         );
 
-        // verify bean seeds never exceed lp seeds.
+        // verify bean seeds never exceed 150% of lp seeds (tolerance of 1))
         assertGe(
-            uint256(postLpSettings.stalkEarnedPerSeason),
+            ((uint256(postLpSettings.stalkEarnedPerSeason) * 150) / 100) + 1,
             uint256(postBeanSettings.stalkEarnedPerSeason),
             "bean seeds > lp seeds"
         );
@@ -753,4 +756,6 @@ contract GaugeTest is TestHelper {
         }
         return percentDifference;
     }
+
+    /////////////////////// GAUGE ///////////////////////
 }

@@ -14,7 +14,6 @@ import {LibWhitelist} from "contracts/libraries/Silo/LibWhitelist.sol";
 import {LibRedundantMath32} from "contracts/libraries/Math/LibRedundantMath32.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
-
 /**
  * @title LibGauge
  * @notice LibGauge handles functionality related to the seed gauge system.

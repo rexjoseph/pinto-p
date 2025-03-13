@@ -95,9 +95,9 @@ library LibCases {
     bytes32 internal constant T_MINUS_1_L_MINUS_ONE = bytes32(0x05F5E100FFF0BDC000056BC75E2D63100000FFFFF21F494C589C000000000000); // temperature decreased by 1%, Bean2maxLpGpPerBdv decreased by 1.
     bytes32 internal constant T_MINUS_3_L_MINUS_ONE = bytes32(0x05F5E100FFD2394000056BC75E2D63100000FFFFF21F494C589C000000000000); // temperature decreased by 3%, Bean2maxLpGpPerBdv decreased by 1.
     //////////////////////////////////////////////////////////  [  mT  ][  bT  ][       mL         ][       BL         ][ null ]
-    bytes32 internal constant T_PLUS_0_L_MINUS_TWO =  bytes32(0x05F5E1000000000000056BC75E2D63100000FFFFF21F494C589C000000000000); // temperature increased by 0%,   Bean2maxLpGpPerBdv decreased by 2.
-    bytes32 internal constant T_MINUS_1_L_MINUS_TWO = bytes32(0x05F5E100FFF0BDC000056BC75E2D63100000FFFFF21F494C589C000000000000); // temperature decreased by 1%,   Bean2maxLpGpPerBdv decreased by 2.
-    bytes32 internal constant T_MINUS_3_L_MINUS_TWO = bytes32(0x05F5E100FFD2394000056BC75E2D63100000FFFFF21F494C589C000000000000); // temperature decreased by 3%,   Bean2maxLpGpPerBdv decreased by 2.
+    bytes32 internal constant T_PLUS_0_L_MINUS_TWO =  bytes32(0x05F5E1000000000000056BC75E2D63100000FFFFE43E9298B138000000000000); // temperature increased by 0%,   Bean2maxLpGpPerBdv decreased by 2.
+    bytes32 internal constant T_MINUS_1_L_MINUS_TWO = bytes32(0x05F5E100FFF0BDC000056BC75E2D63100000FFFFE43E9298B138000000000000); // temperature decreased by 1%,   Bean2maxLpGpPerBdv decreased by 2.
+    bytes32 internal constant T_MINUS_3_L_MINUS_TWO = bytes32(0x05F5E100FFD2394000056BC75E2D63100000FFFFE43E9298B138000000000000); // temperature decreased by 3%,   Bean2maxLpGpPerBdv decreased by 2.
 
     /**
      * @notice given a caseID (0-144), return the caseData.

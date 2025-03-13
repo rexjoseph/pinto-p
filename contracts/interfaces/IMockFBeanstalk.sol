@@ -6,7 +6,7 @@ pragma solidity ^0.8.4;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
-
+import {GaugeId, Gauge} from "contracts/beanstalk/storage/System.sol";
 interface IMockFBeanstalk {
     enum CounterUpdateType {
         INCREASE,
@@ -123,7 +123,9 @@ interface IMockFBeanstalk {
         uint256 soilCoefficientRelativelyHigh;
         uint256 soilCoefficientRelativelyLow;
         uint256 abovePegDeltaBSoilScalar;
-        bytes32[63] buffer;
+        uint256 soilDistributionPeriod;
+        uint256 minSoilIssuance;
+        bytes32[61] buffer;
     }
 
     struct Facet {
@@ -698,6 +700,14 @@ interface IMockFBeanstalk {
         uint256 bdvOfDeposit
     ) external view returns (int96 stem, GerminationSide germ);
 
+    function calculateCultivationFactorDeltaE(
+        BeanstalkState memory bs
+    ) external view returns (uint256);
+
+    function getGauge(GaugeId gaugeId) external view returns (Gauge memory);
+
+    function getGaugeValue(GaugeId gaugeId) external view returns (bytes memory);
+
     function cancelBlueprint(Requisition memory requisition) external;
 
     function cancelPodListing(uint256 fieldId, uint256 index) external payable;
@@ -1231,6 +1241,10 @@ interface IMockFBeanstalk {
         view
         returns (uint256 matureGerminatingStalk, uint256 youngGerminatingStalk);
 
+    function getCultivationFactor(uint256 fieldId) external view returns (uint256);
+
+    function getCultivationFactorForActiveField() external view returns (uint256);
+
     function gm(address account, uint8 mode) external payable returns (uint256);
 
     function grownStalkForDeposit(
@@ -1583,7 +1597,19 @@ interface IMockFBeanstalk {
 
     function setYieldE(uint256 t) external;
 
+    function setCultivationFactor(uint256 cultivationFactor) external;
+
     function siloSunrise(uint256 amount) external;
+
+    function getGaugeResult(
+        Gauge memory gauge,
+        bytes memory systemData
+    ) external returns (bytes memory);
+
+    function getGaugeIdResult(
+        GaugeId gaugeId,
+        bytes memory systemData
+    ) external returns (bytes memory);
 
     function sow(
         uint256 bean,

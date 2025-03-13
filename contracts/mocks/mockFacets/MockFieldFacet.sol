@@ -8,7 +8,8 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import "contracts/libraries/Math/LibRedundantMath256.sol";
 import "contracts/beanstalk/facets/field/FieldFacet.sol";
-
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 /**
  * @title Mock Field Facet
  **/
@@ -170,11 +171,7 @@ contract MockFieldFacet is FieldFacet {
         // (1e12)    * pct
         // (1e12)     / TEMPERATURE_DIVISOR
         // (1e6)     = scaledYield
-        scaledTemperature = initalTemp.mulDiv(
-            pct,
-            1e12,
-            LibPRBMathRoundable.Rounding.Up
-        );
+        scaledTemperature = initalTemp.mulDiv(pct, 1e12, LibPRBMathRoundable.Rounding.Up);
     }
 
     /**
@@ -208,5 +205,9 @@ contract MockFieldFacet is FieldFacet {
 
     function setMaxTemp(uint32 t) external {
         s.sys.weather.temp = t;
+    }
+
+    function setCultivationFactor(uint256 cultivationFactor) external {
+        s.sys.gaugeData.gauges[GaugeId.CULTIVATION_FACTOR].value = abi.encode(cultivationFactor);
     }
 }
