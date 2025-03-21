@@ -107,6 +107,8 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
             advancedPipeCalls
         );
 
+        grownStalk += LibPipelineConvert.stalkBonus(inputToken, outputToken, fromBdv);
+
         toStem = LibConvert._depositTokensForConvert(
             outputToken,
             toAmount,
