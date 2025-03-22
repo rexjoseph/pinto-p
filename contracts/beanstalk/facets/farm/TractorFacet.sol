@@ -155,8 +155,6 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         LibTractor._resetOperator();
 
         emit Tractor(msg.sender, requisition.blueprintHash);
-
-        return results;
     }
 
     /**
