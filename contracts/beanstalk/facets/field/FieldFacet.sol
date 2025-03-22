@@ -139,8 +139,8 @@ contract FieldFacet is Invariable, ReentrancyGuard {
         uint256 fieldId,
         uint256[] calldata plots,
         LibTransfer.To mode
-    ) external payable fundsSafu noSupplyChange oneOutFlow(s.sys.bean) nonReentrant {
-        uint256 beansHarvested = _harvest(fieldId, plots);
+    ) external payable fundsSafu noSupplyChange oneOutFlow(s.sys.bean) nonReentrant returns(uint256 beansHarvested){
+        beansHarvested = _harvest(fieldId, plots);
         LibTransfer.sendToken(BeanstalkERC20(s.sys.bean), beansHarvested, LibTractor._user(), mode);
     }
 
