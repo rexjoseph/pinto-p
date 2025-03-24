@@ -593,7 +593,7 @@ contract ConvertTest is TestHelper {
             lastPenaltyRatio = newPenaltyRatio;
         }
         // Confirm min of 0.
-        warpToNextSeasonAndUpdateOracles();F
+        warpToNextSeasonAndUpdateOracles();
         vm.roll(block.number + 1800);
         bs.sunrise();
         (, rollingSeasonsAbovePeg) = abi.decode(
