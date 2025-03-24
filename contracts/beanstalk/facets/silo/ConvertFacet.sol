@@ -126,8 +126,6 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         }
 
         if (cp.toToken != s.sys.bean && cp.fromToken == s.sys.bean) {
-            console.log("cp.toToken:", cp.toToken);
-            console.log("cp.fromToken:", cp.fromToken);
             uint256 grownStalkLost;
             (pipeData.grownStalk, grownStalkLost) = LibConvert.downPenalizedGrownStalk(
                 cp.toToken,

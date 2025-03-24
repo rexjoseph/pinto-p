@@ -27,6 +27,7 @@ import {Decimal} from "contracts/libraries/Decimal.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
+import "forge-std/console.sol";
 
 /**
  * @title LibConvert
@@ -628,6 +629,8 @@ library LibConvert {
         ratios[beanIndex] =
             (ratios[beanIndex] * 1e6) /
             s.sys.evaluationParameters.excessivePriceThreshold;
+
+        console.log("ratios[beanIndex]:", ratios[beanIndex]);
 
         uint256[] memory instantReserves = LibDeltaB.instantReserves(well);
         Call memory wellFunction = IWell(well).wellFunction();
