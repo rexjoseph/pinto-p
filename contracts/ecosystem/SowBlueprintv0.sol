@@ -147,7 +147,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
             "Operator not whitelisted"
         );
 
-        // If the counter value is 0, then it has not been initialized yet, initialize it
+        // If the Pinto left to sow is 0, then it has not been initialized yet, initialize it
         if (vars.pintoLeftToSow == 0) {
             updatePintoLeftToSowCounter(
                 vars.orderHash,
@@ -287,7 +287,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
     }
 
     /**
-     * @notice Updates the counter value for a given order hash
+     * @notice Updates the Pinto left to sow counter for a given order hash
      * @param orderHash The hash of the order
      * @param amount The amount to update by
      */
@@ -307,7 +307,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
     /**
      * @notice Determines the total amount to sow based on various constraints
      * @param totalAmountToSow Total amount intended to sow
-     * @param pintoLeftToSow Current value of the order counter
+     * @param pintoLeftToSow Current value of the running total requested to be sown
      * @param maxAmountToSowPerSeason Maximum amount that can be sown per season
      * @param availableSoil Amount of soil available for sowing
      * @return The determined total amount to sow
@@ -318,7 +318,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         uint256 maxAmountToSowPerSeason,
         uint256 availableSoil
     ) internal pure returns (uint256) {
-        // If the counter value is less than the totalAmountToSow, use the counter value remaining
+        // If the Pinto left to sow is less than the totalAmountToSow, use the remaining pinto left to sow
         if (pintoLeftToSow < totalAmountToSow) {
             totalAmountToSow = pintoLeftToSow;
         }
@@ -360,7 +360,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
      * @return availableSoil The amount of soil available for sowing
      * @return beanToken The address of the bean token
      * @return currentSeason The current season
-     * @return pintoLeftToSow The current counter value for this order
+     * @return pintoLeftToSow The total amount requested to be sown (considers stored value)
      * @return totalAmountToSow The total amount to sow, adjusted based on constraints
      * @return totalBeansNeeded The total beans needed (sow amount + tip)
      * @return plan The withdrawal plan to check if enough beans are available
