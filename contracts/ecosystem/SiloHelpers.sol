@@ -811,17 +811,18 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * @notice helper function to tip the operator.
      * @dev if `tipAmount` is negative, the publisher is tipped instead.
      */
-    function tip(address token, address publisher, address tipAddress, int256 tipAmount) public {
+    function tip(
+        address token,
+        address publisher,
+        address tipAddress,
+        int256 tipAmount,
+        LibTransfer.From from,
+        LibTransfer.To to
+    ) external {
         // Handle tip transfer based on whether it's positive or negative
         if (tipAmount > 0) {
             // Transfer tip to operator
-            beanstalk.transferToken(
-                IERC20(token),
-                tipAddress,
-                uint256(tipAmount),
-                LibTransfer.From.INTERNAL,
-                LibTransfer.To.INTERNAL
-            );
+            beanstalk.transferToken(IERC20(token), tipAddress, uint256(tipAmount), from, to);
         } else if (tipAmount < 0) {
             // Transfer tip from operator to user
             beanstalk.transferInternalTokenFrom(
@@ -829,7 +830,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                 tipAddress,
                 publisher,
                 uint256(-tipAmount),
-                LibTransfer.To.INTERNAL
+                to
             );
         }
 

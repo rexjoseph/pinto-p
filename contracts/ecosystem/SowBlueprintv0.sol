@@ -196,7 +196,9 @@ contract SowBlueprintv0 is PerFunctionPausable {
             vars.beanToken,
             vars.account,
             vars.tipAddress,
-            params.opParams.operatorTipAmount
+            params.opParams.operatorTipAmount,
+            LibTransfer.From.INTERNAL,
+            LibTransfer.To.INTERNAL
         );
 
         // Sow the withdrawn beans
