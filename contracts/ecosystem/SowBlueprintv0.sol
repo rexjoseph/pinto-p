@@ -125,7 +125,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         SowLocalVars memory vars;
 
         // get order hash
-        vars.orderHash = beanstalk.getCurrentBlueprintHash();
+        vars.orderHash = beanstalk.getCurrentorderHash();
 
         vars.account = beanstalk.tractorUser();
 
@@ -256,11 +256,11 @@ contract SowBlueprintv0 is PerFunctionPausable {
 
     /**
      * @notice Gets the last season a blueprint was executed
-     * @param blueprintHash The hash of the blueprint
+     * @param orderHash The hash of the blueprint
      * @return The last season the blueprint was executed, or 0 if never executed
      */
-    function getLastExecutedSeason(bytes32 blueprintHash) public view returns (uint32) {
-        return orderInfo[blueprintHash].lastExecutedSeason;
+    function getLastExecutedSeason(bytes32 orderHash) public view returns (uint32) {
+        return orderInfo[orderHash].lastExecutedSeason;
     }
 
     /**
