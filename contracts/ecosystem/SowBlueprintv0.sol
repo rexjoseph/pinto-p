@@ -177,7 +177,8 @@ contract SowBlueprintv0 is PerFunctionPausable {
             vars.totalBeansNeeded,
             params.sowParams.maxGrownStalkPerBdv,
             slippageRatio,
-            LibTransfer.To.INTERNAL
+            LibTransfer.To.INTERNAL,
+            vars.withdrawalPlan
         );
 
         // Update the counter

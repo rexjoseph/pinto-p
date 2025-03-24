@@ -251,15 +251,13 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv,
         uint256 slippageRatio,
-        LibTransfer.To mode
+        LibTransfer.To mode,
+        WithdrawalPlan memory plan
     ) external payable whenFunctionNotPaused returns (uint256) {
-        // Get withdrawal plan
-        WithdrawalPlan memory plan = getWithdrawalPlan(
-            account,
-            tokenIndices,
-            targetAmount,
-            maxGrownStalkPerBdv
-        );
+        // If passed in plan is empty, get one
+        if (plan.sourceTokens.length == 0) {
+            plan = getWithdrawalPlan(account, tokenIndices, targetAmount, maxGrownStalkPerBdv);
+        }
 
         uint256 amountWithdrawn = 0;
         address beanToken = beanstalk.getBeanToken();
