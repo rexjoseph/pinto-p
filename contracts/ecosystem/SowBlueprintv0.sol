@@ -125,7 +125,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         SowLocalVars memory vars;
 
         // get order hash
-        vars.orderHash = beanstalk.getCurrentorderHash();
+        vars.orderHash = beanstalk.getCurrentBlueprintHash();
 
         vars.account = beanstalk.tractorUser();
 
