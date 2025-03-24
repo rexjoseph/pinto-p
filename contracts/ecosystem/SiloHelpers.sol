@@ -154,8 +154,6 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                 // If not enough to fulfill the full amount, fill as many as available
                 if (vars.availableAmount < vars.remainingBeansNeeded) {
                     vars.remainingBeansNeeded = vars.remainingBeansNeeded - vars.availableAmount;
-                } else {
-                    vars.remainingBeansNeeded = 0;
                 }
 
                 // Add to valid sources
