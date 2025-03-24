@@ -5,7 +5,6 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {SiloHelpers} from "./SiloHelpers.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
-import {IOperatorWhitelist} from "./OperatorWhitelist.sol";
 
 /**
  * @title SowBlueprintv0
@@ -144,7 +143,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
 
         // Check if the executing operator (msg.sender) is whitelisted
         require(
-            _isOperatorWhitelisted(params.opParams.whitelistedOperators),
+            siloHelpers.isOperatorWhitelisted(params.opParams.whitelistedOperators),
             "Operator not whitelisted"
         );
 
@@ -303,51 +302,6 @@ contract SowBlueprintv0 is PerFunctionPausable {
      */
     function updateLastExecutedSeason(bytes32 orderHash, uint32 season) internal {
         orderInfo[orderHash].lastExecutedSeason = season;
-    }
-
-    /**
-     * @notice Checks if the current operator is whitelisted
-     * @param whitelistedOperators Array of whitelisted operator addresses
-     * @return isWhitelisted Whether the current operator is whitelisted
-     */
-    function _isOperatorWhitelisted(
-        address[] calldata whitelistedOperators
-    ) internal view returns (bool) {
-        // If there are no whitelisted operators, pass in, accept any operator
-        if (whitelistedOperators.length == 0) {
-            return true;
-        }
-
-        address currentOperator = beanstalk.operator();
-        for (uint256 i = 0; i < whitelistedOperators.length; i++) {
-            address checkAddress = whitelistedOperators[i];
-            if (checkAddress == currentOperator) {
-                return true;
-            } else {
-                // Skip if address is a precompiled contract (address < 0x20)
-                if (uint160(checkAddress) <= 0x20) continue;
-
-                // Check if the address is a contract before attempting staticcall
-                uint256 size;
-                assembly {
-                    size := extcodesize(checkAddress)
-                }
-
-                if (size > 0) {
-                    try
-                        IOperatorWhitelist(checkAddress).checkOperatorWhitelist(currentOperator)
-                    returns (bool success) {
-                        if (success) {
-                            return true;
-                        }
-                    } catch {
-                        // If the call fails, continue to the next address
-                        continue;
-                    }
-                }
-            }
-        }
-        return false;
     }
 
     /**
