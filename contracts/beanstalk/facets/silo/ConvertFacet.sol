@@ -17,7 +17,6 @@ import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
 import {LibPipelineConvert} from "contracts/libraries/Convert/LibPipelineConvert.sol";
-import "forge-std/console.sol";
 /**
  * @title ConvertFacet handles converting Deposited assets within the Silo.
  **/

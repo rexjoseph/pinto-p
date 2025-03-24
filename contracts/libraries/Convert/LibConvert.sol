@@ -27,7 +27,6 @@ import {Decimal} from "contracts/libraries/Decimal.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
-import "forge-std/console.sol";
 
 /**
  * @title LibConvert
@@ -585,6 +584,7 @@ library LibConvert {
         uint256 grownStalk
     ) internal view returns (uint256 newGrownStalk, uint256 grownStalkLost) {
         AppStorage storage s = LibAppStorage.diamondStorage();
+
         // No penalty if output deposit germinating.
         uint256 minGrownStalk = LibTokenSilo.calculateGrownStalkAtNonGerminatingStem(well, bdv);
         if (grownStalk < minGrownStalk) {
