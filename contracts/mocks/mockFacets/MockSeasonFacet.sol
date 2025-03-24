@@ -748,4 +748,8 @@ contract MockSeasonFacet is SeasonFacet {
         s.sys.season.timestamp = block.timestamp;
         emit DeltaB(instDeltaB);
     }
+
+    function setExcessivePriceThreshold(uint256 threshold) external {
+        s.sys.evaluationParameters.excessivePriceThreshold = threshold;
+    }
 }
