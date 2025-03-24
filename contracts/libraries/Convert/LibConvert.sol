@@ -631,8 +631,12 @@ library LibConvert {
 
         uint256[] memory instantReserves = LibDeltaB.instantReserves(well);
         Call memory wellFunction = IWell(well).wellFunction();
-        uint256 beansAtPgtQ = IBeanstalkWellFunction(wellFunction.target)
-            .calcReserveAtRatioLiquidity(instantReserves, beanIndex, ratios, wellFunction.data);
+        uint256 beansAtPgtQ = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioSwap(
+            instantReserves,
+            beanIndex,
+            ratios,
+            wellFunction.data
+        );
         // Fewer Beans indicates a higher Bean price.
         if (instantReserves[beanIndex] < beansAtPgtQ) {
             return true;
