@@ -564,15 +564,12 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         );
 
         // Calculate reserves after removing beans
-        uint256[] memory newReserves = new uint256[](reserves.length);
-        for (uint256 i = 0; i < reserves.length; i++) {
-            newReserves[i] = reserves[i];
-        }
-        newReserves[beanIndex] = reserves[beanIndex] - beanAmount;
+
+        reserves[beanIndex] = reserves[beanIndex] - beanAmount;
 
         // Calculate new LP supply after removing beans
         uint256 lpSupplyAfter = IBeanstalkWellFunction(wellFunction.target).calcLpTokenSupply(
-            newReserves,
+            reserves,
             wellFunction.data
         );
 
