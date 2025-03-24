@@ -215,7 +215,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
             }
         }
 
-        require(vars.remainingBeansNeeded == 0, "Not enough beans available");
+        require(vars.totalAvailableBeans != 0, "No beans available");
 
         // Now create the final plan with correctly sized arrays
         plan.sourceTokens = new address[](vars.validSourceCount);

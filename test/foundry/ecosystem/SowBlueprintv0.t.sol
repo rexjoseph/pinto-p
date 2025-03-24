@@ -99,6 +99,11 @@ contract SowBlueprintv0Test is TractorHelper {
             uint8(LibTransfer.From.EXTERNAL)
         );
 
+        // For farmer 1, deposit 1000e6 beans, and mint them 1000e6 beans
+        mintTokensToUser(farmers[1], state.beanToken, 1000e6);
+        vm.prank(farmers[1]);
+        bs.deposit(state.beanToken, 1000e6, uint8(LibTransfer.From.EXTERNAL));
+
         return state;
     }
 
@@ -409,6 +414,43 @@ contract SowBlueprintv0Test is TractorHelper {
 
             assertEq(soilSown, maxPerSeason, "Should sow maxAmountToSowPerSeason in new season");
         }
+
+        vm.revertTo(snapshot);
+
+        // Test Case 9: Test sowing with limited deposited beans
+        {
+            // Create blueprint with max 1200 and min 500 per season, but this user only has 1000e6 deposited
+            (IMockFBeanstalk.Requisition memory req, ) = setupSowBlueprintv0Blueprint(
+                farmers[1],
+                SourceMode.PURE_PINTO,
+                makeSowAmountsArray(1200e6, 500e6, 1200e6),
+                0, // minTemp
+                state.tipAmount,
+                state.operator,
+                type(uint256).max,
+                MAX_GROWN_STALK_PER_BDV,
+                0 // No runBlocksAfterSunrise
+            );
+
+            // Should succeed and sow all 1000 BEAN, minus the 10 tip
+            executeRequisition(state.operator, req, address(bs));
+
+            // Verify that all 990 BEAN were sown
+            assertEq(
+                state.initialSoil - bs.totalSoil(),
+                1000e6 - uint256(state.tipAmount),
+                "Should sow all available beans (1000 BEAN minus tip) "
+            );
+
+            // Verify the counter was updated correctly, there should be 210 left to sow, because we took the user's 1000 beans, sowed 990, tipped 10.
+            assertEq(
+                sowBlueprintv0.getPintosLeftToSow(req.blueprintHash),
+                200e6 + uint256(state.tipAmount),
+                "Counter not correct"
+            );
+        }
+
+        vm.revertTo(snapshot);
     }
 
     function test_sowBlueprintv0Counter() public {

@@ -368,7 +368,7 @@ contract SiloHelpersTest is TractorHelper {
             uint8[] memory sourceTokenIndices = new uint8[](1);
             sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN);
 
-            vm.expectRevert("Not enough beans available");
+            vm.expectRevert("Silo: Crate balance too low."); // NOTE: this test will be updated with the plan change
             siloHelpers.withdrawBeansFromSources(
                 farmers[0],
                 sourceTokenIndices,

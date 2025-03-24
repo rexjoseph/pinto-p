@@ -441,7 +441,22 @@ contract SowBlueprintv0 is PerFunctionPausable {
         );
 
         // Verify enough beans are available
-        require(plan.totalAvailableBeans >= totalBeansNeeded, "Not enough beans available");
+        if (plan.totalAvailableBeans < totalBeansNeeded) {
+            require(
+                plan.totalAvailableBeans >=
+                    params.sowParams.sowAmounts.minAmountToSowPerSeason +
+                        uint256(params.opParams.operatorTipAmount),
+                "Not enough beans available"
+            );
+            totalBeansNeeded = plan.totalAvailableBeans;
+            if (params.opParams.operatorTipAmount > 0) {
+                totalAmountToSow =
+                    plan.totalAvailableBeans -
+                    uint256(params.opParams.operatorTipAmount);
+            } else {
+                totalAmountToSow = plan.totalAvailableBeans;
+            }
+        }
     }
 
     /**
