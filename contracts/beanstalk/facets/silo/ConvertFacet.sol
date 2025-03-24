@@ -17,7 +17,7 @@ import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibConvertData} from "contracts/libraries/Convert/LibConvertData.sol";
 import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMathSigned256.sol";
 import {LibPipelineConvert} from "contracts/libraries/Convert/LibPipelineConvert.sol";
-
+import "forge-std/console.sol";
 /**
  * @title ConvertFacet handles converting Deposited assets within the Silo.
  **/
@@ -127,6 +127,8 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         }
 
         if (cp.toToken != s.sys.bean && cp.fromToken == s.sys.bean) {
+            console.log("cp.toToken:", cp.toToken);
+            console.log("cp.fromToken:", cp.fromToken);
             uint256 grownStalkLost;
             (pipeData.grownStalk, grownStalkLost) = LibConvert.downPenalizedGrownStalk(
                 cp.toToken,

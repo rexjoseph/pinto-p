@@ -158,8 +158,6 @@ contract PipelineConvertTest is TestHelper {
 
         amount = bound(amount, 10e6, 5000e6);
 
-        // update Q such that P << Q.
-        bs.setExcessivePriceThreshold(10000e6);
         // manipulate well so we won't have a penalty applied
         setDeltaBforWell(int256(amount), beanEthWell, WETH);
 
@@ -560,9 +558,6 @@ contract PipelineConvertTest is TestHelper {
 
     function testConvertWithPegAndKeepStalk(uint256 amount) public {
         amount = bound(amount, 10e6, 100e6);
-
-        // update Q such that P << Q.
-        bs.setExcessivePriceThreshold(10000e6);
 
         setDeltaBforWell(int256(amount), beanEthWell, WETH);
 
