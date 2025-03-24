@@ -97,6 +97,9 @@ contract SowBlueprintv0 is PerFunctionPausable {
     IBeanstalk immutable beanstalk;
     SiloHelpers immutable siloHelpers;
 
+    // Default slippage ratio for LP token withdrawals (1%)
+    uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
+
     /**
      * @notice Struct to hold order info
      * @param pintoSownCounter Counter for the number of maximum pinto that can be sown from this blueprint. Used for orders that sow over multiple seasons.
@@ -157,7 +160,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         // if slippage ratio is not set, set a default parameter:
         uint256 slippageRatio = params.sowParams.slippageRatio;
         if (slippageRatio == 0) {
-            slippageRatio = 0.01e18; // 1%
+            slippageRatio = DEFAULT_SLIPPAGE_RATIO;
         }
 
         // Execute the withdrawal plan
