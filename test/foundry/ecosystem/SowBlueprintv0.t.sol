@@ -461,7 +461,7 @@ contract SowBlueprintv0Test is TractorHelper {
         bs.setSoilE(smallerSoil);
 
         // Try to sow more than available soil, but counter should track total amount sown
-        uint256 totalAmountToSow = 2000e6; // 2000 BEAN (4x the soil)
+        uint256 totalAmountToSow = 1900e6; // 1900 BEAN (less than 4x the soil)
         uint256 tipAmount = 10e6; // 10 BEAN
         uint256 counter;
 
@@ -487,7 +487,7 @@ contract SowBlueprintv0Test is TractorHelper {
         // Verify first sow used the available soil and check counter
         assertEq(bs.totalSoil(), 0, "First sow should use all soil");
         counter = sowBlueprintv0.getPintosLeftToSow(orderHash);
-        assertEq(counter, 1500e6, "Counter should be 1500 BEAN after first sow");
+        assertEq(counter, 1400e6, "Counter should be 1400 BEAN after first sow");
 
         // Verify the last executed season was recorded properly
         assertEq(
@@ -508,7 +508,7 @@ contract SowBlueprintv0Test is TractorHelper {
         // Verify second sow used the available soil and check counter
         assertEq(bs.totalSoil(), 0, "Second sow should use all soil");
         counter = sowBlueprintv0.getPintosLeftToSow(orderHash);
-        assertEq(counter, 1000e6, "Counter should be 1000 BEAN after second sow");
+        assertEq(counter, 900e6, "Counter should be 900 BEAN after second sow");
 
         // Verify the last executed season was updated
         assertEq(
@@ -529,7 +529,7 @@ contract SowBlueprintv0Test is TractorHelper {
         // Verify third sow used the available soil and check counter
         assertEq(bs.totalSoil(), 0, "Third sow should use all soil");
         counter = sowBlueprintv0.getPintosLeftToSow(orderHash);
-        assertEq(counter, 500e6, "Counter should be 500 BEAN after third sow");
+        assertEq(counter, 400e6, "Counter should be 500 BEAN after third sow");
 
         // Advance to next season
         bs.siloSunrise(0);
@@ -541,7 +541,7 @@ contract SowBlueprintv0Test is TractorHelper {
         executeRequisition(state.operator, req, address(bs));
 
         // Verify fourth sow used the available soil and check counter
-        assertEq(bs.totalSoil(), 0, "Fourth sow should use all soil");
+        assertEq(bs.totalSoil(), 100e6, "Fourth sow should use all soil except 100e6");
         counter = sowBlueprintv0.getPintosLeftToSow(orderHash);
         assertEq(counter, type(uint256).max, "Counter should be max uint256 after fourth sow");
 
