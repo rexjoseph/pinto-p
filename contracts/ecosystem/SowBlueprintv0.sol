@@ -252,7 +252,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
     /**
      * @notice validates the blueprint parameters.
      */
-    function _validateBlueprintAndCounterValue(
+    function _validateBlueprintAndPintoLeftToSow(
         bytes32 orderHash
     ) internal view returns (uint256 pintoLeftToSow) {
         require(orderHash != bytes32(0), "No active blueprint, function must run from Tractor");
@@ -385,7 +385,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         (availableSoil, beanToken, currentSeason) = getAndValidateBeanstalkState(params.sowParams);
 
         _validateParams(params);
-        pintoLeftToSow = _validateBlueprintAndCounterValue(orderHash);
+        pintoLeftToSow = _validateBlueprintAndPintoLeftToSow(orderHash);
 
         // Determine the total amount to sow based on various constraints
         totalAmountToSow = determineTotalAmountToSow(
