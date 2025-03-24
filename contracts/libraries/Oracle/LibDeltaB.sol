@@ -90,7 +90,7 @@ library LibDeltaB {
     /**
      * @notice returns the capped instant reserves for a given well.
      * @dev empty array is returned if the well call reverts.
-     * @return instReserves The capped reserves for the given well.
+     * @return cappedReserves The capped reserves for the given well.
      */
     function cappedReserves(address well) internal view returns (uint256[] memory) {
         // get first pump from well
@@ -98,9 +98,9 @@ library LibDeltaB {
         address pump = pumps[0].target;
 
         try ICappedReservesPump(pump).readCappedReserves(well, pumps[0].data) returns (
-            uint256[] memory instReserves
+            uint256[] memory cappedReserves
         ) {
-            return instReserves;
+            return cappedReserves;
         } catch {
             return new uint256[](0);
         }

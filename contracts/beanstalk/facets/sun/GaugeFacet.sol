@@ -158,7 +158,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(rollingSeasonsAbovePeg * 1e18 + 1e18)) /
             PRBMathUD60x18.log2(rollingSeasonsAbovePegCap * 1e18 + 1e18);
 
-        penaltyRatio = Math.min(1e18, l2srRatio - (timeRatio * l2srRatio) / 1e18);
+        penaltyRatio = Math.min(1e18, l2srRatio * (1e18 - timeRatio) / 1e18);
         return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
     }
 

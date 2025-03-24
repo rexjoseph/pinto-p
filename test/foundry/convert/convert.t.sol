@@ -333,7 +333,7 @@ contract ConvertTest is TestHelper {
             assertEq(rollingSeasonsAbovePeg, 1, "rollingSeasonsAbovePeg should be 1");
 
             assertGt(penaltyRatio, 0, "t=1 penaltyRatio should be greater than 0");
-            assertEq(penaltyRatio, 150977256372795882, "t=1 hardcoded ratio mismatch");
+            assertEq(penaltyRatio, 150977256372795881, "t=1 hardcoded ratio mismatch");
 
             uint256 beansToConvert = 50e6;
             (
