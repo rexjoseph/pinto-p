@@ -59,6 +59,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
      * @param maxPodlineLength Maximum podline length allowed
      * @param maxGrownStalkPerBdv Maximum grown stalk per BDV allowed
      * @param runBlocksAfterSunrise Number of blocks to wait after sunrise before executing
+     * @param slippageRatio The price slippage ratio for a lp token withdrawal, between the instantaneous price and the current price. Only applicable for lp token withdrawals.
      */
     struct SowParams {
         uint8[] sourceTokenIndices;
@@ -67,6 +68,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         uint256 maxPodlineLength;
         uint256 maxGrownStalkPerBdv;
         uint256 runBlocksAfterSunrise;
+        uint256 slippageRatio;
     }
 
     /**
@@ -162,12 +164,19 @@ contract SowBlueprintv0 is PerFunctionPausable {
             vars.tipAddress = params.opParams.tipAddress;
         }
 
+        // if slippage ratio is not set, set a default parameter:
+        uint256 slippageRatio = params.sowParams.slippageRatio;
+        if (slippageRatio == 0) {
+            slippageRatio = 0.01e18; // 1%
+        }
+
         // Execute the withdrawal plan
         vars.beansWithdrawn = siloHelpers.withdrawBeansFromSources(
             vars.account,
             params.sowParams.sourceTokenIndices,
             vars.totalBeansNeeded,
             params.sowParams.maxGrownStalkPerBdv,
+            slippageRatio,
             LibTransfer.To.INTERNAL
         );
 

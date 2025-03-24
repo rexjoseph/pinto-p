@@ -22,9 +22,6 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     uint8 internal constant LOWEST_PRICE_STRATEGY = type(uint8).max;
     uint8 internal constant LOWEST_SEED_STRATEGY = type(uint8).max - 1;
 
-    // Tolerance between the multiblock-mev resistant price and the current price.
-    uint256 internal constant SLIPPAGE_RATIO = 0.01e18; // 1%.
-
     IBeanstalk immutable beanstalk;
     BeanstalkPrice immutable beanstalkPrice;
     PriceManipulation immutable priceManipulation;
@@ -244,6 +241,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
      * @param targetAmount The total amount of beans to withdraw
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param slippageRatio The price slippage ratio for a lp token withdrawal, between the instantaneous price and the current price
      * @param mode The transfer mode for sending tokens back to user
      * @return amountWithdrawn The total amount of beans withdrawn
      */
@@ -252,6 +250,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint8[] memory tokenIndices,
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv,
+        uint256 slippageRatio,
         LibTransfer.To mode
     ) external payable whenFunctionNotPaused returns (uint256) {
         // Get withdrawal plan
@@ -279,7 +278,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                     priceManipulation.isValidSlippage(
                         IWell(sourceToken),
                         IERC20(nonBeanToken),
-                        SLIPPAGE_RATIO
+                        slippageRatio
                     ),
                     "Price manipulation detected"
                 );
