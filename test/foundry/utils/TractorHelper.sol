@@ -95,7 +95,14 @@ contract TractorHelper is TestHelper {
                 withdrawAmount,
                 maxGrownStalkPerBdv,
                 0.01e18, // 1%
-                uint8(mode)
+                uint8(mode),
+                SiloHelpers.WithdrawalPlan(
+                    new address[](0),
+                    new int96[][](0),
+                    new uint256[][](0),
+                    new uint256[](0),
+                    0
+                )
             ),
             clipboard: hex"0000"
         });

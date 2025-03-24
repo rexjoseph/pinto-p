@@ -368,14 +368,23 @@ contract SiloHelpersTest is TractorHelper {
             uint8[] memory sourceTokenIndices = new uint8[](1);
             sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN);
 
-            vm.expectRevert("Not enough beans available");
+            // Get withdrawal plan
+            SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+                farmers[0],
+                sourceTokenIndices,
+                withdrawAmount,
+                MAX_GROWN_STALK_PER_BDV
+            );
+
+            vm.expectRevert("Silo: Crate balance too low."); // NOTE: this test will be updated with the plan change
             siloHelpers.withdrawBeansFromSources(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
                 MAX_GROWN_STALK_PER_BDV,
                 0.01e18, // 1%
-                LibTransfer.To.EXTERNAL
+                LibTransfer.To.EXTERNAL,
+                plan
             );
         }
 
