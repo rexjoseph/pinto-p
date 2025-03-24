@@ -147,15 +147,6 @@ contract SowBlueprintv0 is PerFunctionPausable {
             "Operator not whitelisted"
         );
 
-        // If the Pinto left to sow is 0, then it has not been initialized yet, initialize it
-        if (vars.pintoLeftToSow == 0) {
-            updatePintoLeftToSowCounter(
-                vars.orderHash,
-                params.sowParams.sowAmounts.totalAmountToSow
-            );
-            vars.pintoLeftToSow = params.sowParams.sowAmounts.totalAmountToSow;
-        }
-
         // Get tip address. If tip address is not set, set it to the operator
         if (params.opParams.tipAddress == address(0)) {
             vars.tipAddress = beanstalk.operator();
@@ -386,6 +377,11 @@ contract SowBlueprintv0 is PerFunctionPausable {
 
         _validateParams(params);
         pintoLeftToSow = _validateBlueprintAndPintoLeftToSow(orderHash);
+
+        // If the pintoLeftToSow is 0, then it has not been initialized yet, initialize it with the total amount to sow
+        if (pintoLeftToSow == 0) {
+            pintoLeftToSow = params.sowParams.sowAmounts.totalAmountToSow;
+        }
 
         // Determine the total amount to sow based on various constraints
         totalAmountToSow = determineTotalAmountToSow(
