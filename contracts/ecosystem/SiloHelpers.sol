@@ -22,9 +22,6 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     uint8 internal constant LOWEST_PRICE_STRATEGY = type(uint8).max;
     uint8 internal constant LOWEST_SEED_STRATEGY = type(uint8).max - 1;
 
-    // Tolerance between the multiblock-mev resistant price and the current price.
-    uint256 internal constant SLIPPAGE_RATIO = 0.01e18; // 1%.
-
     IBeanstalk immutable beanstalk;
     BeanstalkPrice immutable beanstalkPrice;
     PriceManipulation immutable priceManipulation;
@@ -244,6 +241,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
      * @param targetAmount The total amount of beans to withdraw
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param slippageRatio The price slippage ratio for a lp token withdrawal, between the instantaneous price and the current price
      * @param mode The transfer mode for sending tokens back to user
      * @return amountWithdrawn The total amount of beans withdrawn
      */
@@ -252,6 +250,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint8[] memory tokenIndices,
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv,
+        uint256 slippageRatio,
         LibTransfer.To mode
     ) external payable whenFunctionNotPaused returns (uint256) {
         // Get withdrawal plan
@@ -279,7 +278,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                     priceManipulation.isValidSlippage(
                         IWell(sourceToken),
                         IERC20(nonBeanToken),
-                        SLIPPAGE_RATIO
+                        slippageRatio
                     ),
                     "Price manipulation detected"
                 );
@@ -564,15 +563,12 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         );
 
         // Calculate reserves after removing beans
-        uint256[] memory newReserves = new uint256[](reserves.length);
-        for (uint256 i = 0; i < reserves.length; i++) {
-            newReserves[i] = reserves[i];
-        }
-        newReserves[beanIndex] = reserves[beanIndex] - beanAmount;
+
+        reserves[beanIndex] = reserves[beanIndex] - beanAmount;
 
         // Calculate new LP supply after removing beans
         uint256 lpSupplyAfter = IBeanstalkWellFunction(wellFunction.target).calcLpTokenSupply(
-            newReserves,
+            reserves,
             wellFunction.data
         );
 
@@ -698,7 +694,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     function getBeanAmountAvailable(
         address account,
         address token
-    ) public view returns (uint256 beanAmountAvailable) {
+    ) external view returns (uint256 beanAmountAvailable) {
         // Get total amount deposited
         (, uint256[] memory amounts) = getSortedDeposits(account, token);
         uint256 totalAmount;
@@ -815,17 +811,18 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * @notice helper function to tip the operator.
      * @dev if `tipAmount` is negative, the publisher is tipped instead.
      */
-    function tip(address token, address publisher, address tipAddress, int256 tipAmount) public {
+    function tip(
+        address token,
+        address publisher,
+        address tipAddress,
+        int256 tipAmount,
+        LibTransfer.From from,
+        LibTransfer.To to
+    ) external {
         // Handle tip transfer based on whether it's positive or negative
         if (tipAmount > 0) {
             // Transfer tip to operator
-            beanstalk.transferToken(
-                IERC20(token),
-                tipAddress,
-                uint256(tipAmount),
-                LibTransfer.From.INTERNAL,
-                LibTransfer.To.INTERNAL
-            );
+            beanstalk.transferToken(IERC20(token), tipAddress, uint256(tipAmount), from, to);
         } else if (tipAmount < 0) {
             // Transfer tip from operator to user
             beanstalk.transferInternalTokenFrom(
@@ -833,7 +830,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                 tipAddress,
                 publisher,
                 uint256(-tipAmount),
-                LibTransfer.To.INTERNAL
+                to
             );
         }
 

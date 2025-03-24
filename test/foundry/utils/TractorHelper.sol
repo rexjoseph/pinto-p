@@ -94,6 +94,7 @@ contract TractorHelper is TestHelper {
                 sourceTokenIndices,
                 withdrawAmount,
                 maxGrownStalkPerBdv,
+                0.01e18, // 1%
                 uint8(mode)
             ),
             clipboard: hex"0000"
@@ -223,7 +224,8 @@ contract TractorHelper is TestHelper {
             minTemp: minTemp,
             maxPodlineLength: maxPodlineLength,
             maxGrownStalkPerBdv: maxGrownStalkLimitPerBdv,
-            runBlocksAfterSunrise: runBlocksAfterSunrise
+            runBlocksAfterSunrise: runBlocksAfterSunrise,
+            slippageRatio: 0.01e18 // 1%
         });
 
         // Create OperatorParams struct

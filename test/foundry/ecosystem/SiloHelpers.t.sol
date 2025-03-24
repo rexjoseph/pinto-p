@@ -374,6 +374,7 @@ contract SiloHelpersTest is TractorHelper {
                 sourceTokenIndices,
                 withdrawAmount,
                 MAX_GROWN_STALK_PER_BDV,
+                0.01e18, // 1%
                 LibTransfer.To.EXTERNAL
             );
         }

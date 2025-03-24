@@ -49,10 +49,7 @@ contract PriceManipulation {
         well.sync(address(this), 0);
 
         // Capped reserves are the current reserves capped with the data from the pump.
-        uint256[] memory currentReserves = IMultiFlowPump(pump.target).readCappedReserves(
-            address(well),
-            pump.data
-        );
+        uint256[] memory currentReserves = IWell(well).getReserves();
 
         uint256 currentPintoPerAsset = calculateTokenBeanPriceFromReserves(
             address(token),

@@ -18,7 +18,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
      * @param currentTemp Current temperature from Beanstalk
      * @param availableSoil Amount of soil available for sowing at time of execution
      * @param beanToken Address of the Bean token
-     * @param counterValue Current value of the order counter
+     * @param pintoLeftToSow Current value of the order counter
      * @param totalBeansNeeded Total amount of beans needed including tip
      * @param orderHash Hash of the current blueprint order
      * @param beansWithdrawn Amount of beans withdrawn from sources
@@ -31,7 +31,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         address beanToken;
         uint256 availableSoil;
         uint32 currentSeason;
-        uint256 counterValue;
+        uint256 pintoLeftToSow;
         uint256 totalBeansNeeded;
         bytes32 orderHash;
         uint256 beansWithdrawn;
@@ -59,6 +59,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
      * @param maxPodlineLength Maximum podline length allowed
      * @param maxGrownStalkPerBdv Maximum grown stalk per BDV allowed
      * @param runBlocksAfterSunrise Number of blocks to wait after sunrise before executing
+     * @param slippageRatio The price slippage ratio for a lp token withdrawal, between the instantaneous price and the current price. Only applicable for lp token withdrawals.
      */
     struct SowParams {
         uint8[] sourceTokenIndices;
@@ -67,6 +68,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         uint256 maxPodlineLength;
         uint256 maxGrownStalkPerBdv;
         uint256 runBlocksAfterSunrise;
+        uint256 slippageRatio;
     }
 
     /**
@@ -134,7 +136,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
             vars.availableSoil,
             vars.beanToken,
             vars.currentSeason,
-            vars.counterValue,
+            vars.pintoLeftToSow,
             vars.totalAmountToSow,
             vars.totalBeansNeeded,
             vars.withdrawalPlan
@@ -147,12 +149,12 @@ contract SowBlueprintv0 is PerFunctionPausable {
         );
 
         // If the counter value is 0, then it has not been initialized yet, initialize it
-        if (vars.counterValue == 0) {
+        if (vars.pintoLeftToSow == 0) {
             updatePintoLeftToSowCounter(
                 vars.orderHash,
                 params.sowParams.sowAmounts.totalAmountToSow
             );
-            vars.counterValue = params.sowParams.sowAmounts.totalAmountToSow;
+            vars.pintoLeftToSow = params.sowParams.sowAmounts.totalAmountToSow;
         }
 
         // Get tip address. If tip address is not set, set it to the operator
@@ -162,21 +164,31 @@ contract SowBlueprintv0 is PerFunctionPausable {
             vars.tipAddress = params.opParams.tipAddress;
         }
 
+        // if slippage ratio is not set, set a default parameter:
+        uint256 slippageRatio = params.sowParams.slippageRatio;
+        if (slippageRatio == 0) {
+            slippageRatio = 0.01e18; // 1%
+        }
+
         // Execute the withdrawal plan
         vars.beansWithdrawn = siloHelpers.withdrawBeansFromSources(
             vars.account,
             params.sowParams.sourceTokenIndices,
             vars.totalBeansNeeded,
             params.sowParams.maxGrownStalkPerBdv,
+            slippageRatio,
             LibTransfer.To.INTERNAL
         );
 
         // Update the counter
         // If this will use up all remaining amount, set to max to indicate completion
-        if (vars.counterValue - vars.totalAmountToSow == 0) {
+        if (vars.pintoLeftToSow - vars.totalAmountToSow == 0) {
             updatePintoLeftToSowCounter(vars.orderHash, type(uint256).max);
         } else {
-            updatePintoLeftToSowCounter(vars.orderHash, vars.counterValue - vars.totalAmountToSow);
+            updatePintoLeftToSowCounter(
+                vars.orderHash,
+                vars.pintoLeftToSow - vars.totalAmountToSow
+            );
         }
 
         // Tip the operator
@@ -184,7 +196,9 @@ contract SowBlueprintv0 is PerFunctionPausable {
             vars.beanToken,
             vars.account,
             vars.tipAddress,
-            params.opParams.operatorTipAmount
+            params.opParams.operatorTipAmount,
+            LibTransfer.From.INTERNAL,
+            LibTransfer.To.INTERNAL
         );
 
         // Sow the withdrawn beans
@@ -240,7 +254,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
      */
     function _validateBlueprintAndCounterValue(
         bytes32 orderHash
-    ) internal view returns (uint256 counterValue) {
+    ) internal view returns (uint256 pintoLeftToSow) {
         require(orderHash != bytes32(0), "No active blueprint, function must run from Tractor");
         require(
             getLastExecutedSeason(orderHash) < beanstalk.time().current,
@@ -248,19 +262,19 @@ contract SowBlueprintv0 is PerFunctionPausable {
         );
 
         // Verify there's still sow amount available with the counter
-        counterValue = getPintosLeftToSow(orderHash);
+        pintoLeftToSow = getPintosLeftToSow(orderHash);
 
-        // If counterValue is max uint256, then the sow order has already been fully used, so revert
-        require(counterValue != type(uint256).max, "Sow order already fulfilled");
+        // If pintoLeftToSow is max uint256, then the sow order has already been fully used, so revert
+        require(pintoLeftToSow != type(uint256).max, "Sow order already fulfilled");
     }
 
     /**
      * @notice Gets the last season a blueprint was executed
-     * @param blueprintHash The hash of the blueprint
+     * @param orderHash The hash of the blueprint
      * @return The last season the blueprint was executed, or 0 if never executed
      */
-    function getLastExecutedSeason(bytes32 blueprintHash) public view returns (uint32) {
-        return orderInfo[blueprintHash].lastExecutedSeason;
+    function getLastExecutedSeason(bytes32 orderHash) public view returns (uint32) {
+        return orderInfo[orderHash].lastExecutedSeason;
     }
 
     /**
@@ -338,20 +352,20 @@ contract SowBlueprintv0 is PerFunctionPausable {
     /**
      * @notice Determines the total amount to sow based on various constraints
      * @param totalAmountToSow Total amount intended to sow
-     * @param counterValue Current value of the order counter
+     * @param pintoLeftToSow Current value of the order counter
      * @param maxAmountToSowPerSeason Maximum amount that can be sown per season
      * @param availableSoil Amount of soil available for sowing
      * @return The determined total amount to sow
      */
     function determineTotalAmountToSow(
         uint256 totalAmountToSow,
-        uint256 counterValue,
+        uint256 pintoLeftToSow,
         uint256 maxAmountToSowPerSeason,
         uint256 availableSoil
     ) internal pure returns (uint256) {
         // If the counter value is less than the totalAmountToSow, use the counter value remaining
-        if (counterValue < totalAmountToSow) {
-            totalAmountToSow = counterValue;
+        if (pintoLeftToSow < totalAmountToSow) {
+            totalAmountToSow = pintoLeftToSow;
         }
 
         // Check and enforce maxAmountToSowPerSeason limit first
@@ -391,7 +405,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
      * @return availableSoil The amount of soil available for sowing
      * @return beanToken The address of the bean token
      * @return currentSeason The current season
-     * @return counterValue The current counter value for this order
+     * @return pintoLeftToSow The current counter value for this order
      * @return totalAmountToSow The total amount to sow, adjusted based on constraints
      * @return totalBeansNeeded The total beans needed (sow amount + tip)
      * @return plan The withdrawal plan to check if enough beans are available
@@ -407,7 +421,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
             uint256 availableSoil,
             address beanToken,
             uint32 currentSeason,
-            uint256 counterValue,
+            uint256 pintoLeftToSow,
             uint256 totalAmountToSow,
             uint256 totalBeansNeeded,
             SiloHelpers.WithdrawalPlan memory plan
@@ -416,12 +430,12 @@ contract SowBlueprintv0 is PerFunctionPausable {
         (availableSoil, beanToken, currentSeason) = getAndValidateBeanstalkState(params.sowParams);
 
         _validateParams(params);
-        counterValue = _validateBlueprintAndCounterValue(orderHash);
+        pintoLeftToSow = _validateBlueprintAndCounterValue(orderHash);
 
         // Determine the total amount to sow based on various constraints
         totalAmountToSow = determineTotalAmountToSow(
             params.sowParams.sowAmounts.totalAmountToSow,
-            counterValue == 0 ? params.sowParams.sowAmounts.totalAmountToSow : counterValue,
+            pintoLeftToSow == 0 ? params.sowParams.sowAmounts.totalAmountToSow : pintoLeftToSow,
             params.sowParams.sowAmounts.maxAmountToSowPerSeason,
             availableSoil
         );
@@ -485,7 +499,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
                 uint256, // availableSoil
                 address, // beanToken
                 uint32, // currentSeason
-                uint256, // counterValue
+                uint256, // pintoLeftToSow
                 uint256, // totalAmountToSow
                 uint256, // totalBeansNeeded
                 SiloHelpers.WithdrawalPlan memory // plan
