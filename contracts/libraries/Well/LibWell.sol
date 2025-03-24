@@ -282,27 +282,6 @@ library LibWell {
     }
 
     /**
-     * @notice Returns the USD price of Bean in a given well given the reserves.
-     * @param well The address of the well to calculate the Bean USD price for.
-     * @param reserves The reserves of the well. Can be instant, twap, current, etc.
-     * @return beanUsdPrice The USD price of Bean in the well.
-     */
-    function getBeanUsdPriceFromReserves(
-        address well,
-        uint256[] memory reserves
-    ) internal view returns (uint256) {
-        uint256 beanIndex = getBeanIndexFromWell(well);
-        uint256 tokenBeanPrice = calculateTokenBeanPriceFromReserves(
-            well,
-            beanIndex,
-            beanIndex == 0 ? 1 : 0,
-            reserves,
-            IWell(well).wellFunction()
-        );
-        return getBeanUsdPriceFromTokenBeanPrice(well, tokenBeanPrice);
-    }
-
-    /**
      * @dev Sets the twaReserves in {AppStorage.usdTokenPrice}.
      * assumes the twaReserve indexes correspond to the Constant Product Well indexes.
      * if the length of the twaReserves is 0, then the minting oracle is off.

@@ -592,7 +592,7 @@ library LibConvert {
         }
 
         // No penalty if P > Q.
-        if (PgtQ(well)) {
+        if (pGreaterThanQ(well)) {
             return (grownStalk, 0);
         }
 
@@ -606,7 +606,7 @@ library LibConvert {
                 LibPRBMathRoundable.mulDiv(
                     grownStalk,
                     penaltyRatio,
-                    1e18,
+                    C.PRECISION,
                     LibPRBMathRoundable.Rounding.Up
                 ),
             minGrownStalk
@@ -614,7 +614,7 @@ library LibConvert {
         grownStalkLost = grownStalk - newGrownStalk;
     }
 
-    function PgtQ(address well) internal view returns (bool) {
+    function pGreaterThanQ(address well) internal view returns (bool) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // No penalty if P > Q.
@@ -631,14 +631,14 @@ library LibConvert {
 
         uint256[] memory instantReserves = LibDeltaB.instantReserves(well);
         Call memory wellFunction = IWell(well).wellFunction();
-        uint256 beansAtPgtQ = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioSwap(
+        uint256 beansAtQ = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioSwap(
             instantReserves,
             beanIndex,
             ratios,
             wellFunction.data
         );
         // Fewer Beans indicates a higher Bean price.
-        if (instantReserves[beanIndex] < beansAtPgtQ) {
+        if (instantReserves[beanIndex] < beansAtQ) {
             return true;
         }
         return false;
