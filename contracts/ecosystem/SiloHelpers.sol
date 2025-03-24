@@ -694,7 +694,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     function getBeanAmountAvailable(
         address account,
         address token
-    ) public view returns (uint256 beanAmountAvailable) {
+    ) external view returns (uint256 beanAmountAvailable) {
         // Get total amount deposited
         (, uint256[] memory amounts) = getSortedDeposits(account, token);
         uint256 totalAmount;
