@@ -65,7 +65,6 @@ contract Pi7ForkTest is TestHelper {
         bs.stemTipForToken(L2_PINTO);
         int96 stem = 590486100;
         uint256 depositGrownStalk = bs.grownStalkForDeposit(farmer, L2_PINTO, stem);
-
         (uint256 depositAmount, ) = bs.getDeposit(farmer, L2_PINTO, stem);
         uint256 convertingStalk = (amountIn * depositGrownStalk) / depositAmount;
         int96 toStem;
@@ -109,6 +108,43 @@ contract Pi7ForkTest is TestHelper {
 
         // Log the stalk difference for visibility
         console.log("Grown stalk lost:", lostGrownStalk);
+    }
+
+    function test_forkBase_convertGaugeChanges() public {
+        bs = IMockFBeanstalk(PINTO);
+
+        // fork just before season 2556,
+        // 24.03% Liquidity to Supply Ratio
+        uint256 forkBlock = 27236527 - 1;
+        vm.createSelectFork(vm.envString("BASE_RPC"), forkBlock - 1);
+
+        // upgrade to PI7
+        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI7");
+        // go forward to season 2556
+        vm.roll(27236527 + 10);
+        vm.warp(block.timestamp + 10 seconds);
+
+        for (uint256 i; i < 35; i++) {
+            warpToNextSeasonTimestamp();
+
+            // call sunrise
+            bs.sunrise();
+
+            // Log season number
+            console.log("season:", bs.time().current);
+
+            // Log cultivationFactor
+            (uint256 convertDownPenalty, uint256 rollingSeasonsAbovePeg) = abi.decode(
+                bs.getGaugeValue(GaugeId.CONVERT_DOWN_PENALTY),
+                (uint256, uint256)
+            );
+            console.log(
+                "penalty %:",
+                convertDownPenalty,
+                ", rolling seasons above peg:",
+                rollingSeasonsAbovePeg
+            );
+        }
     }
 
     function logFarmerPintoDeposits(address farmer) public {
