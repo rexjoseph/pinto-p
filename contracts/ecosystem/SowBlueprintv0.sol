@@ -117,12 +117,13 @@ contract SowBlueprintv0 is PerFunctionPausable {
     constructor(
         address _beanstalk,
         address _beanstalkPrice,
-        address _owner
+        address _owner,
+        address _siloHelpers
     ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
 
-        // Deploy SiloHelpers contract with the same owner
-        siloHelpers = new SiloHelpers(_beanstalk, _beanstalkPrice, _owner);
+        // Use existing SiloHelpers contract instead of deploying a new one
+        siloHelpers = SiloHelpers(_siloHelpers);
     }
 
     /**

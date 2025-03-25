@@ -624,19 +624,27 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
   await priceManipulationContract.deployed();
   console.log("PriceManipulation deployed to:", priceManipulationContract.address);
 
-  // Deploy SowBlueprintv0 first, which deploys SiloHelpers
+  // Deploy SiloHelpers
+  const siloHelpers = await ethers.getContractFactory("SiloHelpers");
+  const siloHelpersContract = await siloHelpers.deploy(
+    L2_PINTO,
+    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
+    await owner.getAddress(), // owner address
+    priceManipulationContract.address // price manipulation contract address
+  );
+  await siloHelpersContract.deployed();
+  console.log("SiloHelpers deployed to:", siloHelpersContract.address);
+
+  // Deploy SowBlueprintv0 and connect it to the existing SiloHelpers
   const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
   const sowBlueprintContract = await sowBlueprint.deploy(
     L2_PINTO,
     "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
-    await owner.getAddress() // owner address
+    await owner.getAddress(), // owner address
+    siloHelpersContract.address // siloHelpers contract address
   );
   await sowBlueprintContract.deployed();
   console.log("SowBlueprintv0 deployed to:", sowBlueprintContract.address);
-
-  // Get the SiloHelpers address from SowBlueprintv0
-  const siloHelpersAddress = await sowBlueprintContract.siloHelpers();
-  console.log("SiloHelpers deployed to:", siloHelpersAddress);
 
   // Rest of the facet upgrades...
   await upgradeWithNewFacets({

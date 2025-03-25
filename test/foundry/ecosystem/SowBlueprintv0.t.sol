@@ -45,13 +45,23 @@ contract SowBlueprintv0Test is TractorHelper {
         beanstalkPrice = new BeanstalkPrice(address(bs));
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
-        // Deploy SowBlueprintv0 first, which deploys SiloHelpers
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(beanstalkPrice), address(this));
-        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
-
-        // Get siloHelpers from SowBlueprintv0
-        siloHelpers = SiloHelpers(address(sowBlueprintv0.siloHelpers()));
+        // Deploy SiloHelpers with PriceManipulation address
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(beanstalkPrice),
+            address(this),
+            address(priceManipulation)
+        );
         vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy SowBlueprintv0 with SiloHelpers address
+        sowBlueprintv0 = new SowBlueprintv0(
+            address(bs),
+            address(beanstalkPrice),
+            address(this),
+            address(siloHelpers)
+        );
+        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setSiloHelpers(address(siloHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));

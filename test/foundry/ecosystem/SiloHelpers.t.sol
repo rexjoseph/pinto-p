@@ -22,6 +22,7 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {console} from "forge-std/console.sol";
+import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 /**
  * @notice Tests the functionality of the Oracles.
  */
@@ -40,13 +41,27 @@ contract SiloHelpersTest is TractorHelper {
         beanstalkPrice = new BeanstalkPrice(address(bs));
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
-        // Deploy SowBlueprintv0 first, which deploys SiloHelpers
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(beanstalkPrice), address(this));
-        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+        // Deploy PriceManipulation first
+        PriceManipulation priceManipulationContract = new PriceManipulation(address(bs));
+        vm.label(address(priceManipulationContract), "PriceManipulation");
 
-        // Get siloHelpers from SowBlueprintv0
-        siloHelpers = SiloHelpers(address(sowBlueprintv0.siloHelpers()));
+        // Deploy SiloHelpers with PriceManipulation address
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(beanstalkPrice),
+            address(this),
+            address(priceManipulationContract)
+        );
         vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy SowBlueprintv0 with SiloHelpers address
+        sowBlueprintv0 = new SowBlueprintv0(
+            address(bs),
+            address(beanstalkPrice),
+            address(this),
+            address(siloHelpers)
+        );
+        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setSiloHelpers(address(siloHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
@@ -177,13 +192,27 @@ contract SiloHelpersTest is TractorHelper {
         PINTO = 0xb170000aeeFa790fa61D6e837d1035906839a3c8;
         address BEANSTALK_PRICE = 0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E;
 
-        // Deploy SowBlueprintv0 first, which deploys SiloHelpers
-        sowBlueprintv0 = new SowBlueprintv0(PINTO_DIAMOND, BEANSTALK_PRICE, address(this));
-        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+        // Deploy PriceManipulation first
+        PriceManipulation priceManipulationContract = new PriceManipulation(PINTO_DIAMOND);
+        vm.label(address(priceManipulationContract), "PriceManipulation");
 
-        // Get siloHelpers from SowBlueprintv0
-        siloHelpers = SiloHelpers(address(sowBlueprintv0.siloHelpers()));
+        // Deploy SiloHelpers with PriceManipulation address
+        siloHelpers = new SiloHelpers(
+            PINTO_DIAMOND,
+            BEANSTALK_PRICE,
+            address(this),
+            address(priceManipulationContract)
+        );
         vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy SowBlueprintv0 with SiloHelpers address
+        sowBlueprintv0 = new SowBlueprintv0(
+            PINTO_DIAMOND,
+            BEANSTALK_PRICE,
+            address(this),
+            address(siloHelpers)
+        );
+        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setSiloHelpers(address(siloHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));

@@ -69,11 +69,12 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     constructor(
         address _beanstalk,
         address _beanstalkPrice,
-        address _owner
+        address _owner,
+        address _priceManipulation
     ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
         beanstalkPrice = BeanstalkPrice(_beanstalkPrice);
-        priceManipulation = new PriceManipulation(_beanstalk);
+        priceManipulation = PriceManipulation(_priceManipulation);
     }
 
     /**

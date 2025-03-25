@@ -28,13 +28,27 @@ contract PerFunctionPausableTest is TractorHelper {
         BeanstalkPrice beanstalkPrice = new BeanstalkPrice(address(bs));
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
-        // Deploy SowBlueprintv0 first, which deploys SiloHelpers
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(beanstalkPrice), address(this));
-        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+        // Deploy PriceManipulation first
+        priceManipulation = new PriceManipulation(address(bs));
+        vm.label(address(priceManipulation), "PriceManipulation");
 
-        // Get siloHelpers from SowBlueprintv0
-        siloHelpers = SiloHelpers(address(sowBlueprintv0.siloHelpers()));
+        // Deploy SiloHelpers with PriceManipulation address
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(beanstalkPrice),
+            address(this),
+            address(priceManipulation)
+        );
         vm.label(address(siloHelpers), "SiloHelpers");
+
+        // Deploy SowBlueprintv0 with SiloHelpers address
+        sowBlueprintv0 = new SowBlueprintv0(
+            address(bs),
+            address(beanstalkPrice),
+            address(this),
+            address(siloHelpers)
+        );
+        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setSiloHelpers(address(siloHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
