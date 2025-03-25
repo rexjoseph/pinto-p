@@ -20,6 +20,7 @@ import {P} from "contracts/ecosystem/price/P.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
+import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {console} from "forge-std/console.sol";
 /**
  * @notice Tests the functionality of the Oracles.
@@ -39,11 +40,16 @@ contract SiloHelpersTest is TractorHelper {
         beanstalkPrice = new BeanstalkPrice(address(bs));
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
-        // Deploy SiloHelpers
-        siloHelpers = new SiloHelpers(address(bs), address(beanstalkPrice));
+        // Deploy SowBlueprintv0 first, which deploys SiloHelpers
+        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(beanstalkPrice), address(this));
+        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+
+        // Get siloHelpers from SowBlueprintv0
+        siloHelpers = SiloHelpers(address(sowBlueprintv0.siloHelpers()));
         vm.label(address(siloHelpers), "SiloHelpers");
 
         setSiloHelpers(address(siloHelpers));
+        setSowBlueprintv0(address(sowBlueprintv0));
 
         addLiquidityToWell(
             BEAN_ETH_WELL,
@@ -171,9 +177,16 @@ contract SiloHelpersTest is TractorHelper {
         PINTO = 0xb170000aeeFa790fa61D6e837d1035906839a3c8;
         address BEANSTALK_PRICE = 0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E;
 
-        // Deploy SiloHelpers
-        siloHelpers = new SiloHelpers(PINTO_DIAMOND, BEANSTALK_PRICE);
+        // Deploy SowBlueprintv0 first, which deploys SiloHelpers
+        sowBlueprintv0 = new SowBlueprintv0(PINTO_DIAMOND, BEANSTALK_PRICE, address(this));
+        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+
+        // Get siloHelpers from SowBlueprintv0
+        siloHelpers = SiloHelpers(address(sowBlueprintv0.siloHelpers()));
         vm.label(address(siloHelpers), "SiloHelpers");
+
+        setSiloHelpers(address(siloHelpers));
+        setSowBlueprintv0(address(sowBlueprintv0));
 
         return (testWallet, PINTO_DIAMOND, PINTO);
     }

@@ -9,7 +9,6 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {Junction} from "./junction/Junction.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {PriceManipulation} from "./PriceManipulation.sol";
-import {SowBlueprintv0} from "./SowBlueprintv0.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {IOperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 
@@ -67,16 +66,14 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint256 totalAvailableBeans;
     }
 
-    // Add reference to SowBlueprintv0 contract
-    SowBlueprintv0 public immutable sowBlueprintv0;
-
-    constructor(address _beanstalk, address _beanstalkPrice) PerFunctionPausable(msg.sender) {
+    constructor(
+        address _beanstalk,
+        address _beanstalkPrice,
+        address _owner
+    ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
         beanstalkPrice = BeanstalkPrice(_beanstalkPrice);
         priceManipulation = new PriceManipulation(_beanstalk);
-
-        // Deploy SowBlueprintv0 contract
-        sowBlueprintv0 = new SowBlueprintv0(_beanstalk, address(this));
     }
 
     /**

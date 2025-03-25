@@ -45,15 +45,16 @@ contract SowBlueprintv0Test is TractorHelper {
         beanstalkPrice = new BeanstalkPrice(address(bs));
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
-        // Deploy SiloHelpers
-        siloHelpers = new SiloHelpers(address(bs), address(beanstalkPrice));
+        // Deploy SowBlueprintv0 first, which deploys SiloHelpers
+        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(beanstalkPrice), address(this));
+        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+
+        // Get siloHelpers from SowBlueprintv0
+        siloHelpers = SiloHelpers(address(sowBlueprintv0.siloHelpers()));
         vm.label(address(siloHelpers), "SiloHelpers");
 
         setSiloHelpers(address(siloHelpers));
-
-        // Deploy SowBlueprintv0
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(siloHelpers));
-        vm.label(address(sowBlueprintv0), "SowBlueprintv0");
+        setSowBlueprintv0(address(sowBlueprintv0));
 
         addLiquidityToWell(
             BEAN_ETH_WELL,
