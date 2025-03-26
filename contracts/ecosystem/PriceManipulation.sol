@@ -136,34 +136,21 @@ contract PriceManipulation {
         }
     }
 
-    // NOTE - do not use beanstalk pricing functions and logic. literally not worth the complexity
-    //        for a simple set of chainlink calls.
-    // need to come at this fresh
-    // for each whitelisted asset,
-    //   1. get the token/pinto price (wth is it this direction idk)
-    //   2. get the token/usd price direct from chainlink (use millions if token has <= 8 decimals)
-    //   3. calculate the pinto/usd price
-    //   -  assume 1 usd = 1 usdc
-    //   4. calculate the liquidity of the pools and scale all prices
-    //   5. average all scaled prices
-    //   6. scale by the sPinto redemption rate
-    //   7. return sPinto / usdc with proper decimals
-
     /**
      * @notice Aggregate the instant price of a token from all whitelisted wells.
+     * @return usdcPerSPinto The price of one sPinto in terms of USDC. 24 decimals.
      */
     function aggregateInstantPrice() public view returns (uint256 usdcPerSPinto) {
         console.log("aggregating instant price...");
         address[] memory wells = protocol.getWhitelistedWellLpTokens();
-        console.log("wells ", wells.length);
 
-        uint256[] memory pintoPerUsdc = new uint256[](wells.length);
+        uint256[] memory pintoPerUsdc = new uint256[](wells.length); // 6 decimal
 
         // Total USD value of the well.
         uint256[] memory liquidity = new uint256[](wells.length);
         uint256 totalLiquidity;
 
-        uint256 usdcPerUsd = protocol.getUsdTokenPrice(USDC);
+        uint256 usdcPerUsd = protocol.getUsdTokenPrice(USDC); // 6 decimal
         require(usdcPerUsd > 0, "Failed to fetch USDC price");
         console.log("usdcPerUsd", usdcPerUsd);
 
@@ -175,9 +162,9 @@ contract PriceManipulation {
                 address(well)
             );
             uint256 beanIndex = nonBeanIndex == 0 ? 1 : 0;
-
-            // // Call sync on well to update pump data and avoid stale reserves.
-            // well.sync(address(this), 0);
+            uint256 tokenDecimals = IERC20Metadata(token).decimals();
+            console.log("token ", token);
+            console.log("tokenDecimals", tokenDecimals);
 
             // Instant reserves are the EMA reserves.
             uint256[] memory instantReserves = IMultiFlowPump(pump.target)
@@ -185,64 +172,57 @@ contract PriceManipulation {
             console.log("instantReserves[beanIndex]", instantReserves[beanIndex]);
             console.log("instantReserves[nonBeanIndex]", instantReserves[nonBeanIndex]);
 
-            // Calculate the price of the token in terms of Pinto.
+            // Calculate the price of xthe token in terms of Pinto.
             uint256 pintoPerToken = calculateTokenBeanPriceFromReserves(
                 token,
                 beanIndex,
                 nonBeanIndex,
                 instantReserves,
                 well.wellFunction()
-            );
+            ); // 6 decimal
             console.log("pintoPerToken", pintoPerToken);
             if (pintoPerToken == 0) {
                 continue;
             }
 
-            uint256 pintoPerUsd;
-            bool useMillions = IERC20Metadata(token).decimals() <= 8 ? true : false;
-            if (!useMillions) {
-                uint256 tokenPerUsd = protocol.getUsdTokenPrice(token); // 6 decimal
-                console.log("tokenPerUsd", tokenPerUsd);
-                if (tokenPerUsd == 0) {
-                    continue;
-                }
-                pintoPerUsd = PRICE_PRECISION * pintoPerToken * tokenPerUsd;
-                liquidity[i] =
-                    instantReserves[beanIndex] /
-                    pintoPerUsd +
-                    instantReserves[nonBeanIndex] /
-                    tokenPerUsd;
-            } else {
-                uint256 tokenPerMillionUsd = protocol.getMillionUsdPrice(token, 0); // 6 decimal
-                console.log("tokenPerMillionUsd", tokenPerMillionUsd);
-                if (tokenPerMillionUsd == 0) {
-                    continue;
-                }
-                pintoPerUsd = (PRICE_PRECISION * pintoPerToken * tokenPerMillionUsd) / 1e6;
-                liquidity[i] =
-                    instantReserves[beanIndex] /
-                    pintoPerUsd +
-                    (instantReserves[nonBeanIndex] * 1e6) /
-                    tokenPerMillionUsd;
+            uint256 tokenPerMillionUsd = protocol.getMillionUsdPrice(token, 0); // decimals match token
+            console.log("tokenPerMillionUsd", tokenPerMillionUsd);
+            if (tokenPerMillionUsd == 0) {
+                continue;
             }
-            console.log("pintoPerUsd", pintoPerUsd);
+            uint256 pintoPerMillionUsd = (pintoPerToken * tokenPerMillionUsd) /
+                (10 ** tokenDecimals); // 6 decimal
+            liquidity[i] =
+                instantReserves[beanIndex] /
+                pintoPerMillionUsd /
+                1e6 +
+                (instantReserves[nonBeanIndex] * 1e6) /
+                tokenPerMillionUsd;
+            console.log("liquidity", liquidity[i]);
+
+            console.log("pintoPerMillionUsd", pintoPerMillionUsd);
 
             totalLiquidity += liquidity[i];
 
-            pintoPerUsdc[i] = pintoPerUsd / usdcPerUsd;
+            pintoPerUsdc[i] = pintoPerMillionUsd / usdcPerUsd; // 6 decimal
         }
 
         require(totalLiquidity > 0, "failed to retrieve reserves");
+        console.log("totalLiquidity", totalLiquidity);
 
         uint256 aggregatePintoPerUsdc;
         for (uint256 i; i < wells.length; i++) {
             if (liquidity[i] == 0) continue;
             aggregatePintoPerUsdc += (pintoPerUsdc[i] * liquidity[i]) / totalLiquidity;
         }
-        aggregatePintoPerUsdc = aggregatePintoPerUsdc / wells.length;
+        console.log("aggregatePintoPerUsdc", aggregatePintoPerUsdc);
 
         uint256 pintoPerSPinto = ISiloedPinto(S_PINTO).previewRedeem(1e18);
+        console.log("pintoPerSPinto", pintoPerSPinto);
 
-        usdcPerSPinto = pintoPerSPinto * aggregatePintoPerUsdc;
+        uint256 quoteDecimals = 36 + 6 - 18; // 36 + loan decimals (usdc) - collateral decimals (sPinto)
+        console.log("quoteDecimals", quoteDecimals);
+        usdcPerSPinto = (pintoPerSPinto * aggregatePintoPerUsdc) * (10 ** (quoteDecimals - 12)); // 24 decimals
+        console.log("usdcPerSPinto", usdcPerSPinto);
     }
 }

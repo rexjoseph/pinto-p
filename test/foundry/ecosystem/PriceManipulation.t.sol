@@ -16,8 +16,9 @@ contract PriceManipulationTest is TestHelper {
 
         bs = IMockFBeanstalk(PINTO);
 
-        // fork just before season 2546 (which happened in block 27218527)
-        uint256 forkBlock = 27218527;
+        // uint256 forkBlock = 27218527; // season 2546
+        // uint256 forkBlock = 26045631; // season 2534
+        uint256 forkBlock = 28091021; // season 3030 - $0.7854, 1.273236
 
         // Fork base at seasonBlock+1
         vm.createSelectFork(vm.envString("BASE_RPC"), forkBlock - 1);
@@ -94,7 +95,7 @@ contract PriceManipulationTest is TestHelper {
         // vm.roll(block.number + 1800);
         // bs.sunrise();
 
-        manipulation = new PriceManipulation(BEANSTALK);
+        manipulation = new PriceManipulation(PINTO);
     }
 
     function test_aggregateInstantPrice() public {
