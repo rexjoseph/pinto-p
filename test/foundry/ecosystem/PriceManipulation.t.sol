@@ -12,95 +12,73 @@ contract PriceManipulationTest is TestHelper {
     address[] operators;
 
     function setUp() public {
-        initializeBeanstalkTestState(true, false);
+        vm.createSelectFork(vm.envString("BASE_RPC"));
 
+        initializeBeanstalkTestState(true, false);
         bs = IMockFBeanstalk(PINTO);
 
-        // uint256 forkBlock = 27218527; // season 2546
-        // uint256 forkBlock = 26045631; // season 2534
-        uint256 forkBlock = 28091021; // season 3030 - $0.7854, 1.273236
+        // // uint256 forkBlock = 27218527; // season 2546
+        // // uint256 forkBlock = 26045631; // season 2534
+        // // uint256 forkBlock = 28091021; // season 3030 - $0.7854, 1.273236
+        // uint256 forkBlock = getBlockFromSeason(3030);
+        // console.log("forkBlock", forkBlock);
 
-        // Fork base at seasonBlock+1
-        vm.createSelectFork(vm.envString("BASE_RPC"), forkBlock - 1);
-        forkMainnetAndUpgradeAllFacets(forkBlock - 1, vm.envString("BASE_RPC"), PINTO);
+        // // Fork at target block.
+        // vm.createSelectFork(vm.envString("BASE_RPC"), forkBlock);
+        // forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO);
+
+        // // Update oracle timeouts to ensure they're not stale
+        // updateOracleTimeouts(L2_PINTO, false);
+
+        // // go forward to season 2547
+        // vm.roll(forkBlock + 10);
+        // vm.warp(block.timestamp + 10 seconds);
+        // bs.sunrise();
+    }
+
+    function test_price() public {
+        uint256 usdcPerSPinto;
+
+        // First block after sPinto deployment.
+        forkFromBlock(27068608 + 1);
+        usdcPerSPinto = manipulation.price();
+        console.log("usdcPerSPinto", usdcPerSPinto);
+        assertApproxEqRel(usdcPerSPinto, 0.968e24, 0.001e18);
+
+        // // Below peg season.
+        // forkFromSeason(2920);
+        // usdcPerSPinto = manipulation.price();
+        // console.log("usdcPerSPinto", usdcPerSPinto);
+        // assertApproxEqRel(usdcPerSPinto, 0.734e24, 0.01e18);
+
+        // // Above peg season.
+        // forkFromSeason(2469);
+        // usdcPerSPinto = manipulation.price();
+        // console.log("usdcPerSPinto", usdcPerSPinto);
+        // assertApproxEqRel(usdcPerSPinto, 1.001e24, 0.001e18);
+
+        // // Recent season.
+        // forkFromBlock(28097567);
+        // usdcPerSPinto = manipulation.price();
+        // console.log("usdcPerSPinto", usdcPerSPinto);
+        // assertApproxEqRel(usdcPerSPinto, 0.7883e24, 0.001e18);
+    }
+
+    function forkFromSeason(uint256 season) private {
+        uint256 seasonDiff = bs.season() - season;
+        uint256 blockDiff = (seasonDiff * 60 * 60) / 2;
+        uint256 forkBlock = (block.number - blockDiff) - ((block.number - blockDiff) % 1800);
+        forkFromBlock(forkBlock);
+    }
+
+    function forkFromBlock(uint256 forkBlock) private {
+        console.log("forking from block", forkBlock);
+        vm.createSelectFork(vm.envString("BASE_RPC"), forkBlock);
+        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO);
 
         // Update oracle timeouts to ensure they're not stale
         updateOracleTimeouts(L2_PINTO, false);
 
-        // go forward to season 2547
-        vm.roll(forkBlock + 10);
-        vm.warp(block.timestamp + 10 seconds);
-        // bs.sunrise();
-
-        // // upon the first sunrise call of a well, the well cumulative reserves are initialized,
-        // // and will not return a deltaB. We initialize the well cumulative reserves here.
-        // // See: {LibWellMinting.capture}
-        // season.initOracleForAllWhitelistedWells();
-
-        // // chainlink oracles need to be initialized for the wells.
-        // initializeChainlinkOraclesForWhitelistedWells();
-
-        // vm.prank(BEANSTALK);
-        // bs.updateOracleImplementationForToken(
-        //     WETH,
-        //     IMockFBeanstalk.Implementation(
-        //         0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70,
-        //         bytes4(0),
-        //         bytes1(0x01),
-        //         abi.encode(LibChainlinkOracle.FOUR_DAY_TIMEOUT)
-        //     )
-        // );
-        // vm.prank(BEANSTALK);
-        // bs.updateOracleImplementationForToken(
-        //     CBETH,
-        //     IMockFBeanstalk.Implementation(
-        //         0xd7818272B9e248357d13057AAb0B417aF31E817d,
-        //         bytes4(0),
-        //         bytes1(0x01),
-        //         abi.encode(LibChainlinkOracle.FOUR_DAY_TIMEOUT)
-        //     )
-        // );
-        // vm.prank(BEANSTALK);
-        // bs.updateOracleImplementationForToken(
-        //     CBBTC,
-        //     IMockFBeanstalk.Implementation(
-        //         0x07DA0E54543a844a80ABE69c8A12F22B3aA59f9D,
-        //         bytes4(0),
-        //         bytes1(0x01),
-        //         abi.encode(LibChainlinkOracle.FOUR_DAY_TIMEOUT)
-        //     )
-        // );
-        // vm.prank(BEANSTALK);
-        // bs.updateOracleImplementationForToken(
-        //     USDC,
-        //     IMockFBeanstalk.Implementation(
-        //         0x7e860098F58bBFC8648a4311b374B1D669a2bc6B,
-        //         bytes4(0),
-        //         bytes1(0x01),
-        //         abi.encode(LibChainlinkOracle.FOUR_DAY_TIMEOUT)
-        //     )
-        // );
-        // vm.prank(BEANSTALK);
-        // bs.updateOracleImplementationForToken(
-        //     WSOL,
-        //     IMockFBeanstalk.Implementation(
-        //         0x975043adBb80fc32276CbF9Bbcfd4A601a12462D,
-        //         bytes4(0),
-        //         bytes1(0x01),
-        //         abi.encode(LibChainlinkOracle.FOUR_DAY_TIMEOUT)
-        //     )
-        // );
-
-        // warpToNextSeasonAndUpdateOracles();
-        // vm.roll(block.number + 1800);
-        // bs.sunrise();
-
         manipulation = new PriceManipulation(PINTO);
-    }
-
-    function test_aggregateInstantPrice() public {
-        uint256 usdcPerSPinto = manipulation.aggregateInstantPrice();
-        console.log("usdcPerSPinto", usdcPerSPinto);
-        assertGt(usdcPerSPinto, 0, "Price is zero");
     }
 }
