@@ -5,6 +5,7 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {SiloHelpers} from "./SiloHelpers.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
+import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
 
 /**
  * @title SowBlueprintv0
@@ -95,7 +96,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
     }
 
     IBeanstalk immutable beanstalk;
-    SiloHelpers immutable siloHelpers;
+    SiloHelpers public immutable siloHelpers;
 
     // Default slippage ratio for LP token withdrawals (1%)
     uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
@@ -113,8 +114,15 @@ contract SowBlueprintv0 is PerFunctionPausable {
     // Combined state mapping for order info
     mapping(bytes32 => OrderInfo) private orderInfo;
 
-    constructor(address _beanstalk, address _siloHelpers) PerFunctionPausable(msg.sender) {
+    constructor(
+        address _beanstalk,
+        address _beanstalkPrice,
+        address _owner,
+        address _siloHelpers
+    ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
+
+        // Use existing SiloHelpers contract instead of deploying a new one
         siloHelpers = SiloHelpers(_siloHelpers);
     }
 

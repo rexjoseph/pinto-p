@@ -11,6 +11,7 @@ import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
 import {PerFunctionPausable} from "contracts/ecosystem/PerFunctionPausable.sol";
+import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 
 contract PerFunctionPausableTest is TractorHelper {
     address[] farmers;
@@ -23,20 +24,33 @@ contract PerFunctionPausableTest is TractorHelper {
         initializeBeanstalkTestState(true, false);
         farmers = createUsers(2);
 
-        // Deploy PriceManipulation
+        // Deploy price contract (needed for SiloHelpers)
+        BeanstalkPrice beanstalkPrice = new BeanstalkPrice(address(bs));
+        vm.label(address(beanstalkPrice), "BeanstalkPrice");
+
+        // Deploy PriceManipulation first
         priceManipulation = new PriceManipulation(address(bs));
         vm.label(address(priceManipulation), "PriceManipulation");
 
-        // Deploy SiloHelpers
-        siloHelpers = new SiloHelpers(address(bs), address(0));
+        // Deploy SiloHelpers with PriceManipulation address
+        siloHelpers = new SiloHelpers(
+            address(bs),
+            address(beanstalkPrice),
+            address(this),
+            address(priceManipulation)
+        );
         vm.label(address(siloHelpers), "SiloHelpers");
 
-        setSiloHelpers(address(siloHelpers));
-
-        // Deploy SowBlueprintv0
-        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(siloHelpers));
+        // Deploy SowBlueprintv0 with SiloHelpers address
+        sowBlueprintv0 = new SowBlueprintv0(
+            address(bs),
+            address(beanstalkPrice),
+            address(this),
+            address(siloHelpers)
+        );
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
+        setSiloHelpers(address(siloHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
     }
 
