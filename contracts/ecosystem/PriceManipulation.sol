@@ -104,7 +104,7 @@ contract PriceManipulation is IMorphoOracle {
      * This essentially simulates a swap of 1 Bean for the non bean token and quotes the price.
      * @dev wrapped in a try/catch to return gracefully. 6 decimal precision.
      * @dev Copied from Pinto Protocol internal library function.
-     * @return price The price of the token in terms of Pinto. 6 decimals.
+     * @return beanPerToken The price of the token in terms of Pinto. 6 decimals.
      */
     function calculateTokenBeanPriceFromReserves(
         address nonBeanToken,
