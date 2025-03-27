@@ -462,7 +462,7 @@ interface IMockFBeanstalk {
     );
     event TotalGerminatingStalkChanged(uint256 germinationSeason, int256 deltaGerminatingStalk);
     event TotalStalkChangedFromGermination(int256 deltaStalk, int256 deltaRoots);
-    event Tractor(address indexed operator, bytes32 blueprintHash, address indexed publisher);
+    event Tractor(address indexed operator, address indexed publisher, bytes32 blueprintHash);
     event TractorVersionSet(string version);
     event TransferBatch(
         address indexed operator,
