@@ -142,8 +142,8 @@ task("mintUsdc", "Mints usdc to specified account")
   });
 
 task("skipMorningAuction", "Skips the morning auction, accounts for block time", async function () {
-  const duration = 300; // 5 minutes
-  // skip 5 minutes in blocks --> 150 blocks for base
+  const duration = 600; // 10 minutes
+  // skip 10 minutes in blocks --> 300 blocks for base
   const blocksToSkip = duration / BASE_BLOCK_TIME;
   for (let i = 0; i < blocksToSkip; i++) {
     await network.provider.send("evm_mine");
