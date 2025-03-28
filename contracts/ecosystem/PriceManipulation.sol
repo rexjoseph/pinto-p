@@ -9,6 +9,7 @@ import {ISiloedPinto} from "contracts/interfaces/ISiloedPinto.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IMorphoOracle} from "contracts/interfaces/IMorphoOracle.sol";
+import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 
 /**
  * @title PriceManipulation
@@ -59,8 +60,8 @@ contract PriceManipulation is IMorphoOracle {
         // Capped reserves are the current reserves capped with the data from the pump.
         uint256[] memory currentReserves = IWell(well).getReserves();
 
-        uint256 currentPintoPerAsset = calculateTokenBeanPriceFromReserves(
-            address(token),
+        uint256 currentPintoPerAsset = LibWell.calculateTokenBeanPriceFromReserves(
+            address(well),
             beanIndex,
             nonBeanIndex,
             currentReserves,
@@ -73,8 +74,8 @@ contract PriceManipulation is IMorphoOracle {
             address(well),
             pump.data
         );
-        uint256 instantPintoPerAsset = calculateTokenBeanPriceFromReserves(
-            address(token),
+        uint256 instantPintoPerAsset = LibWell.calculateTokenBeanPriceFromReserves(
+            address(well),
             beanIndex,
             nonBeanIndex,
             instantReserves,
@@ -93,49 +94,6 @@ contract PriceManipulation is IMorphoOracle {
             return false;
         }
         return true;
-    }
-
-    /**
-     * @notice Calculates the token price in terms of Bean by increasing
-     * the bean reserves of the given well by 1 and recalculating the new reserves,
-     * while maintaining the same liquidity levels.
-     * This essentially simulates a swap of 1 Bean for the non bean token and quotes the price.
-     * @dev wrapped in a try/catch to return gracefully. 6 decimal precision.
-     * @dev Copied from Pinto Protocol internal library function.
-     * @return beanPerToken The price of the token in terms of Pinto. 6 decimals.
-     */
-    function calculateTokenBeanPriceFromReserves(
-        address nonBeanToken,
-        uint256 beanIndex,
-        uint256 nonBeanIndex,
-        uint256[] memory reserves,
-        Call memory wellFunction
-    ) internal view returns (uint256 beanPerToken) {
-        // attempt to calculate the LP token Supply.
-        try
-            IWellFunction(wellFunction.target).calcLpTokenSupply(reserves, wellFunction.data)
-        returns (uint256 lpTokenSupply) {
-            uint256 oldReserve = reserves[nonBeanIndex];
-            reserves[beanIndex] = reserves[beanIndex] + 1e6; // 1e6 == 1 Pinto.
-
-            try
-                IWellFunction(wellFunction.target).calcReserve(
-                    reserves,
-                    nonBeanIndex,
-                    lpTokenSupply,
-                    wellFunction.data
-                )
-            returns (uint256 newReserve) {
-                // Measure the delta of the non bean reserve.
-                // Due to the invariant of the well function, old reserve > new reserve.
-                uint256 delta = oldReserve - newReserve;
-                beanPerToken = (10 ** (IERC20Metadata(nonBeanToken).decimals() + 6)) / delta;
-            } catch {
-                return 0;
-            }
-        } catch {
-            return 0;
-        }
     }
 
     /**
@@ -171,8 +129,8 @@ contract PriceManipulation is IMorphoOracle {
                 .readInstantaneousReserves(address(well), pump.data);
 
             // Calculate the price of the token in terms of Pinto.
-            uint256 pintoPerToken = calculateTokenBeanPriceFromReserves(
-                token,
+            uint256 pintoPerToken = LibWell.calculateTokenBeanPriceFromReserves(
+                address(well),
                 beanIndex,
                 nonBeanIndex,
                 instantReserves,
