@@ -111,7 +111,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     }
 
     /**
-     * @notice tracks the down convert penalty ratio and the rolling count of seasons above peg.
+     * @notice Tracks the down convert penalty ratio and the rolling count of seasons above peg.
      * Penalty ratio is the % of grown stalk lost on a down convert (1e18 = 100% penalty).
      * value is encoded as (uint256, uint256):
      *     penaltyRatio - the penalty ratio.
@@ -158,8 +158,75 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(rollingSeasonsAbovePeg * 1e18 + 1e18)) /
             PRBMathUD60x18.log2(rollingSeasonsAbovePegCap * 1e18 + 1e18);
 
-        penaltyRatio = Math.min(1e18, l2srRatio * (1e18 - timeRatio) / 1e18);
+        penaltyRatio = Math.min(1e18, (l2srRatio * (1e18 - timeRatio)) / 1e18);
         return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
+    }
+
+    /**
+     * @notice Tracks the scalar of the maximum stalk the protocol is willing to issue
+     * in a given season as a bonus of converting up towards peg (C parameter).
+     * The scalar ranges from 0 to 1e18, where 0 is no bonus and 1e18 is full bonus.
+     * ---------------------------------------------------------------
+     * C decreases by X when the system converts at least Z pdv in a season.
+     * X = (bs.previousSeasonBeanPrice * deltaC) / bs.lpToSupplyRatio.value
+     * ---------------------------------------------------------------
+     * C increases by Y when it converts less than Z pdv in a season.
+     * Y = (bs.lpToSupplyRatio.value * 0.01e18) / (bs.previousSeasonBeanPrice * deltaC)
+     * ---------------------------------------------------------------
+     * C Resets to 0 upon the system crossing target. Stays at 0 above target.
+     * C does not increase until after 12 seasons after a below target cross ?
+     */
+    function convertUpBonusGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external view returns (bytes memory, bytes memory) {
+        LibEvaluate.BeanstalkState memory bs = abi.decode(systemData, (LibEvaluate.BeanstalkState));
+
+        (uint256 deltaC, uint256 minDeltaC, uint256 maxDeltaC) = abi.decode(
+            gaugeData,
+            (uint256, uint256, uint256)
+        );
+
+        // get how much pdv was converted in the previous season
+        // todo: add as a storage variable when doing a convert in one season
+        uint256 previousSeasonPdv = s.sys.season.previousSeasonPdvConverted;
+
+        // Decode current convert bonus ratio value and rolling count of seasons below peg
+        (uint256 convertBonusRatio, uint256 seasonsBelowPeg) = abi.decode(
+            value,
+            (uint256, uint256)
+        );
+
+        // If twaDeltaB > 0 (above peg), reset convertBonusRatio and seasonsBelowPeg to 0
+        if (bs.twaDeltaB > 0) {
+            return (abi.encode(0, 0), gaugeData);
+        }
+
+        // If seasonsBelowPeg < 12, convertBonusRatio is 0 but seasonsBelowPeg is increased
+        if (bs.twaDeltaB <= 0 && seasonsBelowPeg < 12) {
+            return (abi.encode(0, seasonsBelowPeg + 1), gaugeData);
+        }
+
+        // twaDeltaB <= 0 (below peg) && seasonsBelowPeg >= 12, ready to modify convertBonusRatio
+        // todo : change 0 to a threshold
+        // todo : check decimal precision
+        if (previousSeasonPdv > 0 ) {
+            // if Z Pdv was converted case
+            // convertBonusRatio = min(1, convertBonusRatio - (Δc × Pt-1/L2SR))
+            uint256 reduction = (deltaC * bs.previousSeasonBeanPrice) / bs.lpToSupplyRatio.value;
+            convertBonusRatio = convertBonusRatio > reduction ? convertBonusRatio - reduction : 0;
+            convertBonusRatio = Math.min(convertBonusRatio, minDeltaC);
+        } else {
+            // Otherwise case
+            // convertBonusRatio = max(0, convertBonusRatio + (L2SR × 0.01/(Δc×Pt-1)))
+            uint256 increase = (bs.lpToSupplyRatio.value * 0.01e18) /
+                (deltaC * bs.previousSeasonBeanPrice);
+            convertBonusRatio = convertBonusRatio + increase;
+            convertBonusRatio = Math.max(convertBonusRatio, maxDeltaC);
+        }
+
+        return (abi.encode(convertBonusRatio, seasonsBelowPeg + 1), gaugeData);
     }
 
     /// GAUGE ADD/REMOVE/UPDATE ///
