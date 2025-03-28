@@ -10,8 +10,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IMorphoOracle} from "contracts/interfaces/IMorphoOracle.sol";
 
-import {console} from "forge-std/console.sol";
-
 /**
  * @title PriceManipulation
  * @author Beanstalk Farms
@@ -146,7 +144,6 @@ contract PriceManipulation is IMorphoOracle {
      * @return pintoPerUsdc The price of one pinto in terms of USD. 24 decimals.
      */
     function aggregatePintoPerUsdc() public view returns (uint256 pintoPerUsdc) {
-        console.log("aggregating instant price...");
         address[] memory wells = protocol.getWhitelistedWellLpTokens();
 
         uint256[] memory wellPintoPerUsdc = new uint256[](wells.length); // 6 decimal
@@ -156,7 +153,6 @@ contract PriceManipulation is IMorphoOracle {
 
         uint256 usdcPerUsd = protocol.getUsdTokenPrice(USDC); // 6 decimal
         require(usdcPerUsd > 0, "Failed to fetch USDC price");
-        console.log("usdcPerUsd", usdcPerUsd);
 
         // Go through each well and collect data.
         for (uint256 i; i < wells.length; i++) {
@@ -166,8 +162,6 @@ contract PriceManipulation is IMorphoOracle {
             );
             uint256 beanIndex = nonBeanIndex == 0 ? 1 : 0;
             uint256 tokenDecimals = IERC20Metadata(token).decimals();
-            console.log("token ", token);
-            console.log("tokenDecimals", tokenDecimals);
 
             uint256 pintoPerMillionUsd;
 
@@ -175,8 +169,6 @@ contract PriceManipulation is IMorphoOracle {
             // Instant reserves are the EMA reserves.
             uint256[] memory instantReserves = IMultiFlowPump(pump.target)
                 .readInstantaneousReserves(address(well), pump.data);
-            console.log("instantReserves[beanIndex]", instantReserves[beanIndex]);
-            console.log("instantReserves[nonBeanIndex]", instantReserves[nonBeanIndex]);
 
             // Calculate the price of the token in terms of Pinto.
             uint256 pintoPerToken = calculateTokenBeanPriceFromReserves(
@@ -186,13 +178,11 @@ contract PriceManipulation is IMorphoOracle {
                 instantReserves,
                 well.wellFunction()
             ); // 6 decimal
-            console.log("pintoPerToken", pintoPerToken);
             if (pintoPerToken == 0) {
                 continue;
             }
 
             uint256 tokenPerMillionUsd = protocol.getMillionUsdPrice(token, 0); // decimals match token
-            console.log("tokenPerMillionUsd", tokenPerMillionUsd);
             if (tokenPerMillionUsd == 0) {
                 continue;
             }
@@ -204,9 +194,6 @@ contract PriceManipulation is IMorphoOracle {
                 (10 ** tokenDecimals) +
                 (instantReserves[nonBeanIndex] * MILLION) /
                 tokenPerMillionUsd;
-            console.log("liquidity", wellLiquidity[i]);
-
-            console.log("pintoPerMillionUsd", pintoPerMillionUsd);
 
             totalLiquidity += wellLiquidity[i];
             wellPintoPerUsdc[i] =
@@ -215,13 +202,11 @@ contract PriceManipulation is IMorphoOracle {
         }
 
         require(totalLiquidity > 0, "failed to retrieve reserves");
-        console.log("totalLiquidity", totalLiquidity);
 
         for (uint256 i; i < wells.length; i++) {
             if (wellLiquidity[i] == 0) continue;
             pintoPerUsdc += (wellPintoPerUsdc[i] * wellLiquidity[i]) / totalLiquidity; // 24 decimals
         }
-        console.log("aggregatePintoPerUsdc", pintoPerUsdc);
     }
 
     /**
@@ -232,12 +217,7 @@ contract PriceManipulation is IMorphoOracle {
      */
     function price() public view override returns (uint256 usdcPerSPinto) {
         uint256 pintoPerUsdc = aggregatePintoPerUsdc(); // 24 decimals
-
         uint256 pintoPerSPinto = ISiloedPinto(S_PINTO).previewRedeem(1e18); // 6 decimal
-        console.log("pintoPerSPinto", pintoPerSPinto);
-
-        console.log("PRICE_DECIMALS", PRICE_DECIMALS);
         usdcPerSPinto = ((10 ** (PRICE_DECIMALS * 2 - 6)) * pintoPerSPinto) / pintoPerUsdc; // 24 decimals
-        console.log("usdcPerSPinto", usdcPerSPinto);
     }
 }
