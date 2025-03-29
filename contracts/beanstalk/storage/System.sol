@@ -458,7 +458,8 @@ struct ExtEvaluationParameters {
     uint256 abovePegDeltaBSoilScalar;
     uint256 soilDistributionPeriod;
     uint256 minSoilIssuance;
-    bytes32[61] buffer;
+    uint256 convertBonusStalkScalar;
+    bytes32[60] buffer;
 }
 
 /**

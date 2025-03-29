@@ -199,23 +199,7 @@ library LibPipelineConvert {
                 pipeData.initialLpSupply
             );
 
-            // if the convert is WELL -> BEAN, check for a stalk bonus
-            if (kind == LibConvertData.ConvertKind.WELL_LP_TO_BEANS) {
-                pipeData.stalkPenaltyBdv += stalkBonus(fromToken, toToken, fromBdv);
-            }
-
             require(pipeData.stalkPenaltyBdv == 0, "Convert: Non-zero Stalk Penalty");
         }
-    }
-
-    /**
-     * @notice Calculates the stalk bonus for a convert.
-     */
-    function stalkBonus(
-        address fromToken,
-        address toToken,
-        uint256 toBdv
-    ) internal view returns (uint256) {
-        // TODO: Implement stalk bonus
     }
 }
