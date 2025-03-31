@@ -27,6 +27,7 @@ import {Decimal} from "contracts/libraries/Decimal.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
+import "forge-std/console.sol";
 
 /**
  * @title LibConvert
@@ -596,11 +597,15 @@ library LibConvert {
                 toBdv,
                 grownStalk
             );
+            console.log("convert: grownStalkLost", grownStalkLost);
+            console.log("convert: newGrownStalk", newGrownStalk);
             emit ConvertDownPenalty(account, grownStalk, grownStalkLost);
         } else if (inputToken != s.sys.bean && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
             uint256 grownStalkGained;
             (newGrownStalk, grownStalkGained) = stalkBonus(toBdv, grownStalk);
+            console.log("convert: grownStalkGained", grownStalkGained);
+            console.log("convert: newGrownStalk", newGrownStalk);
             emit ConvertUpBonus(account, grownStalk, grownStalkGained);
         }
         return newGrownStalk;

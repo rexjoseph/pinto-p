@@ -26,11 +26,13 @@ contract ConvertTest is TestHelper {
         address fromToken,
         address toToken,
         uint256 fromAmount,
-        uint256 toAmount
+        uint256 toAmount,
+        uint256 fromBdv,
+        uint256 toBdv
     );
 
-    event ConvertDownPenalty(uint256 stalkLost);
-
+    event ConvertDownPenalty(uint256 grownStalk, uint256 grownStalkLost);
+    event ConvertUpBonus(uint256 grownStalk, uint256 grownStalkGained);
     // Interfaces.
     MockConvertFacet convert = MockConvertFacet(BEANSTALK);
     BeanstalkPrice beanstalkPrice = BeanstalkPrice(0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E);
@@ -199,11 +201,14 @@ contract ConvertTest is TestHelper {
             0 // minOut
         );
 
+        // get from/to bdvs
+        uint256 bdv = bs.bdv(BEAN, expectedBeansConverted);
+
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = type(uint256).max;
 
         vm.expectEmit();
-        emit Convert(farmers[0], BEAN, well, expectedBeansConverted, expectedAmtOut);
+        emit Convert(farmers[0], BEAN, well, expectedBeansConverted, expectedAmtOut, bdv, bdv);
         vm.prank(farmers[0]);
         convert.convert(convertData, new int96[](1), amounts);
 
@@ -235,7 +240,7 @@ contract ConvertTest is TestHelper {
         amounts[0] = beansConverted;
 
         // vm.expectEmit();
-        emit Convert(farmers[0], BEAN, well, beansConverted, expectedAmtOut);
+        emit Convert(farmers[0], BEAN, well, beansConverted, expectedAmtOut, 0, 0);
         vm.prank(farmers[0]);
         convert.convert(convertData, new int96[](1), amounts);
 
@@ -305,7 +310,7 @@ contract ConvertTest is TestHelper {
             assertGt(grownStalkLost, 0, "grownStalkLost should be greater than 0");
 
             vm.expectEmit();
-            emit ConvertDownPenalty(grownStalkLost);
+            emit ConvertDownPenalty(grownStalk, grownStalkLost);
 
             vm.prank(farmers[0]);
             (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
@@ -355,7 +360,7 @@ contract ConvertTest is TestHelper {
             assertGt(grownStalkLost, 0, "grownStalkLost should be greater than 0");
 
             vm.expectEmit();
-            emit ConvertDownPenalty(grownStalkLost);
+            emit ConvertDownPenalty(grownStalk, grownStalkLost);
 
             vm.prank(farmers[0]);
             (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
@@ -403,7 +408,7 @@ contract ConvertTest is TestHelper {
 
         // Convert. Bean done germinating, but LP still germinating. No penalty.
         vm.expectEmit();
-        emit ConvertDownPenalty(0);
+        emit ConvertDownPenalty(40000010000000, 0); // grownStalkLost, newGrownStalk
         vm.prank(farmers[0]);
         convert.convert(convertData, stems, amounts);
 
@@ -427,7 +432,7 @@ contract ConvertTest is TestHelper {
         );
         assertGt(maxGrownStalkLost, 0, "grownStalkLost should be greater than 0");
         vm.expectEmit(false, false, false, false);
-        emit ConvertDownPenalty(1); // Do not check value match.
+        emit ConvertDownPenalty(0, 1); // Do not check value match.
         vm.prank(farmers[0]);
         (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
 
@@ -471,7 +476,7 @@ contract ConvertTest is TestHelper {
             bs.grownStalkForDeposit(farmers[0], BEAN, int96(0))) / amount;
 
         vm.expectEmit();
-        emit ConvertDownPenalty(0); // No penalty when Q < P.
+        emit ConvertDownPenalty(0, 0); // No penalty when Q < P.
 
         vm.prank(farmers[0]);
         (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
@@ -642,7 +647,7 @@ contract ConvertTest is TestHelper {
         amounts[1] = beansConverted - amounts[0];
 
         vm.expectEmit();
-        emit Convert(farmers[0], BEAN, well, beansConverted, expectedAmtOut);
+        emit Convert(farmers[0], BEAN, well, beansConverted, expectedAmtOut, 0, 0);
         vm.prank(farmers[0]);
         convert.convert(convertData, stems, amounts);
 
@@ -717,7 +722,7 @@ contract ConvertTest is TestHelper {
         amounts[0] = type(uint256).max;
 
         vm.expectEmit();
-        emit Convert(farmers[0], well, BEAN, maxLPin, beansAddedToWell);
+        emit Convert(farmers[0], well, BEAN, maxLPin, beansAddedToWell, 0, 0);
         vm.prank(farmers[0]);
         convert.convert(convertData, new int96[](1), amounts);
 
@@ -774,8 +779,11 @@ contract ConvertTest is TestHelper {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = lpConverted;
 
+        // get from/to bdvs
+        // uint256 bdv = bs.bdv(well, lpConverted);
+
         vm.expectEmit();
-        emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut);
+        emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut, 0, 0);
         vm.prank(farmers[0]);
         (int96 toStem, , , , ) = convert.convert(convertData, new int96[](1), amounts);
         int96 germinatingStem = bs.getGerminatingStem(address(well));
@@ -843,7 +851,7 @@ contract ConvertTest is TestHelper {
         amounts[1] = lpConverted - amounts[0];
 
         vm.expectEmit();
-        emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut);
+        emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut, 0, 0);
         vm.prank(farmers[0]);
         (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
 
@@ -946,7 +954,7 @@ contract ConvertTest is TestHelper {
 
         (uint256 initalAmount, uint256 initialBdv) = bs.getDeposit(farmers[0], well, 0);
         vm.expectEmit();
-        emit Convert(farmers[0], well, well, initalAmount, initalAmount);
+        emit Convert(farmers[0], well, well, initalAmount, initalAmount, 0, 0);
         vm.prank(farmers[0]);
         (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
 
@@ -989,7 +997,7 @@ contract ConvertTest is TestHelper {
 
         (uint256 initalAmount, uint256 initialBdv) = bs.getDeposit(farmers[0], well, 0);
         vm.expectEmit();
-        emit Convert(farmers[0], well, well, initalAmount, initalAmount);
+        emit Convert(farmers[0], well, well, initalAmount, initalAmount, 0, 0);
         vm.prank(farmers[0]);
         (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
 
@@ -1023,7 +1031,7 @@ contract ConvertTest is TestHelper {
 
         // convert.
         vm.expectEmit();
-        emit Convert(farmers[0], well, well, lpCombined, lpCombined);
+        emit Convert(farmers[0], well, well, lpCombined, lpCombined, 0, 0);
         vm.prank(farmers[0]);
         convert.convert(convertData, stems, amounts);
 
@@ -1071,6 +1079,9 @@ contract ConvertTest is TestHelper {
         setDeltaBforWell(int256(deltaB), well, WETH);
         beansConverted = bound(beansConverted, 100, deltaB);
 
+        // get from/to bdvs
+        uint256 bdv = bs.bdv(BEAN, beansConverted);
+
         // snapshot rain roots state
         uint256 expectedAmtOut = bs.getAmountOut(BEAN, well, beansConverted);
         uint256 expectedFarmerRainRoots = bs.balanceOfRainRoots(farmers[0]);
@@ -1088,7 +1099,7 @@ contract ConvertTest is TestHelper {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = beansConverted;
         vm.expectEmit();
-        emit Convert(farmers[0], BEAN, well, beansConverted, expectedAmtOut);
+        emit Convert(farmers[0], BEAN, well, beansConverted, expectedAmtOut, bdv, bdv);
         vm.prank(farmers[0]);
         convert.convert(convertData, new int96[](1), amounts);
 
@@ -1124,9 +1135,6 @@ contract ConvertTest is TestHelper {
         uint256 minLp = getMinLPin();
         deltaB = bound(deltaB, 1e6, 1000 ether);
         setReserves(well, bean.balanceOf(well) + deltaB, weth.balanceOf(well));
-        uint256 initalWellBeanBalance = bean.balanceOf(well);
-        uint256 initalLPbalance = MockToken(well).totalSupply();
-        uint256 initalBeanBalance = bean.balanceOf(BEANSTALK);
 
         uint256 maxLpIn = bs.getMaxAmountIn(well, BEAN);
         lpConverted = bound(lpConverted, minLp, lpMinted / 2);
@@ -1146,11 +1154,14 @@ contract ConvertTest is TestHelper {
             0 // minOut
         );
 
+        // get from/to bdvs
+        // uint256 bdv = bs.bdv(well, lpConverted);
+
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = lpConverted;
 
         vm.expectEmit();
-        emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut);
+        emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut, 0, 0);
 
         // convert well lp to beans
         vm.prank(farmers[0]);
@@ -1205,7 +1216,7 @@ contract ConvertTest is TestHelper {
     //     amounts[0] = lpConverted;
 
     //     vm.expectEmit();
-    //     emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut);
+    //     emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut, 0, 0);
     //     vm.prank(farmers[0]);
     //     convert.convert(
     //         convertData,
