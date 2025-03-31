@@ -342,13 +342,6 @@ contract SiloHelpersTest is TractorHelper {
             BEAN_ETH_WELL
         );
 
-        console.log("Original deposit data:");
-        // Loop through and log all stems and amounts
-        for (uint256 i = 0; i < allStems.length; i++) {
-            console.log("Stem:", allStems[i]);
-            console.log("Amount:", allAmounts[i]);
-        }
-
         uint256 initialBeanBalance = IERC20(BEAN).balanceOf(farmers[0]);
 
         // Setup a setupWithdrawBeansBlueprint to withdraw the total amount of beans
@@ -363,22 +356,6 @@ contract SiloHelpersTest is TractorHelper {
             MAX_GROWN_STALK_PER_BDV
         );
 
-        // Log the plan
-        // console.log("Original Plan:");
-        // // Loop through source tokens
-        // for (uint256 i = 0; i < plan.sourceTokens.length; i++) {
-        //     console.log("Source token:", plan.sourceTokens[i]);
-        //     // Loop through stems
-        //     for (uint256 j = 0; j < plan.stems[i].length; j++) {
-        //         console.log("Stem:", plan.stems[i][j]);
-        //     }
-        //     // Loop through amounts
-        //     for (uint256 j = 0; j < plan.amounts[i].length; j++) {
-        //         console.log("Amount:", plan.amounts[i][j]);
-        //     }
-        //     console.log("Available beans:", plan.availableBeans[i]);
-        // }
-
         // Now exclude that plan from the withdrawal, and get another plan
         SiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlan(
             farmers[0],
@@ -388,45 +365,67 @@ contract SiloHelpersTest is TractorHelper {
             plan
         );
 
-        // console.log("New Plan:");
-        // // Loop through source tokens
-        // for (uint256 i = 0; i < newPlan.sourceTokens.length; i++) {
-        //     console.log("Source token:", newPlan.sourceTokens[i]);
-        //     // Loop through stems
-        //     for (uint256 j = 0; j < newPlan.stems[i].length; j++) {
-        //         console.log("Stem:", newPlan.stems[i][j]);
-        //     }
-        //     // Loop through amounts
-        //     for (uint256 j = 0; j < newPlan.amounts[i].length; j++) {
-        //         console.log("Amount:", newPlan.amounts[i][j]);
-        //     }
-        //     console.log("Available beans:", newPlan.availableBeans[i]);
-        // }
+        // Combine the plans and verify the result
+        SiloHelpers.WithdrawalPlan[] memory plansToCombine = new SiloHelpers.WithdrawalPlan[](2);
+        plansToCombine[0] = plan;
+        plansToCombine[1] = newPlan;
+        SiloHelpers.WithdrawalPlan memory combinedPlan = siloHelpers.combineWithdrawalPlans(
+            plansToCombine
+        );
 
-        // Assert that the stems and amounts in the new plan are different from the original plan
-        for (uint256 i = 0; i < newPlan.sourceTokens.length && i < plan.sourceTokens.length; i++) {
-            // Loop through stems up to the minimum length
-            uint256 minStemsLength = newPlan.stems[i].length < plan.stems[i].length
-                ? newPlan.stems[i].length
-                : plan.stems[i].length;
+        // Verify the combined plan
+        assertEq(combinedPlan.sourceTokens.length, 1, "Should have one source token");
+        assertEq(
+            combinedPlan.sourceTokens[0],
+            BEAN_ETH_WELL,
+            "Source token should be BEAN_ETH_WELL"
+        );
 
-            for (uint256 j = 0; j < minStemsLength; j++) {
-                assertNotEq(newPlan.stems[i][j], plan.stems[i][j], "Stems should be different");
+        // Verify stems and amounts are combined correctly
+        assertEq(
+            combinedPlan.stems[0].length,
+            combinedPlan.amounts[0].length,
+            "Stems and amounts should have same length"
+        );
+
+        // Verify total available beans matches sum of individual plans
+        assertEq(
+            combinedPlan.totalAvailableBeans,
+            plan.totalAvailableBeans + newPlan.totalAvailableBeans,
+            "Total available beans should match sum of individual plans"
+        );
+
+        // Verify each stem's amount in combined plan matches sum of amounts in individual plans
+        for (uint256 i = 0; i < combinedPlan.stems[0].length; i++) {
+            int96 stem = combinedPlan.stems[0][i];
+            uint256 combinedAmount = combinedPlan.amounts[0][i];
+            uint256 expectedAmount = 0;
+
+            // Find and sum amounts for this stem in both plans
+            for (uint256 j = 0; j < plan.stems[0].length; j++) {
+                if (plan.stems[0][j] == stem) {
+                    expectedAmount += plan.amounts[0][j];
+                }
+            }
+            for (uint256 j = 0; j < newPlan.stems[0].length; j++) {
+                if (newPlan.stems[0][j] == stem) {
+                    expectedAmount += newPlan.amounts[0][j];
+                }
             }
 
-            // Loop through amounts up to the minimum length
-            uint256 minAmountsLength = newPlan.amounts[i].length < plan.amounts[i].length
-                ? newPlan.amounts[i].length
-                : plan.amounts[i].length;
-
-            for (uint256 j = 0; j < minAmountsLength; j++) {
-                assertNotEq(
-                    newPlan.amounts[i][j],
-                    plan.amounts[i][j],
-                    "Amounts should be different"
-                );
-            }
+            assertEq(
+                combinedAmount,
+                expectedAmount,
+                "Combined amount should match sum of individual amounts"
+            );
         }
+
+        // Verify available beans for the source token matches the sum of available beans from both plans
+        assertEq(
+            combinedPlan.availableBeans[0],
+            plan.availableBeans[0] + newPlan.availableBeans[0],
+            "Available beans should match sum of individual plans"
+        );
     }
 
     function test_withdrawBeansHelper() public {
