@@ -38,8 +38,8 @@ library LibConvert {
     using LibRedundantMathSigned256 for int256;
     using SafeCast for uint256;
 
-    event ConvertDownPenalty(address account, uint256 stalkLost);
-    event ConvertUpBonus(address account, uint256 stalkGained);
+    event ConvertDownPenalty(address account, uint256 grownStalk, uint256 grownStalkLost);
+    event ConvertUpBonus(address account, uint256 grownStalk, uint256 grownStalkGained);
 
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
@@ -596,12 +596,12 @@ library LibConvert {
                 toBdv,
                 grownStalk
             );
-            emit ConvertDownPenalty(account, grownStalkLost);
+            emit ConvertDownPenalty(account, grownStalk, grownStalkLost);
         } else if (inputToken != s.sys.bean && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
             uint256 grownStalkGained;
             (newGrownStalk, grownStalkGained) = stalkBonus(toBdv, grownStalk);
-            emit ConvertUpBonus(account, grownStalkGained);
+            emit ConvertUpBonus(account, grownStalk, grownStalkGained);
         }
         return newGrownStalk;
     }

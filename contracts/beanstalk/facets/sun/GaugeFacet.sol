@@ -257,14 +257,14 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             previousSeasonBdvConverted >
             getConvertBonusBdvUsedThreshold(uint256(-bs.twaDeltaB), previousSeasonBdvCapacity)
         ) {
-            // if Z Pdv was converted case
+            // if Z Pdv was converted case, we decrease the percentage of stalk to issue as a bonus
             // convertBonusRatio = min(1, convertBonusRatio - (Δc × Pt-1/L2SR))
             uint256 reduction = (deltaC * bs.largestLiquidWellTwapBeanPrice) /
                 bs.lpToSupplyRatio.value;
             convertBonusRatio = convertBonusRatio > reduction ? convertBonusRatio - reduction : 0;
             convertBonusRatio = Math.min(convertBonusRatio, minDeltaC);
         } else {
-            // Otherwise case
+            // Otherwise, we increase the percentage of stalk to issue as a bonus
             // convertBonusRatio = max(0, convertBonusRatio + (L2SR × 0.01/(Δc×Pt-1)))
             uint256 increase = (bs.lpToSupplyRatio.value * 0.01e18) /
                 (deltaC * bs.largestLiquidWellTwapBeanPrice);
