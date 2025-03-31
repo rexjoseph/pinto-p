@@ -170,7 +170,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      * ----------------------------------------------------------------
      * @notice Adjusts the scalar of the maximum stalk the protocol is willing to issue
      * in a given season as a bonus of converting up towards peg (C parameter).
-     * - C ranges from 0 to 1e18, where 0 is no bonus and 1e18 is full bonus.
+     * - C ranges from 0 to 1e18, where 0 is no bonus and 1e18 is full bonus (0-100%).
      * - C Resets to 0 upon the system crossing target. Stays at 0 above target.
      * - C does not increase until after 12 seasons after a below target cross.
      * ---------------------------------------------------------------
@@ -180,7 +180,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      * C increases by Y when it converts less than Z pdv in a season.
      * Y = (bs.lpToSupplyRatio.value * 0.01e18) / (bs.previousSeasonBeanPrice * deltaC)
      * ---------------------------------------------------------------
-     * @notice Calculates the stalkPerBdv bonus for the current season. 
+     * @notice Calculates the stalkPerBdv bonus for the current season.
      * The stalkPerBdv is the difference between the current stem tip and
      * the stemTip at a target cross, choosing the smallest amongst all whitelisted lp tokens.
      * ----------------------------------------------------------------
@@ -202,8 +202,8 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // get how much pdv was converted in the previous season
         // todo: add as a storage variable when doing a convert in one season?
-        // uint256 previousSeasonPdv = s.sys.season.previousSeasonPdvConverted;
-        uint256 previousSeasonPdv = 0;
+        uint256 previousSeasonPdvConverted = 0;
+        uint256 previousSeasonPdvCapacity = 0;
 
         // Decode current convert bonus ratio value and rolling count of seasons below peg
         (uint256 convertBonusRatio, uint256 seasonsBelowPeg) = abi.decode(
@@ -227,16 +227,17 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // 1. set vmax (the maximum stalk Pinto is willing to issue for converts every season.)
         // (0,01% of total stalk supply)
         // todo: change to a % of grown stalk supply after we figure out how to get that
-        uint256 vmax = (s.sys.silo.stalk * s.sys.extEvaluationParameters.convertBonusStalkScalar) /
-            C.PRECISION;
+        uint256 maxStalkToIssue = (s.sys.silo.stalk *
+            s.sys.extEvaluationParameters.convertBonusStalkScalar) / C.PRECISION;
 
         // 2. determine C, the Vmax scalar for the season
         // todo : change 0 to a threshold
         // todo : fix decimal precision
-        if (previousSeasonPdv > 0) {
+        if (previousSeasonPdvConverted > getConvertBonusBdvUsedThreshold(bs.twaDeltaB, previousSeasonPdvCapacity)) {
             // if Z Pdv was converted case
             // convertBonusRatio = min(1, convertBonusRatio - (Δc × Pt-1/L2SR))
-            uint256 reduction = (deltaC * bs.largestLiquidWellTwapBeanPrice) / bs.lpToSupplyRatio.value;
+            uint256 reduction = (deltaC * bs.largestLiquidWellTwapBeanPrice) /
+                bs.lpToSupplyRatio.value;
             convertBonusRatio = convertBonusRatio > reduction ? convertBonusRatio - reduction : 0;
             convertBonusRatio = Math.min(convertBonusRatio, minDeltaC);
         } else {
@@ -248,9 +249,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             convertBonusRatio = Math.max(convertBonusRatio, maxDeltaC);
         }
 
-        // we now know Vmac and C --> we can get V (the amount of stalk the protocol will issue for converts)
+        // we now know Vmax and C --> we can get V (the amount of stalk the protocol will issue for converts)
         // V = C * Vmax
-        uint256 V = (convertBonusRatio * vmax) / C.PRECISION;
+        uint256 stalkToIssue = (convertBonusRatio * maxStalkToIssue) / C.PRECISION;
 
         // we now know V, so we can set the convert bonus pdv capacity as V / stalkPerBdv
         // where stalkPerBdv is determined by taking the difference between the current stem tip
@@ -258,9 +259,21 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // 3. set the convert bonus pdv capacity as V / stalkPerBdv
         uint256 stalkPerBdv = getCurrentBonusStalkPerBdv();
-        uint256 convertBonusBdvCapacity = V / stalkPerBdv;
+        uint256 convertBonusBdvCapacity = stalkToIssue / stalkPerBdv;
 
+        // value, gaugeData
         return (abi.encode(convertBonusBdvCapacity, stalkPerBdv), gaugeData);
+    }
+
+    // gets Z, the pdv threshold where:
+    // - if at least Z Pdv was converted in the previous season, C decreases by X
+    // - if less than Z Pdv was converted in the previous season, C increases by Y
+    // Z =  min(max(50 ,1% of the deltaP), previous season's maximum pdv that can get a bonus)
+    function getConvertBonusBdvUsedThreshold(
+        uint256 deltaP,
+        uint256 previousSeasonConvertBonusBdvCapacity
+    ) internal view returns (uint256) {
+        return Math.min(Math.max(50, (deltaP * 0.01e6) / 1e6), previousSeasonConvertBonusBdvCapacity);
     }
 
     // todo: move this elsewhere

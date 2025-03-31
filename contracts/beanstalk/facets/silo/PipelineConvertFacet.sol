@@ -111,6 +111,7 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
         grownStalk = LibConvert.applyStalkModifiers(
             inputToken,
             outputToken,
+            LibTractor._user(),
             toBdv,
             grownStalk
         );

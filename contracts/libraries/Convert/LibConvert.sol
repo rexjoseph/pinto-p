@@ -38,8 +38,8 @@ library LibConvert {
     using LibRedundantMathSigned256 for int256;
     using SafeCast for uint256;
 
-    event ConvertDownPenalty(uint256 stalkLost);
-    event ConvertUpBonus(uint256 stalkGained);
+    event ConvertDownPenalty(address account, uint256 stalkLost);
+    event ConvertUpBonus(address account, uint256 stalkGained);
 
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
@@ -583,6 +583,7 @@ library LibConvert {
     function applyStalkModifiers(
         address inputToken,
         address outputToken,
+        address account,
         uint256 toBdv,
         uint256 grownStalk
     ) internal returns (uint256 newGrownStalk) {
@@ -596,7 +597,7 @@ library LibConvert {
                 grownStalk
             );
             emit ConvertDownPenalty(grownStalkLost);
-        } else if (inputToken == s.sys.bean && outputToken != s.sys.bean) {
+        } else if (inputToken != s.sys.bean && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
             uint256 grownStalkGained;
             (newGrownStalk, grownStalkGained) = stalkBonus(toBdv, grownStalk);
@@ -705,10 +706,10 @@ library LibConvert {
         );
 
         // calculate the bonus stalk (bdv * stalkPerBdv)
-        uint256 bonusStalk = toBdv * stalkPerBdv;
+        uint256 bonusStalk = (toBdv * stalkPerBdv) / C.PRECISION;
 
-        // make sure the bonus stalk does not exceed the capacity
-        bonusStalk = min(bonusStalk, convertBonusBdvCapacity);
+        // make sure the bdv that gets the bonus does not exceed the bdv capacity
+        bonusStalk = min(toBdv, convertBonusBdvCapacity);
 
         // reduce the bonus stalk by the convertBonusBdvCapacity in gauge storage
         s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(
