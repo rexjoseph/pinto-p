@@ -1039,6 +1039,8 @@ task("mintPinto", "Mints Pintos to an address")
   });
 
 task("diamondABI", "Generates ABI file for diamond, includes all ABIs of facets", async () => {
+  console.log("Compiling contracts to get updated artifacts...");
+  await hre.run("compile");
   // The path (relative to the root of `protocol` directory) where all modules sit.
   const modulesDir = path.join("contracts", "beanstalk", "facets");
 
@@ -1612,6 +1614,9 @@ task("deploySiloHelpers", "Deploys the SiloHelpers contract").setAction(
 
 task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(async () => {
   try {
+    console.log("Compiling contracts to get updated artifacts...");
+    await hre.run("compile");
+
     console.log("Generating ABIs for ecosystem contracts...");
 
     // Create output directory if it doesn't exist
