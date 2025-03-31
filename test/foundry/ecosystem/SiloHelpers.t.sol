@@ -326,6 +326,109 @@ contract SiloHelpersTest is TractorHelper {
         );
     }
 
+    function test_withdrawBeansHelperMultipleLPDepositsExcludeExistingPlan() public {
+        // Setup: Create multiple LP deposits over various seasons, deposit amounts 100, then 200, then 300, etc
+        uint256 numDeposits = 10;
+        uint256 depositAmount = 100e6;
+        uint256 totalBeansToWithdraw = 0;
+        for (uint256 i = 1; i < numDeposits + 1; i++) {
+            mintAndDepositBeanETH(farmers[0], depositAmount * i);
+            totalBeansToWithdraw += depositAmount * i;
+        }
+
+        // Get all deposits to find grown stalk values
+        (int96[] memory allStems, uint256[] memory allAmounts) = siloHelpers.getSortedDeposits(
+            farmers[0],
+            BEAN_ETH_WELL
+        );
+
+        console.log("Original deposit data:");
+        // Loop through and log all stems and amounts
+        for (uint256 i = 0; i < allStems.length; i++) {
+            console.log("Stem:", allStems[i]);
+            console.log("Amount:", allAmounts[i]);
+        }
+
+        uint256 initialBeanBalance = IERC20(BEAN).balanceOf(farmers[0]);
+
+        // Setup a setupWithdrawBeansBlueprint to withdraw the total amount of beans
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
+
+        // Get the plan that we would use to withdraw the total amount of beans
+        SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+            farmers[0],
+            sourceTokenIndices,
+            totalBeansToWithdraw,
+            MAX_GROWN_STALK_PER_BDV
+        );
+
+        // Log the plan
+        // console.log("Original Plan:");
+        // // Loop through source tokens
+        // for (uint256 i = 0; i < plan.sourceTokens.length; i++) {
+        //     console.log("Source token:", plan.sourceTokens[i]);
+        //     // Loop through stems
+        //     for (uint256 j = 0; j < plan.stems[i].length; j++) {
+        //         console.log("Stem:", plan.stems[i][j]);
+        //     }
+        //     // Loop through amounts
+        //     for (uint256 j = 0; j < plan.amounts[i].length; j++) {
+        //         console.log("Amount:", plan.amounts[i][j]);
+        //     }
+        //     console.log("Available beans:", plan.availableBeans[i]);
+        // }
+
+        // Now exclude that plan from the withdrawal, and get another plan
+        SiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlan(
+            farmers[0],
+            sourceTokenIndices,
+            totalBeansToWithdraw,
+            MAX_GROWN_STALK_PER_BDV,
+            plan
+        );
+
+        // console.log("New Plan:");
+        // // Loop through source tokens
+        // for (uint256 i = 0; i < newPlan.sourceTokens.length; i++) {
+        //     console.log("Source token:", newPlan.sourceTokens[i]);
+        //     // Loop through stems
+        //     for (uint256 j = 0; j < newPlan.stems[i].length; j++) {
+        //         console.log("Stem:", newPlan.stems[i][j]);
+        //     }
+        //     // Loop through amounts
+        //     for (uint256 j = 0; j < newPlan.amounts[i].length; j++) {
+        //         console.log("Amount:", newPlan.amounts[i][j]);
+        //     }
+        //     console.log("Available beans:", newPlan.availableBeans[i]);
+        // }
+
+        // Assert that the stems and amounts in the new plan are different from the original plan
+        for (uint256 i = 0; i < newPlan.sourceTokens.length && i < plan.sourceTokens.length; i++) {
+            // Loop through stems up to the minimum length
+            uint256 minStemsLength = newPlan.stems[i].length < plan.stems[i].length
+                ? newPlan.stems[i].length
+                : plan.stems[i].length;
+
+            for (uint256 j = 0; j < minStemsLength; j++) {
+                assertNotEq(newPlan.stems[i][j], plan.stems[i][j], "Stems should be different");
+            }
+
+            // Loop through amounts up to the minimum length
+            uint256 minAmountsLength = newPlan.amounts[i].length < plan.amounts[i].length
+                ? newPlan.amounts[i].length
+                : plan.amounts[i].length;
+
+            for (uint256 j = 0; j < minAmountsLength; j++) {
+                assertNotEq(
+                    newPlan.amounts[i][j],
+                    plan.amounts[i][j],
+                    "Amounts should be different"
+                );
+            }
+        }
+    }
+
     function test_withdrawBeansHelper() public {
         // Setup: Create deposits in both Bean and LP tokens
         uint256 beanAmount = 1000e6;
