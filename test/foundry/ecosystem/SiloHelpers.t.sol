@@ -381,12 +381,59 @@ contract SiloHelpersTest is TractorHelper {
             "Source token should be BEAN_ETH_WELL"
         );
 
-        // Verify stems and amounts are combined correctly
-        assertEq(
-            combinedPlan.stems[0].length,
-            combinedPlan.amounts[0].length,
-            "Stems and amounts should have same length"
-        );
+        // Verify stems and amounts are combined correctly for each source token
+        for (uint256 i = 0; i < 1; i++) {
+            // Add safety checks for array lengths
+            require(combinedPlan.stems[i].length > 0, "Stems array is empty");
+            require(combinedPlan.amounts[i].length > 0, "Amounts array is empty");
+            assertEq(
+                combinedPlan.stems[i].length,
+                combinedPlan.amounts[i].length,
+                "Stems and amounts should have same length"
+            );
+
+            // Verify each stem's amount in combined plan matches sum of amounts in individual plans
+            for (uint256 j = 0; j < combinedPlan.stems[i].length; j++) {
+                int96 stem = combinedPlan.stems[i][j];
+                uint256 combinedAmount = combinedPlan.amounts[i][j];
+                uint256 expectedAmount = 0;
+
+                // Find matching token in Plan 1
+                for (uint256 k = 0; k < plan.sourceTokens.length; k++) {
+                    if (plan.sourceTokens[k] == combinedPlan.sourceTokens[i]) {
+                        for (uint256 l = 0; l < plan.stems[k].length; l++) {
+                            if (plan.stems[k][l] == stem) {
+                                expectedAmount += plan.amounts[k][l];
+                            }
+                        }
+                    }
+                }
+
+                // Find matching token in Plan 2
+                for (uint256 k = 0; k < newPlan.sourceTokens.length; k++) {
+                    if (newPlan.sourceTokens[k] == combinedPlan.sourceTokens[i]) {
+                        for (uint256 l = 0; l < newPlan.stems[k].length; l++) {
+                            if (newPlan.stems[k][l] == stem) {
+                                expectedAmount += newPlan.amounts[k][l];
+                            }
+                        }
+                    }
+                }
+
+                assertEq(
+                    combinedAmount,
+                    expectedAmount,
+                    string(
+                        abi.encodePacked(
+                            "Amount mismatch for stem ",
+                            uint256(int256(stem)),
+                            " in token ",
+                            uint256(uint160(combinedPlan.sourceTokens[i]))
+                        )
+                    )
+                );
+            }
+        }
 
         // Verify total available beans matches sum of individual plans
         assertEq(
@@ -394,31 +441,6 @@ contract SiloHelpersTest is TractorHelper {
             plan.totalAvailableBeans + newPlan.totalAvailableBeans,
             "Total available beans should match sum of individual plans"
         );
-
-        // Verify each stem's amount in combined plan matches sum of amounts in individual plans
-        for (uint256 i = 0; i < combinedPlan.stems[0].length; i++) {
-            int96 stem = combinedPlan.stems[0][i];
-            uint256 combinedAmount = combinedPlan.amounts[0][i];
-            uint256 expectedAmount = 0;
-
-            // Find and sum amounts for this stem in both plans
-            for (uint256 j = 0; j < plan.stems[0].length; j++) {
-                if (plan.stems[0][j] == stem) {
-                    expectedAmount += plan.amounts[0][j];
-                }
-            }
-            for (uint256 j = 0; j < newPlan.stems[0].length; j++) {
-                if (newPlan.stems[0][j] == stem) {
-                    expectedAmount += newPlan.amounts[0][j];
-                }
-            }
-
-            assertEq(
-                combinedAmount,
-                expectedAmount,
-                "Combined amount should match sum of individual amounts"
-            );
-        }
 
         // Verify available beans for the source token matches the sum of available beans from both plans
         assertEq(
@@ -488,10 +510,7 @@ contract SiloHelpersTest is TractorHelper {
             vm.prank(farmers[0]);
             bs.publishRequisition(req);
 
-            console.log("Executing requisition");
-
             executeRequisition(farmers[0], req, address(bs));
-            console.log("Executed requisition");
 
             assertEq(
                 IERC20(BEAN).balanceOf(farmers[0]),
@@ -1066,5 +1085,214 @@ contract SiloHelpersTest is TractorHelper {
             }
         }
         console.log("Total available beans:", plan.totalAvailableBeans);*/
+    }
+
+    function test_withdrawBeansHelperMultipleTokensExcludeExistingPlan() public {
+        // Setup: Create deposits in both Bean and LP tokens
+        uint256 beanAmount = 1000e6;
+        uint256 numDeposits = 5;
+
+        // Deposit Beans
+        mintTokensToUser(farmers[0], BEAN, beanAmount * 2);
+        for (uint256 i = 0; i < numDeposits; i++) {
+            vm.prank(farmers[0]);
+            bs.deposit(BEAN, beanAmount / numDeposits, 0);
+            bs.siloSunrise(0);
+        }
+
+        // Deposit LP tokens in BEAN_ETH_WELL
+        vm.prank(farmers[0]);
+        MockToken(BEAN).approve(BEAN_ETH_WELL, beanAmount);
+        uint256[] memory tokenAmountsIn = new uint256[](2);
+        tokenAmountsIn[0] = beanAmount;
+        tokenAmountsIn[1] = 0;
+        vm.prank(farmers[0]);
+        uint256 lpAmountOut = IWell(BEAN_ETH_WELL).addLiquidity(
+            tokenAmountsIn,
+            0,
+            farmers[0],
+            type(uint256).max
+        );
+        vm.prank(farmers[0]);
+        MockToken(BEAN_ETH_WELL).approve(address(bs), lpAmountOut);
+        for (uint256 i = 0; i < numDeposits; i++) {
+            vm.prank(farmers[0]);
+            bs.deposit(BEAN_ETH_WELL, lpAmountOut / numDeposits, 0);
+            bs.siloSunrise(0);
+        }
+
+        // Deposit LP tokens in BEAN_WSTETH_WELL
+        mintTokensToUser(farmers[0], BEAN, beanAmount * 2); // Mint more beans for WSTETH well
+        vm.prank(farmers[0]);
+        MockToken(BEAN).approve(BEAN_WSTETH_WELL, beanAmount);
+        vm.prank(farmers[0]);
+        lpAmountOut = IWell(BEAN_WSTETH_WELL).addLiquidity(
+            tokenAmountsIn,
+            0,
+            farmers[0],
+            type(uint256).max
+        );
+        vm.prank(farmers[0]);
+        MockToken(BEAN_WSTETH_WELL).approve(address(bs), lpAmountOut);
+        for (uint256 i = 0; i < numDeposits; i++) {
+            vm.prank(farmers[0]);
+            bs.deposit(BEAN_WSTETH_WELL, lpAmountOut / numDeposits, 0);
+            bs.siloSunrise(0);
+        }
+
+        uint256 initialBeanBalance = IERC20(BEAN).balanceOf(farmers[0]);
+
+        // Setup withdrawal with multiple source tokens
+        uint8[] memory sourceTokenIndices = new uint8[](3);
+        sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN);
+        sourceTokenIndices[1] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
+        sourceTokenIndices[2] = siloHelpers.getTokenIndex(BEAN_WSTETH_WELL);
+
+        // Get the first plan for a smaller amount
+        SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+            farmers[0],
+            sourceTokenIndices,
+            (beanAmount * 1.2e6) / 1e6,
+            MAX_GROWN_STALK_PER_BDV
+        );
+
+        // Get the second plan excluding the first plan
+        SiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlan(
+            farmers[0],
+            sourceTokenIndices,
+            (beanAmount * 1.2e6) / 1e6,
+            MAX_GROWN_STALK_PER_BDV,
+            plan
+        );
+
+        // Combine the plans and verify the result
+        SiloHelpers.WithdrawalPlan[] memory plansToCombine = new SiloHelpers.WithdrawalPlan[](2);
+        plansToCombine[0] = plan;
+        plansToCombine[1] = newPlan;
+        SiloHelpers.WithdrawalPlan memory combinedPlan = siloHelpers.combineWithdrawalPlans(
+            plansToCombine
+        );
+
+        // Verify the combined plan has all source tokens
+        assertEq(combinedPlan.sourceTokens.length, 3, "Should have three source tokens");
+        assertEq(combinedPlan.sourceTokens[0], BEAN, "First source token should be BEAN");
+        assertEq(
+            combinedPlan.sourceTokens[1],
+            BEAN_ETH_WELL,
+            "Second source token should be BEAN_ETH_WELL"
+        );
+        assertEq(
+            combinedPlan.sourceTokens[2],
+            BEAN_WSTETH_WELL,
+            "Third source token should be BEAN_WSTETH_WELL"
+        );
+
+        // Verify stems and amounts are combined correctly for each source token
+        for (uint256 i = 0; i < 3; i++) {
+            // Add safety checks for array lengths
+            require(combinedPlan.stems[i].length > 0, "Stems array is empty");
+            require(combinedPlan.amounts[i].length > 0, "Amounts array is empty");
+            assertEq(
+                combinedPlan.stems[i].length,
+                combinedPlan.amounts[i].length,
+                "Stems and amounts should have same length"
+            );
+
+            // Verify each stem's amount in combined plan matches sum of amounts in individual plans
+            for (uint256 j = 0; j < combinedPlan.stems[i].length; j++) {
+                int96 stem = combinedPlan.stems[i][j];
+                uint256 combinedAmount = combinedPlan.amounts[i][j];
+                uint256 expectedAmount = 0;
+
+                // Find matching token in Plan 1
+                for (uint256 k = 0; k < plan.sourceTokens.length; k++) {
+                    if (plan.sourceTokens[k] == combinedPlan.sourceTokens[i]) {
+                        for (uint256 l = 0; l < plan.stems[k].length; l++) {
+                            if (plan.stems[k][l] == stem) {
+                                expectedAmount += plan.amounts[k][l];
+                            }
+                        }
+                    }
+                }
+
+                // Find matching token in Plan 2
+                for (uint256 k = 0; k < newPlan.sourceTokens.length; k++) {
+                    if (newPlan.sourceTokens[k] == combinedPlan.sourceTokens[i]) {
+                        for (uint256 l = 0; l < newPlan.stems[k].length; l++) {
+                            if (newPlan.stems[k][l] == stem) {
+                                expectedAmount += newPlan.amounts[k][l];
+                            }
+                        }
+                    }
+                }
+
+                assertEq(
+                    combinedAmount,
+                    expectedAmount,
+                    string(
+                        abi.encodePacked(
+                            "Amount mismatch for stem ",
+                            uint256(int256(stem)),
+                            " in token ",
+                            uint256(uint160(combinedPlan.sourceTokens[i]))
+                        )
+                    )
+                );
+            }
+        }
+
+        // Verify total available beans matches sum of individual plans
+        assertEq(
+            combinedPlan.totalAvailableBeans,
+            plan.totalAvailableBeans + newPlan.totalAvailableBeans,
+            "Total available beans should match sum of individual plans"
+        );
+
+        // Verify available beans for each source token matches the sum from both plans
+        for (uint256 i = 0; i < 3; i++) {
+            // Find the corresponding indices in the individual plans
+            uint256 planIndex = 0;
+            uint256 newPlanIndex = 0;
+            bool foundInPlan1 = false;
+            bool foundInPlan2 = false;
+
+            // Find matching token in Plan 1
+            for (uint256 j = 0; j < plan.sourceTokens.length; j++) {
+                if (plan.sourceTokens[j] == combinedPlan.sourceTokens[i]) {
+                    planIndex = j;
+                    foundInPlan1 = true;
+                    break;
+                }
+            }
+
+            // Find matching token in Plan 2
+            for (uint256 j = 0; j < newPlan.sourceTokens.length; j++) {
+                if (newPlan.sourceTokens[j] == combinedPlan.sourceTokens[i]) {
+                    newPlanIndex = j;
+                    foundInPlan2 = true;
+                    break;
+                }
+            }
+
+            // Only sum available beans if we found the token in both plans
+            uint256 expectedSum = 0;
+            if (foundInPlan1) {
+                expectedSum += plan.availableBeans[planIndex];
+            }
+            if (foundInPlan2) {
+                expectedSum += newPlan.availableBeans[newPlanIndex];
+            }
+
+            assertEq(
+                combinedPlan.availableBeans[i],
+                expectedSum,
+                string(
+                    abi.encodePacked(
+                        "Available beans mismatch for token ",
+                        combinedPlan.sourceTokens[i]
+                    )
+                )
+            );
+        }
     }
 }

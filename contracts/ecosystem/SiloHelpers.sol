@@ -1064,6 +1064,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                 for (uint256 k = 0; k < plans[j].sourceTokens.length; k++) {
                     if (plans[j].sourceTokens[k] == combinedPlan.sourceTokens[i]) {
                         combinedPlan.availableBeans[i] += plans[j].availableBeans[k];
+                        break; // Break after finding the matching source token in this plan
                     }
                 }
             }
