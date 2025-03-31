@@ -86,13 +86,15 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
      * @param targetAmount The total amount of beans to withdraw
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param existingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
      * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
      */
     function getWithdrawalPlan(
         address account,
         uint8[] memory tokenIndices,
         uint256 targetAmount,
-        uint256 maxGrownStalkPerBdv
+        uint256 maxGrownStalkPerBdv,
+        WithdrawalPlan memory existingPlan
     ) public view returns (WithdrawalPlan memory plan) {
         require(tokenIndices.length > 0, "Must provide at least one source token");
         require(targetAmount > 0, "Must withdraw non-zero amount");
@@ -143,7 +145,8 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                     account,
                     sourceToken,
                     vars.remainingBeansNeeded,
-                    minStem
+                    minStem,
+                    existingPlan
                 );
 
                 // Skip if no beans available from this source
@@ -175,7 +178,8 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                     account,
                     sourceToken,
                     vars.lpNeeded,
-                    minStem
+                    minStem,
+                    existingPlan
                 );
 
                 // Skip if no LP available from this source
@@ -225,6 +229,28 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         }
 
         return plan;
+    }
+
+    /**
+     * @notice Returns a plan for withdrawing beans from multiple sources
+     * @param account The account to withdraw from
+     * @param tokenIndices Array of indices corresponding to whitelisted tokens to try as sources.
+     * Special cases when array length is 1:
+     * - If value is LOWEST_PRICE_STRATEGY (uint8.max): Use tokens in ascending price order
+     * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
+     * @param targetAmount The total amount of beans to withdraw
+     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
+     */
+    function getWithdrawalPlan(
+        address account,
+        uint8[] memory tokenIndices,
+        uint256 targetAmount,
+        uint256 maxGrownStalkPerBdv
+    ) public view returns (WithdrawalPlan memory plan) {
+        WithdrawalPlan memory emptyPlan;
+        return
+            getWithdrawalPlan(account, tokenIndices, targetAmount, maxGrownStalkPerBdv, emptyPlan);
     }
 
     /**
@@ -451,13 +477,13 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     }
 
     /**
-     * @notice Returns an array of stems and amounts needed to fulfill a withdrawal amount,
-     * starting with the highest stem (least grown stalk). If not enough deposits are available,
-     * returns the maximum amount possible.
+     * @notice Returns arrays of stems and amounts for all deposits, sorted by stem in descending order
+     * @dev This function could be made more gas efficient by using a more efficient sorting algorithm
      * @param account The address of the account that owns the deposits
-     * @param token The token to withdraw
+     * @param token The token to get deposits for
      * @param amount The amount of tokens to withdraw
      * @param minStem The minimum stem value to consider for withdrawal
+     * @param existingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
      * @return stems Array of stems in descending order
      * @return amounts Array of corresponding amounts for each stem
      * @return availableAmount The total amount available to withdraw (may be less than requested amount)
@@ -466,7 +492,8 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         address account,
         address token,
         uint256 amount,
-        int96 minStem
+        int96 minStem,
+        WithdrawalPlan memory existingPlan
     )
         public
         view
@@ -495,9 +522,32 @@ contract SiloHelpers is Junction, PerFunctionPausable {
 
             (uint256 depositAmount, ) = beanstalk.getDeposit(account, token, stem);
 
+            // Check if this deposit is in the existing plan and calculate remaining amount
+            uint256 remainingAmount = depositAmount;
+            for (uint256 j = 0; j < existingPlan.sourceTokens.length; j++) {
+                if (existingPlan.sourceTokens[j] == token) {
+                    for (uint256 k = 0; k < existingPlan.stems[j].length; k++) {
+                        if (existingPlan.stems[j][k] == stem) {
+                            // If the deposit was fully used in the existing plan, skip it
+                            if (existingPlan.amounts[j][k] >= depositAmount) {
+                                remainingAmount = 0;
+                                break;
+                            }
+                            // Otherwise, subtract the used amount from the remaining amount
+                            remainingAmount = depositAmount - existingPlan.amounts[j][k];
+                            break;
+                        }
+                    }
+                    if (remainingAmount == 0) break;
+                }
+            }
+
+            // Skip if no remaining amount available
+            if (remainingAmount == 0) continue;
+
             // Calculate amount to take from this deposit
-            uint256 amountFromDeposit = depositAmount;
-            if (depositAmount > remainingBeansNeeded) {
+            uint256 amountFromDeposit = remainingAmount;
+            if (remainingAmount > remainingBeansNeeded) {
                 amountFromDeposit = remainingBeansNeeded;
             }
 
@@ -517,6 +567,31 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         }
 
         return (stems, amounts, availableAmount);
+    }
+
+    /**
+     * @notice Returns arrays of stems and amounts for all deposits, sorted by stem in descending order
+     * @dev This function could be made more gas efficient by using a more efficient sorting algorithm
+     * @param account The address of the account that owns the deposits
+     * @param token The token to get deposits for
+     * @param amount The amount of tokens to withdraw
+     * @param minStem The minimum stem value to consider for withdrawal
+     * @return stems Array of stems in descending order
+     * @return amounts Array of corresponding amounts for each stem
+     * @return availableAmount The total amount available to withdraw (may be less than requested amount)
+     */
+    function getDepositStemsAndAmountsToWithdraw(
+        address account,
+        address token,
+        uint256 amount,
+        int96 minStem
+    )
+        public
+        view
+        returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
+    {
+        WithdrawalPlan memory emptyPlan;
+        return getDepositStemsAndAmountsToWithdraw(account, token, amount, minStem, emptyPlan);
     }
 
     /**
