@@ -10,16 +10,6 @@
         "internalType": "address",
         "name": "_beanstalkPrice",
         "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_owner",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_siloHelpers",
-        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
