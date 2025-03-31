@@ -251,11 +251,11 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // todo : fix decimal precision
 
         // twaDeltaB is negative, so we need to convert it to a positive value uint256
-        uint256 deltaB = uint256(-bs.twaDeltaB);
+        // uint256 deltaB = uint256(-bs.twaDeltaB);
         uint256 previousSeasonBdvConverted = previousSeasonBdvCapacity - previousSeasonBdvCapacityLeft;
         if (
             previousSeasonBdvConverted >
-            getConvertBonusBdvUsedThreshold(deltaB, previousSeasonBdvCapacity)
+            getConvertBonusBdvUsedThreshold(uint256(-bs.twaDeltaB), previousSeasonBdvCapacity)
         ) {
             // if Z Pdv was converted case
             // convertBonusRatio = min(1, convertBonusRatio - (Δc × Pt-1/L2SR))
@@ -281,8 +281,8 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // and the stemTip at a target cross, and choosing the smallest amongst all whitelisted lp tokens.
 
         // 3. set the convert bonus pdv capacity as V / stalkPerBdv
-        uint256 stalkPerBdv = getCurrentBonusStalkPerBdv();
-        uint256 convertBonusBdvCapacity = (stalkToIssue * C.PRECISION) / stalkPerBdv;
+        // uint256 stalkPerBdv = getCurrentBonusStalkPerBdv();
+        uint256 convertBonusBdvCapacity = (stalkToIssue * C.PRECISION) / getCurrentBonusStalkPerBdv();
         
         // update the gaugeData with the new convertBonusBdvCapacity
         gaugeData = abi.encode(
@@ -294,7 +294,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         );
 
         // value, gaugeData
-        return (abi.encode(convertBonusRatio, stalkPerBdv), gaugeData);
+        return (abi.encode(convertBonusRatio, getCurrentBonusStalkPerBdv()), gaugeData);
     }
 
     // gets Z, the pdv threshold where:

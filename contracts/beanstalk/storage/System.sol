@@ -449,6 +449,7 @@ struct EvaluationParameters {
  * twaDeltaB is negative but beanstalk ended the season above peg.
  * @param soilDistributionPeriod The target period (in seconds) over which to distribute soil (e.g., 24*60*60 for 24 hours).
  * @param minSoilIssuance The minimum amount of soil to issue in a season when below peg.
+ * @param convertBonusStalkScalar The percentage scalar of total stalk to issue as a bonus for converts.
  * @param buffer The buffer for future evaluation parameters.
  */
 struct ExtEvaluationParameters {
