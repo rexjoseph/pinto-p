@@ -596,12 +596,12 @@ library LibConvert {
                 toBdv,
                 grownStalk
             );
-            emit ConvertDownPenalty(grownStalkLost);
+            emit ConvertDownPenalty(account, grownStalkLost);
         } else if (inputToken != s.sys.bean && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
             uint256 grownStalkGained;
             (newGrownStalk, grownStalkGained) = stalkBonus(toBdv, grownStalk);
-            emit ConvertUpBonus(grownStalkGained);
+            emit ConvertUpBonus(account, grownStalkGained);
         }
         return newGrownStalk;
     }
@@ -699,22 +699,37 @@ library LibConvert {
     ) internal returns (uint256 newGrownStalk, uint256 grownStalkGained) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
-        // get all gauge data: how much bonus stalk to issue per BDV, capacity of bonus stalk to issue
-        (uint256 convertBonusBdvCapacity, uint256 stalkPerBdv) = abi.decode(
+        // get gauge value: how much bonus stalk to issue per BDV
+        (, uint256 stalkPerBdv) = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
             (uint256, uint256)
         );
+
+        // get gaugeData: how much bonus stalk capacity is left
+        (
+            uint256 deltaC, // delta used in adjusting convertBonusRatio
+            uint256 minDeltaC, // minimum delta for decreasing convertBonusRatio
+            uint256 maxDeltaC, // maximum delta for increasing convertBonusRatio
+            uint256 bdvCapacityLeft, // how much pdv was converted in the previous season and received a bonus
+            uint256 initialBdvCapacity // previous season's initial convertBonusBdvCapacity
+        ) = abi.decode(
+                s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
+                (uint256, uint256, uint256, uint256, uint256)
+            );
 
         // calculate the bonus stalk (bdv * stalkPerBdv)
         uint256 bonusStalk = (toBdv * stalkPerBdv) / C.PRECISION;
 
         // make sure the bdv that gets the bonus does not exceed the bdv capacity
-        bonusStalk = min(toBdv, convertBonusBdvCapacity);
+        bonusStalk = min(toBdv, bdvCapacityLeft);
 
-        // reduce the bonus stalk by the convertBonusBdvCapacity in gauge storage
-        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(
-            convertBonusBdvCapacity - toBdv,
-            stalkPerBdv
+        // reduce the bdv capacity by the amount of bdv converted
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data = abi.encode(
+            deltaC,
+            minDeltaC,
+            maxDeltaC,
+            bdvCapacityLeft - toBdv,
+            initialBdvCapacity
         );
 
         return (grownStalk + bonusStalk, bonusStalk);

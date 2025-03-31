@@ -40,6 +40,12 @@ interface IGaugeFacet {
         bytes memory,
         bytes memory gaugeData
     ) external view returns (bytes memory, bytes memory);
+
+    function convertUpBonusGauge(
+        bytes memory value,
+        bytes memory systemData,
+        bytes memory gaugeData
+    ) external view returns (bytes memory, bytes memory);
 }
 
 /**
@@ -187,6 +193,19 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      * @notice From the values above, it calculates the amount of bonus stalk available for converts
      * in the current season. From that, it calculates the convert bonus pdv capacity as
      * stalkToIssue / stalkPerBdv.
+     * ----------------------------------------------------------------
+     * @return value
+     *  The gauge value is encoded as (uint256, uint256):
+     *     - convertBonusRatio - the current convert bonus ratio.
+     *     - seasonsBelowPeg - the rolling count of seasons below peg.
+     * @return gaugeData
+     *  The gaugeData are ecoded as (uint256, uint256, uint256, uint256, uint256):
+     *     - deltaC - the delta used in adjusting convertBonusRatio.
+     *     - minDeltaC - the minimum delta for decreasing convertBonusRatio.
+     *     - maxDeltaC - the maximum delta for increasing convertBonusRatio.
+     *     - previousSeasonBdvConverted - how much pdv was converted in the previous season and received a bonus.
+     *     (resets at the gauge level and gets updated by the convert system)
+     *     previousSeasonBdvCapacity - previous season's initial convertBonusBdvCapacity.
      */
     function convertUpBonusGauge(
         bytes memory value,
@@ -195,15 +214,13 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     ) external view returns (bytes memory, bytes memory) {
         LibEvaluate.BeanstalkState memory bs = abi.decode(systemData, (LibEvaluate.BeanstalkState));
 
-        (uint256 deltaC, uint256 minDeltaC, uint256 maxDeltaC) = abi.decode(
-            gaugeData,
-            (uint256, uint256, uint256)
-        );
-
-        // get how much pdv was converted in the previous season
-        // todo: add as a storage variable when doing a convert in one season?
-        uint256 previousSeasonPdvConverted = 0;
-        uint256 previousSeasonPdvCapacity = 0;
+        (
+            uint256 deltaC, // delta used in adjusting convertBonusRatio
+            uint256 minDeltaC, // minimum delta for decreasing convertBonusRatio
+            uint256 maxDeltaC, // maximum delta for increasing convertBonusRatio
+            uint256 previousSeasonBdvCapacityLeft, // how much pdv was converted in the previous season and received a bonus
+            uint256 previousSeasonBdvCapacity // previous season's initial convertBonusBdvCapacity
+        ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256));
 
         // Decode current convert bonus ratio value and rolling count of seasons below peg
         (uint256 convertBonusRatio, uint256 seasonsBelowPeg) = abi.decode(
@@ -231,9 +248,15 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             s.sys.extEvaluationParameters.convertBonusStalkScalar) / C.PRECISION;
 
         // 2. determine C, the Vmax scalar for the season
-        // todo : change 0 to a threshold
         // todo : fix decimal precision
-        if (previousSeasonPdvConverted > getConvertBonusBdvUsedThreshold(bs.twaDeltaB, previousSeasonPdvCapacity)) {
+
+        // twaDeltaB is negative, so we need to convert it to a positive value uint256
+        uint256 deltaB = uint256(-bs.twaDeltaB);
+        uint256 previousSeasonBdvConverted = previousSeasonBdvCapacity - previousSeasonBdvCapacityLeft;
+        if (
+            previousSeasonBdvConverted >
+            getConvertBonusBdvUsedThreshold(deltaB, previousSeasonBdvCapacity)
+        ) {
             // if Z Pdv was converted case
             // convertBonusRatio = min(1, convertBonusRatio - (Δc × Pt-1/L2SR))
             uint256 reduction = (deltaC * bs.largestLiquidWellTwapBeanPrice) /
@@ -259,10 +282,19 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // 3. set the convert bonus pdv capacity as V / stalkPerBdv
         uint256 stalkPerBdv = getCurrentBonusStalkPerBdv();
-        uint256 convertBonusBdvCapacity = stalkToIssue / stalkPerBdv;
+        uint256 convertBonusBdvCapacity = (stalkToIssue * C.PRECISION) / stalkPerBdv;
+        
+        // update the gaugeData with the new convertBonusBdvCapacity
+        gaugeData = abi.encode(
+            deltaC, // same constant as before
+            minDeltaC, // same constant as before
+            maxDeltaC, // same constant as before
+            0, // previousSeasonBdvConverted resets to 0 at the start of the new season
+            convertBonusBdvCapacity // convertBonusBdvCapacity is updated
+        );
 
         // value, gaugeData
-        return (abi.encode(convertBonusBdvCapacity, stalkPerBdv), gaugeData);
+        return (abi.encode(convertBonusRatio, stalkPerBdv), gaugeData);
     }
 
     // gets Z, the pdv threshold where:
@@ -270,13 +302,14 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     // - if less than Z Pdv was converted in the previous season, C increases by Y
     // Z =  min(max(50 ,1% of the deltaP), previous season's maximum pdv that can get a bonus)
     function getConvertBonusBdvUsedThreshold(
-        uint256 deltaP,
+        uint256 deltaB,
         uint256 previousSeasonConvertBonusBdvCapacity
     ) internal view returns (uint256) {
-        return Math.min(Math.max(50, (deltaP * 0.01e6) / 1e6), previousSeasonConvertBonusBdvCapacity);
+        return
+            Math.min(Math.max(50, (deltaB * 0.01e6) / 1e6), previousSeasonConvertBonusBdvCapacity);
     }
 
-    // todo: move this elsewhere
+    // todo: move this elsewhere, figure out logic
     // the stalkPerPDV is determined by taking the difference between the current stem tip and the stemTip at a target cross,
     // and choosing the smallest amongst all whitelisted lp tokens.
     function getCurrentBonusStalkPerBdv() internal view returns (uint256 stalkPerBdv) {
@@ -287,7 +320,8 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // // calculate the difference
         // stalkPerBdv = uint256(currentStemTip - minStemTip);
     }
-
+    
+    // todo: move this elsewhere, figure out logic
     function getMinStemTip() internal view returns (address token, int96 minStemTip) {
         // get stem tips for all whitelisted lp tokens and get the min
         // address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
