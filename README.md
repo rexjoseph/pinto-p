@@ -9,8 +9,8 @@
 
 Pinto is low volatility money built on Base.
 
-Code Version: `1.0.0` <br>
-Whitepaper Version: `1.0.0`
+Code Version: `1.2.0` <br>
+Whitepaper Version: `1.0.6`
 
 ## Documentation
 
