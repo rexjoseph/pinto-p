@@ -11,6 +11,7 @@ import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {PriceManipulation} from "./PriceManipulation.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {IOperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 
 /**
  * @title SiloHelpers
@@ -58,13 +59,8 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint256 totalAvailableBeans;
     }
 
-    struct WithdrawalPlan {
-        address[] sourceTokens;
-        int96[][] stems;
-        uint256[][] amounts;
-        uint256[] availableBeans;
-        uint256 totalAvailableBeans;
-    }
+    // Use the WithdrawalPlan struct from LibSiloHelpers
+    using LibSiloHelpers for LibSiloHelpers.WithdrawalPlan;
 
     constructor(
         address _beanstalk,
@@ -94,8 +90,8 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint8[] memory tokenIndices,
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv,
-        WithdrawalPlan memory existingPlan
-    ) public view returns (WithdrawalPlan memory plan) {
+        LibSiloHelpers.WithdrawalPlan memory existingPlan
+    ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
         require(tokenIndices.length > 0, "Must provide at least one source token");
         require(targetAmount > 0, "Must withdraw non-zero amount");
 
@@ -242,16 +238,16 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
      * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
      */
-    /*function getWithdrawalPlan(
+    function getWithdrawalPlan(
         address account,
         uint8[] memory tokenIndices,
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv
-    ) public view returns (WithdrawalPlan memory plan) {
-        WithdrawalPlan memory emptyPlan;
+    ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
         return
             getWithdrawalPlan(account, tokenIndices, targetAmount, maxGrownStalkPerBdv, emptyPlan);
-    }*/
+    }
 
     /**
      * @notice Withdraws beans from multiple sources in order until the target amount is fulfilled
@@ -273,17 +269,11 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint256 maxGrownStalkPerBdv,
         uint256 slippageRatio,
         LibTransfer.To mode,
-        WithdrawalPlan memory plan
+        LibSiloHelpers.WithdrawalPlan memory plan
     ) external payable whenFunctionNotPaused returns (uint256) {
         // If passed in plan is empty, get one
         if (plan.sourceTokens.length == 0) {
-            plan = getWithdrawalPlan(
-                account,
-                tokenIndices,
-                targetAmount,
-                maxGrownStalkPerBdv,
-                plan
-            );
+            plan = getWithdrawalPlan(account, tokenIndices, targetAmount, maxGrownStalkPerBdv);
         }
 
         uint256 amountWithdrawn = 0;
@@ -509,7 +499,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         address token,
         uint256 amount,
         int96 minStem,
-        WithdrawalPlan memory existingPlan
+        LibSiloHelpers.WithdrawalPlan memory existingPlan
     )
         public
         view
@@ -596,7 +586,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * @return amounts Array of corresponding amounts for each stem
      * @return availableAmount The total amount available to withdraw (may be less than requested amount)
      */
-    /*function getDepositStemsAndAmountsToWithdraw(
+    function getDepositStemsAndAmountsToWithdraw(
         address account,
         address token,
         uint256 amount,
@@ -606,9 +596,9 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         view
         returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
     {
-        WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
         return getDepositStemsAndAmountsToWithdraw(account, token, amount, minStem, emptyPlan);
-    }*/
+    }
 
     /**
      * @notice Helper function to get the address and stem from a deposit ID
@@ -973,115 +963,9 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * @return combinedPlan A single withdrawal plan that represents the total usage across all input plans
      */
     function combineWithdrawalPlans(
-        WithdrawalPlan[] memory plans
-    ) public view returns (WithdrawalPlan memory combinedPlan) {
-        if (plans.length == 0) {
-            return combinedPlan;
-        }
-
-        // First pass: count unique source tokens
-        uint256 totalSourceTokens = 0;
-        for (uint256 i = 0; i < plans.length; i++) {
-            for (uint256 j = 0; j < plans[i].sourceTokens.length; j++) {
-                bool found = false;
-                for (uint256 k = 0; k < totalSourceTokens; k++) {
-                    if (combinedPlan.sourceTokens[k] == plans[i].sourceTokens[j]) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    if (totalSourceTokens >= combinedPlan.sourceTokens.length) {
-                        // Resize arrays
-                        address[] memory newSourceTokens = new address[](totalSourceTokens + 1);
-                        for (uint256 k = 0; k < totalSourceTokens; k++) {
-                            newSourceTokens[k] = combinedPlan.sourceTokens[k];
-                        }
-                        combinedPlan.sourceTokens = newSourceTokens;
-                    }
-                    combinedPlan.sourceTokens[totalSourceTokens] = plans[i].sourceTokens[j];
-                    totalSourceTokens++;
-                }
-            }
-        }
-
-        // Initialize arrays for the combined plan
-        combinedPlan.stems = new int96[][](totalSourceTokens);
-        combinedPlan.amounts = new uint256[][](totalSourceTokens);
-        combinedPlan.availableBeans = new uint256[](totalSourceTokens);
-
-        // Second pass: combine stems, amounts, and availableBeans for each source token
-        for (uint256 i = 0; i < totalSourceTokens; i++) {
-            // Create arrays for this source token
-            int96[] memory stems = new int96[](plans.length * 10); // Reasonable max size
-            uint256[] memory amounts = new uint256[](plans.length * 10);
-            uint256 seenStemsCount = 0;
-
-            // Sum up amounts for each stem across all plans
-            for (uint256 j = 0; j < plans.length; j++) {
-                for (uint256 k = 0; k < plans[j].sourceTokens.length; k++) {
-                    if (plans[j].sourceTokens[k] == combinedPlan.sourceTokens[i]) {
-                        for (uint256 l = 0; l < plans[j].stems[k].length; l++) {
-                            int96 stem = plans[j].stems[k][l];
-                            uint256 amount = plans[j].amounts[k][l];
-
-                            // Find if we've seen this stem before
-                            bool found = false;
-                            for (uint256 m = 0; m < seenStemsCount; m++) {
-                                if (stems[m] == stem) {
-                                    amounts[m] += amount;
-                                    found = true;
-                                    break;
-                                }
-                            }
-
-                            if (!found) {
-                                stems[seenStemsCount] = stem;
-                                amounts[seenStemsCount] = amount;
-                                seenStemsCount++;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Sort stems in descending order
-            for (uint256 j = 0; j < seenStemsCount - 1; j++) {
-                for (uint256 k = 0; k < seenStemsCount - j - 1; k++) {
-                    if (stems[k] < stems[k + 1]) {
-                        (stems[k], stems[k + 1]) = (stems[k + 1], stems[k]);
-                        (amounts[k], amounts[k + 1]) = (amounts[k + 1], amounts[k]);
-                    }
-                }
-            }
-
-            // Update array lengths
-            assembly {
-                mstore(stems, seenStemsCount)
-                mstore(amounts, seenStemsCount)
-            }
-
-            combinedPlan.stems[i] = stems;
-            combinedPlan.amounts[i] = amounts;
-
-            // Sum up availableBeans from all plans for this source token
-            combinedPlan.availableBeans[i] = 0;
-            for (uint256 j = 0; j < plans.length; j++) {
-                for (uint256 k = 0; k < plans[j].sourceTokens.length; k++) {
-                    if (plans[j].sourceTokens[k] == combinedPlan.sourceTokens[i]) {
-                        combinedPlan.availableBeans[i] += plans[j].availableBeans[k];
-                        break; // Break after finding the matching source token in this plan
-                    }
-                }
-            }
-        }
-
-        // Calculate total available beans
-        combinedPlan.totalAvailableBeans = 0;
-        for (uint256 i = 0; i < totalSourceTokens; i++) {
-            combinedPlan.totalAvailableBeans += combinedPlan.availableBeans[i];
-        }
-
-        return combinedPlan;
+        LibSiloHelpers.WithdrawalPlan[] memory plans
+    ) external view returns (LibSiloHelpers.WithdrawalPlan memory) {
+        // Call the library function directly
+        return LibSiloHelpers.combineWithdrawalPlans(plans);
     }
 }

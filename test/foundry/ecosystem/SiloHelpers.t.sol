@@ -21,8 +21,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
-import {console} from "forge-std/console.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {console} from "forge-std/console.sol";
 /**
  * @notice Tests the functionality of the Oracles.
  */
@@ -110,7 +111,7 @@ contract SiloHelpersTest is TractorHelper {
         testAmounts[5] = 50000e6; // All 50 full withdrawal
 
         // Create empty plan
-        SiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         for (uint256 i; i < testAmounts.length; i++) {
             for (uint256 j; j < minStems.length; j++) {
@@ -234,7 +235,7 @@ contract SiloHelpersTest is TractorHelper {
         // uint256 gasBefore = gasleft();
 
         // Create empty plan
-        SiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get deposit stems and amounts to withdraw
         (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
@@ -356,10 +357,10 @@ contract SiloHelpersTest is TractorHelper {
         sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
 
         // Create empty plan
-        SiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get the plan that we would use to withdraw the total amount of beans
-        SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
@@ -368,7 +369,7 @@ contract SiloHelpersTest is TractorHelper {
         );
 
         // Now exclude that plan from the withdrawal, and get another plan
-        SiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
@@ -377,10 +378,12 @@ contract SiloHelpersTest is TractorHelper {
         );
 
         // Combine the plans and verify the result
-        SiloHelpers.WithdrawalPlan[] memory plansToCombine = new SiloHelpers.WithdrawalPlan[](2);
+        LibSiloHelpers.WithdrawalPlan[] memory plansToCombine = new LibSiloHelpers.WithdrawalPlan[](
+            2
+        );
         plansToCombine[0] = plan;
         plansToCombine[1] = newPlan;
-        SiloHelpers.WithdrawalPlan memory combinedPlan = siloHelpers.combineWithdrawalPlans(
+        LibSiloHelpers.WithdrawalPlan memory combinedPlan = siloHelpers.combineWithdrawalPlans(
             plansToCombine
         );
 
@@ -584,10 +587,10 @@ contract SiloHelpersTest is TractorHelper {
             sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN);
 
             // Create empty plan
-            SiloHelpers.WithdrawalPlan memory emptyPlan;
+            LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
             // Get withdrawal plan
-            SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+            LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
@@ -1062,9 +1065,9 @@ contract SiloHelpersTest is TractorHelper {
         strategyIndices[1] = 1;
 
         // Create empty plan
-        SiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
-        SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndices,
             withdrawalAmount,
@@ -1168,10 +1171,10 @@ contract SiloHelpersTest is TractorHelper {
         sourceTokenIndices[2] = siloHelpers.getTokenIndex(BEAN_WSTETH_WELL);
 
         // Create empty plan
-        SiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get the first plan for a smaller amount
-        SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
@@ -1180,7 +1183,7 @@ contract SiloHelpersTest is TractorHelper {
         );
 
         // Get the second plan excluding the first plan
-        SiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
@@ -1189,10 +1192,12 @@ contract SiloHelpersTest is TractorHelper {
         );
 
         // Combine the plans and verify the result
-        SiloHelpers.WithdrawalPlan[] memory plansToCombine = new SiloHelpers.WithdrawalPlan[](2);
+        LibSiloHelpers.WithdrawalPlan[] memory plansToCombine = new LibSiloHelpers.WithdrawalPlan[](
+            2
+        );
         plansToCombine[0] = plan;
         plansToCombine[1] = newPlan;
-        SiloHelpers.WithdrawalPlan memory combinedPlan = siloHelpers.combineWithdrawalPlans(
+        LibSiloHelpers.WithdrawalPlan memory combinedPlan = siloHelpers.combineWithdrawalPlans(
             plansToCombine
         );
 
