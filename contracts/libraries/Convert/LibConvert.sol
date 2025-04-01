@@ -597,6 +597,7 @@ library LibConvert {
                 toBdv,
                 grownStalk
             );
+            console.log("-- LibConvert: Stalk Penalty --");
             console.log("convert: grownStalkLost", grownStalkLost);
             console.log("convert: newGrownStalk", newGrownStalk);
             emit ConvertDownPenalty(account, grownStalk, grownStalkLost);
@@ -604,6 +605,7 @@ library LibConvert {
             // bonus up for WELL -> BEAN
             uint256 grownStalkGained;
             (newGrownStalk, grownStalkGained) = stalkBonus(toBdv, grownStalk);
+            console.log("-- LibConvert: Stalk Bonus --");
             console.log("convert: grownStalkGained", grownStalkGained);
             console.log("convert: newGrownStalk", newGrownStalk);
             emit ConvertUpBonus(account, grownStalk, grownStalkGained);
@@ -705,9 +707,9 @@ library LibConvert {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // get gauge value: how much bonus stalk to issue per BDV
-        (, uint256 stalkPerBdv) = abi.decode(
+        (, , uint256 stalkPerBdv) = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
-            (uint256, uint256)
+            (uint256, uint256, uint256)
         );
 
         // get gaugeData: how much bonus stalk capacity is left
