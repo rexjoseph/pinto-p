@@ -686,9 +686,19 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
   await priceManipulationContract.deployed();
   console.log("PriceManipulation deployed to:", priceManipulationContract.address);
 
-  // Deploy SiloHelpers
-  const siloHelpers = await ethers.getContractFactory("SiloHelpers");
-  const siloHelpersContract = await siloHelpers.deploy(
+  // Deploy LibSiloHelpers first
+  const LibSiloHelpers = await ethers.getContractFactory("LibSiloHelpers");
+  const libSiloHelpers = await LibSiloHelpers.deploy();
+  await libSiloHelpers.deployed();
+  console.log("LibSiloHelpers deployed to:", libSiloHelpers.address);
+
+  // Deploy SiloHelpers with library linking
+  const SiloHelpers = await ethers.getContractFactory("SiloHelpers", {
+    libraries: {
+      LibSiloHelpers: libSiloHelpers.address
+    }
+  });
+  const siloHelpersContract = await SiloHelpers.deploy(
     L2_PINTO,
     "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
     await owner.getAddress(), // owner address
