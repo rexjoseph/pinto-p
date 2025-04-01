@@ -413,7 +413,8 @@ contract SowBlueprintv0 is PerFunctionPausable {
             blueprintPublisher,
             params.sowParams.sourceTokenIndices,
             totalBeansNeeded,
-            params.sowParams.maxGrownStalkPerBdv
+            params.sowParams.maxGrownStalkPerBdv,
+            plan // Passed in plan is empty
         );
 
         // Verify enough beans are available

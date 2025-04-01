@@ -109,6 +109,9 @@ contract SiloHelpersTest is TractorHelper {
         testAmounts[4] = 3000e6; // 3 full withdrawal
         testAmounts[5] = 50000e6; // All 50 full withdrawal
 
+        // Create empty plan
+        SiloHelpers.WithdrawalPlan memory emptyPlan;
+
         for (uint256 i; i < testAmounts.length; i++) {
             for (uint256 j; j < minStems.length; j++) {
                 // Calculate total available amount for deposits with stems >= minStem
@@ -127,7 +130,8 @@ contract SiloHelpersTest is TractorHelper {
                         farmers[0],
                         BEAN,
                         testAmounts[i],
-                        minStems[j]
+                        minStems[j],
+                        emptyPlan
                     );
 
                 // Count how many deposits were used (non-zero amounts)
@@ -171,7 +175,7 @@ contract SiloHelpersTest is TractorHelper {
 
         // Test with non-existent account
         (int96[] memory noStems, uint256[] memory noAmounts, uint256 noAvailable) = siloHelpers
-            .getDepositStemsAndAmountsToWithdraw(address(0x123), BEAN, 1000e6, 0);
+            .getDepositStemsAndAmountsToWithdraw(address(0x123), BEAN, 1000e6, 0, emptyPlan);
         assertEq(noStems.length, 0, "Should return empty stems array for non-existent account");
         assertEq(noAmounts.length, 0, "Should return empty amounts array for non-existent account");
         assertEq(noAvailable, 0, "Should return 0 available for non-existent account");
@@ -229,9 +233,12 @@ contract SiloHelpersTest is TractorHelper {
         uint256 requestAmount = 50000e6;
         // uint256 gasBefore = gasleft();
 
+        // Create empty plan
+        SiloHelpers.WithdrawalPlan memory emptyPlan;
+
         // Get deposit stems and amounts to withdraw
         (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
-            .getDepositStemsAndAmountsToWithdraw(testWallet, PINTO, requestAmount, 0);
+            .getDepositStemsAndAmountsToWithdraw(testWallet, PINTO, requestAmount, 0, emptyPlan);
 
         // uint256 gasUsed = gasBefore - gasleft();
         // console.log("Gas used for getDepositStemsAndAmountsToWithdraw:", gasUsed);
@@ -348,12 +355,16 @@ contract SiloHelpersTest is TractorHelper {
         uint8[] memory sourceTokenIndices = new uint8[](1);
         sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
 
+        // Create empty plan
+        SiloHelpers.WithdrawalPlan memory emptyPlan;
+
         // Get the plan that we would use to withdraw the total amount of beans
         SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
-            MAX_GROWN_STALK_PER_BDV
+            MAX_GROWN_STALK_PER_BDV,
+            emptyPlan
         );
 
         // Now exclude that plan from the withdrawal, and get another plan
@@ -572,12 +583,16 @@ contract SiloHelpersTest is TractorHelper {
             uint8[] memory sourceTokenIndices = new uint8[](1);
             sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN);
 
+            // Create empty plan
+            SiloHelpers.WithdrawalPlan memory emptyPlan;
+
             // Get withdrawal plan
             SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
-                MAX_GROWN_STALK_PER_BDV
+                MAX_GROWN_STALK_PER_BDV,
+                emptyPlan
             );
 
             vm.expectRevert("Silo: Crate balance too low."); // NOTE: this test will be updated with the plan change
@@ -1046,11 +1061,15 @@ contract SiloHelpersTest is TractorHelper {
         strategyIndices[0] = 0;
         strategyIndices[1] = 1;
 
+        // Create empty plan
+        SiloHelpers.WithdrawalPlan memory emptyPlan;
+
         SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndices,
             withdrawalAmount,
-            MAX_GROWN_STALK_PER_BDV
+            MAX_GROWN_STALK_PER_BDV,
+            emptyPlan
         );
 
         // totalAvailableBeans should be 1900e6
@@ -1148,12 +1167,16 @@ contract SiloHelpersTest is TractorHelper {
         sourceTokenIndices[1] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
         sourceTokenIndices[2] = siloHelpers.getTokenIndex(BEAN_WSTETH_WELL);
 
+        // Create empty plan
+        SiloHelpers.WithdrawalPlan memory emptyPlan;
+
         // Get the first plan for a smaller amount
         SiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
-            MAX_GROWN_STALK_PER_BDV
+            MAX_GROWN_STALK_PER_BDV,
+            emptyPlan
         );
 
         // Get the second plan excluding the first plan

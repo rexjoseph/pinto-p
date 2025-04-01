@@ -242,7 +242,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
      * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
      */
-    function getWithdrawalPlan(
+    /*function getWithdrawalPlan(
         address account,
         uint8[] memory tokenIndices,
         uint256 targetAmount,
@@ -251,7 +251,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         WithdrawalPlan memory emptyPlan;
         return
             getWithdrawalPlan(account, tokenIndices, targetAmount, maxGrownStalkPerBdv, emptyPlan);
-    }
+    }*/
 
     /**
      * @notice Withdraws beans from multiple sources in order until the target amount is fulfilled
@@ -277,7 +277,13 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     ) external payable whenFunctionNotPaused returns (uint256) {
         // If passed in plan is empty, get one
         if (plan.sourceTokens.length == 0) {
-            plan = getWithdrawalPlan(account, tokenIndices, targetAmount, maxGrownStalkPerBdv);
+            plan = getWithdrawalPlan(
+                account,
+                tokenIndices,
+                targetAmount,
+                maxGrownStalkPerBdv,
+                plan
+            );
         }
 
         uint256 amountWithdrawn = 0;
@@ -590,7 +596,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * @return amounts Array of corresponding amounts for each stem
      * @return availableAmount The total amount available to withdraw (may be less than requested amount)
      */
-    function getDepositStemsAndAmountsToWithdraw(
+    /*function getDepositStemsAndAmountsToWithdraw(
         address account,
         address token,
         uint256 amount,
@@ -602,7 +608,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     {
         WithdrawalPlan memory emptyPlan;
         return getDepositStemsAndAmountsToWithdraw(account, token, amount, minStem, emptyPlan);
-    }
+    }*/
 
     /**
      * @notice Helper function to get the address and stem from a deposit ID
