@@ -82,7 +82,7 @@ struct System {
 
 /**
  * @notice System-level Silo state variables.
- * @param stalk The total amount of active Stalk (including Earned Stalk, excluding Grown Stalk).
+ * @param stalk The total amount of active Stalk (including Earned Stalk, excluding unmown Grown Stalk).
  * @param roots The total amount of Roots.
  * @param earnedBeans The number of Beans distributed to the Silo that have not yet been Deposited as a result of the Earn function being called.
  * @param balances A mapping from Token address to Silo Balance storage (amount deposited and withdrawn).
