@@ -1031,11 +1031,10 @@ contract SiloHelpersTest is TractorHelper {
         // Check bean balance before the withdrawal
         uint256 farmerBeanBalanceBefore = IERC20(BEAN).balanceOf(farmers[0]);
 
-        // Use the PriceManipulation contract from our class variable
-        // Check specifically for the Transfer event from PriceManipulation to Beanstalk
+        // Check specifically for the Transfer event from address(0) (minting) to Beanstalk during sync
         // We only care about the from and to addresses, not the exact value
         vm.expectEmit(true, true, false, false);
-        emit IERC20.Transfer(address(priceManipulation), address(bs), 0);
+        emit IERC20.Transfer(address(0), address(bs), 0);
 
         // Execute the requisition through the tractor system
         executeRequisition(farmers[0], req, address(bs));
