@@ -29,6 +29,7 @@ import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 contract SiloHelpersTest is TractorHelper {
     address[] farmers;
     BeanstalkPrice beanstalkPrice;
+    PriceManipulation priceManipulation;
 
     // Add constant for max grown stalk limit
     uint256 constant MAX_GROWN_STALK_PER_BDV = 1000e16; // Stalk is 1e16
@@ -42,15 +43,15 @@ contract SiloHelpersTest is TractorHelper {
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
         // Deploy PriceManipulation first
-        PriceManipulation priceManipulationContract = new PriceManipulation(address(bs));
-        vm.label(address(priceManipulationContract), "PriceManipulation");
+        priceManipulation = new PriceManipulation(address(bs));
+        vm.label(address(priceManipulation), "PriceManipulation");
 
         // Deploy SiloHelpers with PriceManipulation address
         siloHelpers = new SiloHelpers(
             address(bs),
             address(beanstalkPrice),
             address(this),
-            address(priceManipulationContract)
+            address(priceManipulation)
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
@@ -193,15 +194,15 @@ contract SiloHelpersTest is TractorHelper {
         address BEANSTALK_PRICE = 0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E;
 
         // Deploy PriceManipulation first
-        PriceManipulation priceManipulationContract = new PriceManipulation(PINTO_DIAMOND);
-        vm.label(address(priceManipulationContract), "PriceManipulation");
+        priceManipulation = new PriceManipulation(PINTO_DIAMOND);
+        vm.label(address(priceManipulation), "PriceManipulation");
 
         // Deploy SiloHelpers with PriceManipulation address
         siloHelpers = new SiloHelpers(
             PINTO_DIAMOND,
             BEANSTALK_PRICE,
             address(this),
-            address(priceManipulationContract)
+            address(priceManipulation)
         );
         vm.label(address(siloHelpers), "SiloHelpers");
 
@@ -964,5 +965,86 @@ contract SiloHelpersTest is TractorHelper {
             }
         }
         console.log("Total available beans:", plan.totalAvailableBeans);*/
+    }
+
+    function test_withdrawBeansWithWellSync() public {
+        // Setup: Create deposits in both Bean and LP tokens
+        uint256 beanAmount = 1000e6;
+
+        // Deposit Beans - mint double the amount needed to have enough for deposit and LP creation
+        mintTokensToUser(farmers[0], BEAN, beanAmount * 2);
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN, beanAmount, 0);
+
+        // Approve spending Bean to well
+        vm.prank(farmers[0]);
+        MockToken(BEAN).approve(BEAN_ETH_WELL, beanAmount);
+
+        // Add liquidity to well
+        uint256[] memory tokenAmountsIn = new uint256[](2);
+        tokenAmountsIn[0] = beanAmount;
+        tokenAmountsIn[1] = 0;
+
+        vm.prank(farmers[0]);
+        uint256 lpAmountOut = IWell(BEAN_ETH_WELL).addLiquidity(
+            tokenAmountsIn,
+            0,
+            farmers[0],
+            type(uint256).max
+        );
+
+        // Approve spending LP tokens to Beanstalk
+        vm.prank(farmers[0]);
+        MockToken(BEAN_ETH_WELL).approve(address(bs), lpAmountOut);
+
+        // Deposit LP tokens
+        vm.prank(farmers[0]);
+        bs.deposit(BEAN_ETH_WELL, lpAmountOut, 0);
+
+        // Skip germination
+        bs.siloSunrise(0);
+        bs.siloSunrise(0);
+
+        // Send a small amount of extra tokens directly to the well to trigger sync
+        // Using a much smaller amount to avoid triggering price manipulation detection
+        uint256 extraBeanAmount = 50e6;
+        mintTokensToUser(address(this), BEAN, extraBeanAmount);
+        MockToken(BEAN).transfer(BEAN_ETH_WELL, extraBeanAmount);
+
+        // Advance a few blocks to allow oracle to update
+        vm.roll(block.number + 5);
+
+        // Set up withdrawal
+        uint256 withdrawAmount = 100e6;
+        uint8[] memory sourceTokenIndices = new uint8[](1);
+        sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
+
+        // Create a tractor blueprint instead of calling directly
+        IMockFBeanstalk.Requisition memory req = setupWithdrawBeansBlueprint(
+            farmers[0],
+            withdrawAmount,
+            sourceTokenIndices,
+            MAX_GROWN_STALK_PER_BDV,
+            LibTransfer.To.EXTERNAL
+        );
+
+        // Check bean balance before the withdrawal
+        uint256 farmerBeanBalanceBefore = IERC20(BEAN).balanceOf(farmers[0]);
+
+        // Use the PriceManipulation contract from our class variable
+        // Check specifically for the Transfer event from PriceManipulation to Beanstalk
+        // We only care about the from and to addresses, not the exact value
+        vm.expectEmit(true, true, false, false);
+        emit IERC20.Transfer(address(priceManipulation), address(bs), 0);
+
+        // Execute the requisition through the tractor system
+        executeRequisition(farmers[0], req, address(bs));
+
+        // Check bean balance after the withdrawal
+        uint256 farmerBeanBalanceAfter = IERC20(BEAN).balanceOf(farmers[0]);
+        uint256 amountWithdrawn = farmerBeanBalanceAfter - farmerBeanBalanceBefore;
+
+        // Verify withdrawal was successful
+        assertEq(amountWithdrawn, withdrawAmount, "Incorrect amount withdrawn");
     }
 }

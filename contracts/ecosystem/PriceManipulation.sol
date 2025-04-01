@@ -46,7 +46,12 @@ contract PriceManipulation {
         uint256 beanIndex = nonBeanIndex == 0 ? 1 : 0;
 
         // Call sync on well to update pump data and avoid stale reserves.
-        well.sync(address(this), 0);
+        uint256 lpAmountOut = well.sync(address(this), 0);
+
+        if (lpAmountOut > 0) {
+            // Transfer the LP tokens to the Pinto contract
+            IERC20(address(well)).transfer(address(protocol), lpAmountOut);
+        }
 
         // Capped reserves are the current reserves capped with the data from the pump.
         uint256[] memory currentReserves = IWell(well).getReserves();
