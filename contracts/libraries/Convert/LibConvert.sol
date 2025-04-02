@@ -712,34 +712,34 @@ library LibConvert {
             (uint256, uint256, uint256)
         );
 
-        // get gaugeData: how much bonus stalk capacity is left
+        // get how much bonus stalk capacity is left from gaugeData
         (
-            uint256 deltaC, // delta used in adjusting convertBonusRatio
-            uint256 minDeltaC, // minimum delta for decreasing convertBonusRatio
-            uint256 maxDeltaC, // maximum delta for increasing convertBonusRatio
-            uint256 bdvCapacityLeft, // how much pdv was converted in the previous season and received a bonus
-            uint256 initialBdvCapacity // previous season's initial convertBonusBdvCapacity
+            uint256 deltaC,
+            uint256 minConvertBonusFactor,
+            uint256 maxConvertBonusFactor,
+            uint256 bdvCapacityLeft,
+            uint256 initialBdvCapacity
         ) = abi.decode(
                 s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
                 (uint256, uint256, uint256, uint256, uint256)
             );
 
-        // calculate the bonus stalk (bdv * stalkPerBdv)
-        uint256 bonusStalk = (toBdv * stalkPerBdv) / C.PRECISION;
+        // First limit the BDV that can get the bonus
+        uint256 bdvWithBonus = min(toBdv, bdvCapacityLeft);
 
-        // make sure the bdv that gets the bonus does not exceed the bdv capacity
-        bonusStalk = min(toBdv, bdvCapacityLeft);
+        // Then calculate the bonus stalk based on the limited BDV
+        grownStalkGained = (bdvWithBonus * stalkPerBdv) / 1e6;
 
-        // reduce the bdv capacity by the amount of bdv converted
+        // reduce the bdv capacity by the amount of bdv that got the bonus
         s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data = abi.encode(
             deltaC,
-            minDeltaC,
-            maxDeltaC,
-            bdvCapacityLeft - toBdv,
+            minConvertBonusFactor,
+            maxConvertBonusFactor,
+            bdvCapacityLeft - bdvWithBonus,
             initialBdvCapacity
         );
 
-        return (grownStalk + bonusStalk, bonusStalk);
+        return (grownStalk + grownStalkGained, grownStalkGained);
     }
 
     function abs(int256 a) internal pure returns (uint256) {

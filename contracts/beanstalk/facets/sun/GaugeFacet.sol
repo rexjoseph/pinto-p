@@ -234,8 +234,8 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // Decode gauge data
         (
             uint256 deltaC, // delta used in adjusting convertBonusFactor
-            uint256 minconvertBonusFactor, // minimum value of the conversion factor
-            uint256 maxconvertBonusFactor, // maximum value of the conversion factor
+            uint256 minConvertBonusFactor, // minimum value of the conversion factor
+            uint256 maxConvertBonusFactor, // maximum value of the conversion factor
             uint256 previousSeasonBdvCapacityLeft, // how much bonus pdv capacity was left in the previous season
             uint256 previousSeasonBdvCapacity // previous season's initial convertBonusBdvCapacity
         ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256));
@@ -285,8 +285,8 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
                 int256(convertBonusFactor),
                 shouldIncrease,
                 amountChange,
-                int256(minconvertBonusFactor),
-                int256(maxconvertBonusFactor)
+                int256(minConvertBonusFactor),
+                int256(maxConvertBonusFactor)
             )
         );
 
@@ -315,8 +315,8 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             abi.encode(seasonsBelowPeg + 1, convertBonusFactor, getCurrentBonusStalkPerBdv()),
             abi.encode(
                 deltaC, // same constant as before
-                minconvertBonusFactor, // same constant as before
-                maxconvertBonusFactor, // same constant as before
+                minConvertBonusFactor, // same constant as before
+                maxConvertBonusFactor, // same constant as before
                 0, // previousSeasonBdvConverted resets to 0 at the start of the new season
                 getConvertBonusBdvCapacity(stalkToIssue) // 6. convert bonus pdv capacity as V / stalkPerBdv
             )
