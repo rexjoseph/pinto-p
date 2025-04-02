@@ -209,7 +209,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      *     - deltaC - the delta used in adjusting convertBonusFactor.
      *     - minconvertBonusFactor - the minimum value of the conversion factor (0).
      *     - maxconvertBonusFactor - the maximum value of the conversion factor (1e18).
-     *     - previousSeasonBdvConverted - how much pdv was converted in the previous season and received a bonus.
+     *     - previousSeasonBdvCapacityLeft - how much pdv was converted in the previous season and received a bonus.
      *     (resets at the gauge level and gets updated by the convert system)
      *     previousSeasonBdvCapacity - previous season's initial convertBonusBdvCapacity.
      * ----------------------------------------------------------------

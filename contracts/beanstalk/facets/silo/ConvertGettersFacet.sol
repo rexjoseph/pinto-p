@@ -161,8 +161,9 @@ contract ConvertGettersFacet {
 
     /**
      * @notice Returns the bdv capacity left to receive the convert up bonus.
+     * @dev The convert up bonus kicks in after 12 seasons below peg.
      */
-    function getConvertBonusBdvCapacity(address well) external view returns (uint256) {
+    function getConvertBonusBdvCapacity() external view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         (, , , uint256 convertBonusBdvCapacityLeft, ) = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
@@ -175,14 +176,12 @@ contract ConvertGettersFacet {
      * @notice Returns the amount of grown stalk gained from the convert up bonus.
      * @dev Users start receiving a bonus for converting up when bean is below peg for at least 12 seasons.
      * @param bdvToConvert The resulting bdv of the convert.
-     * @param grownStalkToConvert The grown stalk to amount associated with the deposit to convert.
-     * @return newGrownStalk The amount of grown stalk to assign the output deposit.
+     * @return bdvCapacityUsed The amount of bdv that got the bonus.
      * @return grownStalkGained The amount of grown stalk gained from the bonus.
      */
-    // function stalkBonus(
-    //     uint256 bdvToConvert,
-    //     uint256 grownStalkToConvert
-    // ) external view returns (uint256 newGrownStalk, uint256 grownStalkGained) {
-    //     return LibConvert.stalkBonus(bdvToConvert, grownStalkToConvert);
-    // }
+    function stalkBonus(
+        uint256 bdvToConvert
+    ) external view returns (uint256 bdvCapacityUsed, uint256 grownStalkGained) {
+        return LibConvert.stalkBonus(bdvToConvert);
+    }
 }

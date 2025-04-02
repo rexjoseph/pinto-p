@@ -39,8 +39,8 @@ library LibConvert {
     using LibRedundantMathSigned256 for int256;
     using SafeCast for uint256;
 
-    event ConvertDownPenalty(address account, uint256 grownStalk, uint256 grownStalkLost);
-    event ConvertUpBonus(address account, uint256 grownStalk, uint256 grownStalkGained);
+    event ConvertDownPenalty(address account, uint256 grownStalkLost);
+    event ConvertUpBonus(address account, uint256 grownStalkGained);
 
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
@@ -597,18 +597,15 @@ library LibConvert {
                 toBdv,
                 grownStalk
             );
-            console.log("-- LibConvert: Stalk Penalty --");
-            console.log("convert: grownStalkLost", grownStalkLost);
-            console.log("convert: newGrownStalk", newGrownStalk);
-            emit ConvertDownPenalty(account, grownStalk, grownStalkLost);
+            emit ConvertDownPenalty(account, grownStalkLost);
         } else if (inputToken != s.sys.bean && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
-            uint256 grownStalkGained;
-            (newGrownStalk, grownStalkGained) = stalkBonus(toBdv, grownStalk);
-            console.log("-- LibConvert: Stalk Bonus --");
-            console.log("convert: grownStalkGained", grownStalkGained);
-            console.log("convert: newGrownStalk", newGrownStalk);
-            emit ConvertUpBonus(account, grownStalk, grownStalkGained);
+            (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
+            // reduce the bdv capacity by the amount of bdv that got the bonus
+            updateConvertBonusBdvCapacity(bdvCapacityUsed);
+            // update the grown stalk by the amount of grown stalk gained
+            newGrownStalk = grownStalk + grownStalkGained;
+            emit ConvertUpBonus(account, grownStalkGained);
         }
         return newGrownStalk;
     }
@@ -696,14 +693,12 @@ library LibConvert {
      * @notice Calculates the stalk bonus for a convert. Credits the user with bonus grown stalk.
      * @dev This function is used to calculate the bonus grown stalk for a convert.
      * @param toBdv The bdv of the deposit to convert.
-     * @param grownStalk The grown stalk of the deposit to convert.
-     * @return newGrownStalk The new grown stalk to assign the deposit, after applying the bonus.
+     * @return bdvCapacityUsed The amount of bdv that got the bonus.
      * @return grownStalkGained The amount of grown stalk gained from the bonus.
      */
     function stalkBonus(
-        uint256 toBdv,
-        uint256 grownStalk
-    ) internal returns (uint256 newGrownStalk, uint256 grownStalkGained) {
+        uint256 toBdv
+    ) internal view returns (uint256 bdvCapacityUsed, uint256 grownStalkGained) {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // get gauge value: how much bonus stalk to issue per BDV
@@ -730,16 +725,35 @@ library LibConvert {
         // Then calculate the bonus stalk based on the limited BDV
         grownStalkGained = (bdvWithBonus * stalkPerBdv) / 1e6;
 
-        // reduce the bdv capacity by the amount of bdv that got the bonus
+        return (bdvWithBonus, grownStalkGained);
+    }
+
+    /**
+     * @notice Updates the convert bonus bdv capacity in the convert bonus gauge data.
+     * @dev Separated here to allow `stalkBonus` to be called as a getter without touching state.
+     * @param bdvCapacityUsed The amount of bdv that got the bonus.
+     */
+    function updateConvertBonusBdvCapacity(uint256 bdvCapacityUsed) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // get current gaugeData
+        (
+            uint256 deltaC,
+            uint256 minConvertBonusFactor,
+            uint256 maxConvertBonusFactor,
+            uint256 bdvCapacityLeft,
+            uint256 initialBdvCapacity
+        ) = abi.decode(
+                s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
+                (uint256, uint256, uint256, uint256, uint256)
+            );
+
         s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data = abi.encode(
             deltaC,
             minConvertBonusFactor,
             maxConvertBonusFactor,
-            bdvCapacityLeft - bdvWithBonus,
+            bdvCapacityLeft - bdvCapacityUsed,
             initialBdvCapacity
         );
-
-        return (grownStalk + grownStalkGained, grownStalkGained);
     }
 
     function abs(int256 a) internal pure returns (uint256) {
