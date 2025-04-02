@@ -238,6 +238,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
      * @param slippageRatio The price slippage ratio for a lp token withdrawal, between the instantaneous price and the current price
      * @param mode The transfer mode for sending tokens back to user
+     * @param plan The withdrawal plan to use, or null to generate one
      * @return amountWithdrawn The total amount of beans withdrawn
      */
     function withdrawBeansFromSources(
