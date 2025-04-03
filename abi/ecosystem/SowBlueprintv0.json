@@ -8,7 +8,7 @@
       },
       {
         "internalType": "address",
-        "name": "_siloHelpers",
+        "name": "_beanstalkPrice",
         "type": "address"
       }
     ],
@@ -163,6 +163,19 @@
     "name": "renounceOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "siloHelpers",
+    "outputs": [
+      {
+        "internalType": "contract SiloHelpers",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
