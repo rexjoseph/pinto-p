@@ -93,10 +93,18 @@ library LibSiloHelpers {
             vars.amounts = new uint256[](vars.maxPossibleStems);
             vars.seenStemsCount = 0;
 
-            // Sum up amounts for each stem across all plans
+            // Initialize availableBeans for this token
+            vars.tempAvailableBeans[vars.totalSourceTokens] = 0;
+
+            // Sum up amounts for each stem across all plans and calculate availableBeans
             for (vars.j = 0; vars.j < plans.length; vars.j++) {
                 for (vars.k = 0; vars.k < plans[vars.j].sourceTokens.length; vars.k++) {
                     if (plans[vars.j].sourceTokens[vars.k] == vars.token) {
+                        // Add to availableBeans for this token
+                        vars.tempAvailableBeans[vars.totalSourceTokens] += plans[vars.j]
+                            .availableBeans[vars.k];
+
+                        // Process stems
                         for (vars.l = 0; vars.l < plans[vars.j].stems[vars.k].length; vars.l++) {
                             int96 stem = plans[vars.j].stems[vars.k][vars.l];
                             uint256 amount = plans[vars.j].amounts[vars.k][vars.l];
@@ -161,18 +169,6 @@ library LibSiloHelpers {
             vars.tempSourceTokens[vars.totalSourceTokens] = vars.token;
             vars.tempStems[vars.totalSourceTokens] = vars.stems;
             vars.tempAmounts[vars.totalSourceTokens] = vars.amounts;
-
-            // Sum up availableBeans from all plans for this source token
-            vars.tempAvailableBeans[vars.totalSourceTokens] = 0;
-            for (vars.j = 0; vars.j < plans.length; vars.j++) {
-                for (vars.k = 0; vars.k < plans[vars.j].sourceTokens.length; vars.k++) {
-                    if (plans[vars.j].sourceTokens[vars.k] == vars.token) {
-                        vars.tempAvailableBeans[vars.totalSourceTokens] += plans[vars.j]
-                            .availableBeans[vars.k];
-                        break; // Break after finding the matching source token in this plan
-                    }
-                }
-            }
 
             // Add to total available beans
             combinedPlan.totalAvailableBeans += vars.tempAvailableBeans[vars.totalSourceTokens];
