@@ -59,9 +59,6 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint256 totalAvailableBeans;
     }
 
-    // Use the WithdrawalPlan struct from LibSiloHelpers
-    using LibSiloHelpers for LibSiloHelpers.WithdrawalPlan;
-
     constructor(
         address _beanstalk,
         address _beanstalkPrice,
