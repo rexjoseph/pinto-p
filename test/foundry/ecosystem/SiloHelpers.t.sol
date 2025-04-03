@@ -364,12 +364,11 @@ contract SiloHelpersTest is TractorHelper {
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
-            MAX_GROWN_STALK_PER_BDV,
-            emptyPlan
+            MAX_GROWN_STALK_PER_BDV
         );
 
         // Now exclude that plan from the withdrawal, and get another plan
-        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
@@ -594,8 +593,7 @@ contract SiloHelpersTest is TractorHelper {
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
-                MAX_GROWN_STALK_PER_BDV,
-                emptyPlan
+                MAX_GROWN_STALK_PER_BDV
             );
 
             vm.expectRevert("Silo: Crate balance too low."); // NOTE: this test will be updated with the plan change
@@ -1071,8 +1069,7 @@ contract SiloHelpersTest is TractorHelper {
             farmers[0],
             strategyIndices,
             withdrawalAmount,
-            MAX_GROWN_STALK_PER_BDV,
-            emptyPlan
+            MAX_GROWN_STALK_PER_BDV
         );
 
         // totalAvailableBeans should be 1900e6
@@ -1178,12 +1175,11 @@ contract SiloHelpersTest is TractorHelper {
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
-            MAX_GROWN_STALK_PER_BDV,
-            emptyPlan
+            MAX_GROWN_STALK_PER_BDV
         );
 
         // Get the second plan excluding the first plan
-        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlan(
+        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,

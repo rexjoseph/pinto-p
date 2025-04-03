@@ -410,7 +410,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         }
 
         // Check if enough beans are available using getWithdrawalPlan
-        plan = siloHelpers.getWithdrawalPlan(
+        plan = siloHelpers.getWithdrawalPlanExcludingPlan(
             blueprintPublisher,
             params.sowParams.sourceTokenIndices,
             totalBeansNeeded,

@@ -79,15 +79,15 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
      * @param targetAmount The total amount of beans to withdraw
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
-     * @param existingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
+     * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
      * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
      */
-    function getWithdrawalPlan(
+    function getWithdrawalPlanExcludingPlan(
         address account,
         uint8[] memory tokenIndices,
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv,
-        LibSiloHelpers.WithdrawalPlan memory existingPlan
+        LibSiloHelpers.WithdrawalPlan memory excludingPlan
     ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
         require(tokenIndices.length > 0, "Must provide at least one source token");
         require(targetAmount > 0, "Must withdraw non-zero amount");
@@ -139,7 +139,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                     sourceToken,
                     vars.remainingBeansNeeded,
                     minStem,
-                    existingPlan
+                    excludingPlan
                 );
 
                 // Skip if no beans available from this source
@@ -172,7 +172,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                     sourceToken,
                     vars.lpNeeded,
                     minStem,
-                    existingPlan
+                    excludingPlan
                 );
 
                 // Skip if no LP available from this source
@@ -243,7 +243,13 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
         LibSiloHelpers.WithdrawalPlan memory emptyPlan;
         return
-            getWithdrawalPlan(account, tokenIndices, targetAmount, maxGrownStalkPerBdv, emptyPlan);
+            getWithdrawalPlanExcludingPlan(
+                account,
+                tokenIndices,
+                targetAmount,
+                maxGrownStalkPerBdv,
+                emptyPlan
+            );
     }
 
     /**
@@ -486,7 +492,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * @param token The token to get deposits for
      * @param amount The amount of tokens to withdraw
      * @param minStem The minimum stem value to consider for withdrawal
-     * @param existingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
+     * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
      * @return stems Array of stems in descending order
      * @return amounts Array of corresponding amounts for each stem
      * @return availableAmount The total amount available to withdraw (may be less than requested amount)
@@ -496,7 +502,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         address token,
         uint256 amount,
         int96 minStem,
-        LibSiloHelpers.WithdrawalPlan memory existingPlan
+        LibSiloHelpers.WithdrawalPlan memory excludingPlan
     )
         public
         view
@@ -527,17 +533,17 @@ contract SiloHelpers is Junction, PerFunctionPausable {
 
             // Check if this deposit is in the existing plan and calculate remaining amount
             uint256 remainingAmount = depositAmount;
-            for (uint256 j = 0; j < existingPlan.sourceTokens.length; j++) {
-                if (existingPlan.sourceTokens[j] == token) {
-                    for (uint256 k = 0; k < existingPlan.stems[j].length; k++) {
-                        if (existingPlan.stems[j][k] == stem) {
+            for (uint256 j = 0; j < excludingPlan.sourceTokens.length; j++) {
+                if (excludingPlan.sourceTokens[j] == token) {
+                    for (uint256 k = 0; k < excludingPlan.stems[j].length; k++) {
+                        if (excludingPlan.stems[j][k] == stem) {
                             // If the deposit was fully used in the existing plan, skip it
-                            if (existingPlan.amounts[j][k] >= depositAmount) {
+                            if (excludingPlan.amounts[j][k] >= depositAmount) {
                                 remainingAmount = 0;
                                 break;
                             }
                             // Otherwise, subtract the used amount from the remaining amount
-                            remainingAmount = depositAmount - existingPlan.amounts[j][k];
+                            remainingAmount = depositAmount - excludingPlan.amounts[j][k];
                             break;
                         }
                     }
