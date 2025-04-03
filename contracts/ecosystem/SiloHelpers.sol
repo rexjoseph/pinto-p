@@ -969,6 +969,6 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         LibSiloHelpers.WithdrawalPlan[] memory plans
     ) external view returns (LibSiloHelpers.WithdrawalPlan memory) {
         // Call the library function directly
-        return LibSiloHelpers.combineWithdrawalPlans(plans);
+        return LibSiloHelpers.combineWithdrawalPlans(plans, beanstalk);
     }
 }

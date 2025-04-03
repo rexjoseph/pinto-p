@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
+import {console} from "forge-std/console.sol";
+
 /**
  * @title LibSiloHelpers
  * @author FordPinto
@@ -22,48 +25,49 @@ library LibSiloHelpers {
      * @return combinedPlan A single withdrawal plan that represents the total usage across all input plans
      */
     function combineWithdrawalPlans(
-        WithdrawalPlan[] memory plans
-    ) external pure returns (WithdrawalPlan memory combinedPlan) {
+        WithdrawalPlan[] memory plans,
+        IBeanstalk beanstalk
+    ) external view returns (WithdrawalPlan memory combinedPlan) {
         if (plans.length == 0) {
             return combinedPlan;
         }
 
+        IBeanstalk.WhitelistStatus[] memory whitelistStatuses = beanstalk.getWhitelistStatuses();
         // First pass: count unique source tokens
-        uint256 totalSourceTokens = 0;
-        for (uint256 i = 0; i < plans.length; i++) {
-            for (uint256 j = 0; j < plans[i].sourceTokens.length; j++) {
-                bool found = false;
-                for (uint256 k = 0; k < totalSourceTokens; k++) {
-                    if (combinedPlan.sourceTokens[k] == plans[i].sourceTokens[j]) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    if (totalSourceTokens >= combinedPlan.sourceTokens.length) {
-                        // Resize arrays
-                        address[] memory newSourceTokens = new address[](totalSourceTokens + 1);
-                        for (uint256 k = 0; k < totalSourceTokens; k++) {
-                            newSourceTokens[k] = combinedPlan.sourceTokens[k];
-                        }
-                        combinedPlan.sourceTokens = newSourceTokens;
-                    }
-                    combinedPlan.sourceTokens[totalSourceTokens] = plans[i].sourceTokens[j];
-                    totalSourceTokens++;
-                }
-            }
+        uint256 maxSourceTokens = whitelistStatuses.length;
+
+        // Prefill combinedPlan.sourceTokens with beanstalk.getWhitelistedStatuses()
+        combinedPlan.sourceTokens = new address[](maxSourceTokens);
+        for (uint256 i = 0; i < maxSourceTokens; i++) {
+            combinedPlan.sourceTokens[i] = whitelistStatuses[i].token;
         }
 
+        uint256 totalSourceTokens = 0;
+
         // Initialize arrays for the combined plan
-        combinedPlan.stems = new int96[][](totalSourceTokens);
-        combinedPlan.amounts = new uint256[][](totalSourceTokens);
-        combinedPlan.availableBeans = new uint256[](totalSourceTokens);
+        combinedPlan.stems = new int96[][](maxSourceTokens);
+        combinedPlan.amounts = new uint256[][](maxSourceTokens);
+        combinedPlan.availableBeans = new uint256[](maxSourceTokens);
 
         // Second pass: combine stems, amounts, and availableBeans for each source token
-        for (uint256 i = 0; i < totalSourceTokens; i++) {
-            // Create arrays for this source token
-            int96[] memory stems = new int96[](plans.length * 10); // Reasonable max size
-            uint256[] memory amounts = new uint256[](plans.length * 10);
+        for (uint256 i = 0; i < maxSourceTokens; i++) {
+            console.log("i", i);
+            // Calculate absolute maximum possible stems by adding up all stem array lengths
+            uint256 maxPossibleStems = 0;
+
+            for (uint256 j = 0; j < plans.length; j++) {
+                for (uint256 k = 0; k < plans[j].sourceTokens.length; k++) {
+                    if (plans[j].sourceTokens[k] == combinedPlan.sourceTokens[i]) {
+                        maxPossibleStems += plans[j].stems[k].length;
+                    }
+                }
+            }
+
+            console.log("maxPossibleStems", maxPossibleStems);
+
+            // Create arrays with maximum possible size
+            int96[] memory stems = new int96[](maxPossibleStems);
+            uint256[] memory amounts = new uint256[](maxPossibleStems);
             uint256 seenStemsCount = 0;
 
             // Sum up amounts for each stem across all plans
@@ -93,6 +97,16 @@ library LibSiloHelpers {
                     }
                 }
             }
+
+            console.log("seenStemsCount", seenStemsCount);
+
+            if (seenStemsCount == 0) {
+                continue;
+            }
+
+            totalSourceTokens++;
+
+            console.log("totalSourceTokens", totalSourceTokens);
 
             // Sort stems in descending order
             for (uint256 j = 0; j < seenStemsCount - 1; j++) {
