@@ -254,7 +254,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // twaDeltaB <= 0 (below peg) && seasonsBelowPeg >= 12, ready to modify convertBonusFactor
         // and set convert bonus pdv capacity
-        console.log("twaDeltaB <= 0 and seasonsBelowPeg >= 12, ready to modify convertBonusFactor");
+        console.log("\ntwaDeltaB <= 0 and seasonsBelowPeg >= 12, ready to modify convertBonusFactor");
 
         // 1. determine C, the conversion factor, aka the 1st Vmax scalar for the season
 
@@ -279,6 +279,11 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
                 1e6;
         }
 
+        console.log("amountChange: ", amountChange);
+        console.log("minConvertBonusFactor: ", minConvertBonusFactor);
+        console.log("maxConvertBonusFactor: ", maxConvertBonusFactor);
+        console.log("shouldIncrease: ", shouldIncrease);
+
         // increase/decrease convertBonusFactor via the linear function
         convertBonusFactor = uint256(
             LibGaugeHelpers.linear(
@@ -290,6 +295,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             )
         );
 
+        console.log("convertBonusFactor: ", convertBonusFactor);
+
+
         // 2. set vmax (the maximum stalk Pinto is willing to issue for converts every season.)
         // (0,01% of total stalk supply)
         // todo: change to a % of grown stalk supply after we figure out how to get that
@@ -297,8 +305,12 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         uint256 maxStalkToIssue = (s.sys.silo.stalk *
             s.sys.extEvaluationParameters.convertBonusStalkScalar) / C.PRECISION;
 
+        console.log("maxStalkToIssue: ", maxStalkToIssue);
+
         // 3. Calculate the L2SR Factor that further scales Vmax based on the L2SR
         uint256 l2srFactor = getL2SRFactor(bs.lpToSupplyRatio.value);
+
+        console.log("l2srFactor: ", l2srFactor);
 
         // 4. Scale Vmax by the Conversion factor
         // V = C * Vmax
@@ -309,6 +321,13 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // V = V * L2SR Factor
         // 1e16 * 1e18 / 1e18 = 1e16
         stalkToIssue = (stalkToIssue * l2srFactor) / C.PRECISION;
+
+        console.log("total stalkToIssue as a bonus: ", stalkToIssue);
+
+        // log capacity
+        console.log("convertBonusBdvCapacity: ", getConvertBonusBdvCapacity(stalkToIssue));
+
+        console.log("CurrentBonusStalkPerBdv(): ", getCurrentBonusStalkPerBdv());
 
         // value, gaugeData
         return (
@@ -357,10 +376,11 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      * @dev Returns 1e18 if lpToSupplyRatio is between the lower and upper bounds
      */
     function getL2SRFactor(uint256 lpToSupplyRatio) internal view returns (uint256) {
+        console.log("lpToSupplyRatio", lpToSupplyRatio);
         uint256 lowerBound = s.sys.evaluationParameters.lpToSupplyRatioLowerBound;
         uint256 upperBound = s.sys.evaluationParameters.lpToSupplyRatioUpperBound;
         if (lpToSupplyRatio <= lowerBound) {
-            return 0;
+            return 0.2e18;
         } else if (lpToSupplyRatio >= upperBound) {
             return 1.5e18;
         } else {

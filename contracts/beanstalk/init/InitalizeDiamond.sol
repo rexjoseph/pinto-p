@@ -107,8 +107,8 @@ contract InitalizeDiamond {
     uint256 internal constant INIT_BONUS_STALK_PER_BDV = 0;
     // Gauge Data
     uint256 internal constant INIT_DELTA_C = 2e18;
-    uint256 internal constant INIT_MIN_DELTA_C = 1e18;
-    uint256 internal constant INIT_MAX_DELTA_C = 0;
+    uint256 internal constant INIT_MIN_CONVERT_BONUS_FACTOR = 0;
+    uint256 internal constant INIT_MAX_CONVERT_BONUS_FACTOR = 1e18;
     uint256 internal constant INIT_PREVIOUS_SEASON_BVD_CONVERTED = 0;
     uint256 internal constant INIT_PREVIOUS_SEASON_BVD_CAPACITY = 0;
 
@@ -338,6 +338,9 @@ contract InitalizeDiamond {
 
         // Initialize soilDistributionPeriod to 24 hours (in seconds)
         s.sys.extEvaluationParameters.soilDistributionPeriod = SOIL_DISTRIBUTION_PERIOD;
+
+        // Initialize convertBonusStalkScalar to 0.01% of total stalk
+        s.sys.extEvaluationParameters.convertBonusStalkScalar = CONVERT_BONUS_STALK_SCALAR;
     }
 
     function initalizeFarmAndTractor() internal {
@@ -375,8 +378,8 @@ contract InitalizeDiamond {
             IGaugeFacet.convertUpBonusGauge.selector,
             abi.encode(
                 INIT_DELTA_C,
-                INIT_MIN_DELTA_C,
-                INIT_MAX_DELTA_C,
+                INIT_MIN_CONVERT_BONUS_FACTOR,
+                INIT_MAX_CONVERT_BONUS_FACTOR,
                 INIT_PREVIOUS_SEASON_BVD_CONVERTED,
                 INIT_PREVIOUS_SEASON_BVD_CAPACITY
             )
