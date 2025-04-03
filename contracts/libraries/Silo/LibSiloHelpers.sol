@@ -18,6 +18,27 @@ library LibSiloHelpers {
         uint256 totalAvailableBeans;
     }
 
+    // Struct to hold variables for the combineWithdrawalPlans function
+    struct CombineWithdrawalPlansStruct {
+        address[] tempSourceTokens;
+        int96[][] tempStems;
+        uint256[][] tempAmounts;
+        uint256[] tempAvailableBeans;
+        uint256 totalSourceTokens;
+        uint256 whitelistLength;
+        address token;
+        uint256 maxPossibleStems;
+        int96[] stems;
+        uint256[] amounts;
+        uint256 seenStemsCount;
+        uint256 i;
+        uint256 j;
+        uint256 k;
+        uint256 l;
+        uint256 m;
+        bool found;
+    }
+
     /**
      * @notice Combines multiple withdrawal plans into a single plan
      * @dev This function aggregates the amounts used from each deposit across all plans
@@ -33,116 +54,144 @@ library LibSiloHelpers {
         }
 
         IBeanstalk.WhitelistStatus[] memory whitelistStatuses = beanstalk.getWhitelistStatuses();
-        // First pass: count unique source tokens
-        uint256 maxSourceTokens = whitelistStatuses.length;
 
-        // Prefill combinedPlan.sourceTokens with beanstalk.getWhitelistedStatuses()
-        combinedPlan.sourceTokens = new address[](maxSourceTokens);
-        for (uint256 i = 0; i < maxSourceTokens; i++) {
-            combinedPlan.sourceTokens[i] = whitelistStatuses[i].token;
-        }
+        // Initialize the struct with shared variables
+        CombineWithdrawalPlansStruct memory vars;
+        vars.whitelistLength = whitelistStatuses.length;
 
-        uint256 totalSourceTokens = 0;
+        // Initialize arrays for the combined plan with maximum possible size
+        vars.tempSourceTokens = new address[](vars.whitelistLength);
+        vars.tempStems = new int96[][](vars.whitelistLength);
+        vars.tempAmounts = new uint256[][](vars.whitelistLength);
+        vars.tempAvailableBeans = new uint256[](vars.whitelistLength);
+        vars.totalSourceTokens = 0;
 
-        // Initialize arrays for the combined plan
-        combinedPlan.stems = new int96[][](maxSourceTokens);
-        combinedPlan.amounts = new uint256[][](maxSourceTokens);
-        combinedPlan.availableBeans = new uint256[](maxSourceTokens);
+        // Process each whitelisted token
+        for (vars.i = 0; vars.i < vars.whitelistLength; vars.i++) {
+            vars.token = whitelistStatuses[vars.i].token;
 
-        // Second pass: combine stems, amounts, and availableBeans for each source token
-        for (uint256 i = 0; i < maxSourceTokens; i++) {
-            console.log("i", i);
-            // Calculate absolute maximum possible stems by adding up all stem array lengths
-            uint256 maxPossibleStems = 0;
-
-            for (uint256 j = 0; j < plans.length; j++) {
-                for (uint256 k = 0; k < plans[j].sourceTokens.length; k++) {
-                    if (plans[j].sourceTokens[k] == combinedPlan.sourceTokens[i]) {
-                        maxPossibleStems += plans[j].stems[k].length;
+            // Calculate maximum possible stems for this token
+            vars.maxPossibleStems = 0;
+            for (vars.j = 0; vars.j < plans.length; vars.j++) {
+                for (vars.k = 0; vars.k < plans[vars.j].sourceTokens.length; vars.k++) {
+                    if (plans[vars.j].sourceTokens[vars.k] == vars.token) {
+                        vars.maxPossibleStems += plans[vars.j].stems[vars.k].length;
                     }
                 }
             }
 
-            console.log("maxPossibleStems", maxPossibleStems);
+            // Skip tokens with no stems
+            if (vars.maxPossibleStems == 0) {
+                continue;
+            }
 
             // Create arrays with maximum possible size
-            int96[] memory stems = new int96[](maxPossibleStems);
-            uint256[] memory amounts = new uint256[](maxPossibleStems);
-            uint256 seenStemsCount = 0;
+            vars.stems = new int96[](vars.maxPossibleStems);
+            vars.amounts = new uint256[](vars.maxPossibleStems);
+            vars.seenStemsCount = 0;
 
             // Sum up amounts for each stem across all plans
-            for (uint256 j = 0; j < plans.length; j++) {
-                for (uint256 k = 0; k < plans[j].sourceTokens.length; k++) {
-                    if (plans[j].sourceTokens[k] == combinedPlan.sourceTokens[i]) {
-                        for (uint256 l = 0; l < plans[j].stems[k].length; l++) {
-                            int96 stem = plans[j].stems[k][l];
-                            uint256 amount = plans[j].amounts[k][l];
+            for (vars.j = 0; vars.j < plans.length; vars.j++) {
+                for (vars.k = 0; vars.k < plans[vars.j].sourceTokens.length; vars.k++) {
+                    if (plans[vars.j].sourceTokens[vars.k] == vars.token) {
+                        for (vars.l = 0; vars.l < plans[vars.j].stems[vars.k].length; vars.l++) {
+                            int96 stem = plans[vars.j].stems[vars.k][vars.l];
+                            uint256 amount = plans[vars.j].amounts[vars.k][vars.l];
 
                             // Find if we've seen this stem before
-                            bool found = false;
-                            for (uint256 m = 0; m < seenStemsCount; m++) {
-                                if (stems[m] == stem) {
-                                    amounts[m] += amount;
-                                    found = true;
+                            vars.found = false;
+                            for (vars.m = 0; vars.m < vars.seenStemsCount; vars.m++) {
+                                if (vars.stems[vars.m] == stem) {
+                                    vars.amounts[vars.m] += amount;
+                                    vars.found = true;
                                     break;
                                 }
                             }
 
-                            if (!found) {
-                                stems[seenStemsCount] = stem;
-                                amounts[seenStemsCount] = amount;
-                                seenStemsCount++;
+                            if (!vars.found) {
+                                vars.stems[vars.seenStemsCount] = stem;
+                                vars.amounts[vars.seenStemsCount] = amount;
+                                vars.seenStemsCount++;
                             }
                         }
                     }
                 }
             }
 
-            console.log("seenStemsCount", seenStemsCount);
-
-            if (seenStemsCount == 0) {
+            // Skip tokens with no stems after processing
+            if (vars.seenStemsCount == 0) {
                 continue;
             }
 
-            totalSourceTokens++;
-
-            console.log("totalSourceTokens", totalSourceTokens);
-
             // Sort stems in descending order
-            for (uint256 j = 0; j < seenStemsCount - 1; j++) {
-                for (uint256 k = 0; k < seenStemsCount - j - 1; k++) {
-                    if (stems[k] < stems[k + 1]) {
-                        (stems[k], stems[k + 1]) = (stems[k + 1], stems[k]);
-                        (amounts[k], amounts[k + 1]) = (amounts[k + 1], amounts[k]);
+            for (vars.j = 0; vars.j < vars.seenStemsCount - 1; vars.j++) {
+                for (vars.k = 0; vars.k < vars.seenStemsCount - vars.j - 1; vars.k++) {
+                    if (vars.stems[vars.k] < vars.stems[vars.k + 1]) {
+                        (vars.stems[vars.k], vars.stems[vars.k + 1]) = (
+                            vars.stems[vars.k + 1],
+                            vars.stems[vars.k]
+                        );
+                        (vars.amounts[vars.k], vars.amounts[vars.k + 1]) = (
+                            vars.amounts[vars.k + 1],
+                            vars.amounts[vars.k]
+                        );
                     }
                 }
             }
 
             // Update array lengths
+            // Create local variables for assembly block
+            int96[] memory stemsArray = vars.stems;
+            uint256[] memory amountsArray = vars.amounts;
+            uint256 count = vars.seenStemsCount;
+
             assembly {
-                mstore(stems, seenStemsCount)
-                mstore(amounts, seenStemsCount)
+                mstore(stemsArray, count)
+                mstore(amountsArray, count)
             }
 
-            combinedPlan.stems[i] = stems;
-            combinedPlan.amounts[i] = amounts;
+            // Update the struct with the modified arrays
+            vars.stems = stemsArray;
+            vars.amounts = amountsArray;
+
+            // Store token and its data
+            vars.tempSourceTokens[vars.totalSourceTokens] = vars.token;
+            vars.tempStems[vars.totalSourceTokens] = vars.stems;
+            vars.tempAmounts[vars.totalSourceTokens] = vars.amounts;
 
             // Sum up availableBeans from all plans for this source token
-            combinedPlan.availableBeans[i] = 0;
-            for (uint256 j = 0; j < plans.length; j++) {
-                for (uint256 k = 0; k < plans[j].sourceTokens.length; k++) {
-                    if (plans[j].sourceTokens[k] == combinedPlan.sourceTokens[i]) {
-                        combinedPlan.availableBeans[i] += plans[j].availableBeans[k];
+            vars.tempAvailableBeans[vars.totalSourceTokens] = 0;
+            for (vars.j = 0; vars.j < plans.length; vars.j++) {
+                for (vars.k = 0; vars.k < plans[vars.j].sourceTokens.length; vars.k++) {
+                    if (plans[vars.j].sourceTokens[vars.k] == vars.token) {
+                        vars.tempAvailableBeans[vars.totalSourceTokens] += plans[vars.j]
+                            .availableBeans[vars.k];
                         break; // Break after finding the matching source token in this plan
                     }
                 }
             }
+
+            vars.totalSourceTokens++;
+        }
+
+        // Create the final arrays with the exact size needed
+        combinedPlan.sourceTokens = new address[](vars.totalSourceTokens);
+        combinedPlan.stems = new int96[][](vars.totalSourceTokens);
+        combinedPlan.amounts = new uint256[][](vars.totalSourceTokens);
+        combinedPlan.availableBeans = new uint256[](vars.totalSourceTokens);
+
+        // Copy data to the final arrays
+        for (vars.i = 0; vars.i < vars.totalSourceTokens; vars.i++) {
+            combinedPlan.sourceTokens[vars.i] = vars.tempSourceTokens[vars.i];
+            combinedPlan.stems[vars.i] = vars.tempStems[vars.i];
+            combinedPlan.amounts[vars.i] = vars.tempAmounts[vars.i];
+            combinedPlan.availableBeans[vars.i] = vars.tempAvailableBeans[vars.i];
         }
 
         // Calculate total available beans
         combinedPlan.totalAvailableBeans = 0;
-        for (uint256 i = 0; i < totalSourceTokens; i++) {
-            combinedPlan.totalAvailableBeans += combinedPlan.availableBeans[i];
+        for (vars.i = 0; vars.i < vars.totalSourceTokens; vars.i++) {
+            combinedPlan.totalAvailableBeans += combinedPlan.availableBeans[vars.i];
         }
 
         return combinedPlan;
