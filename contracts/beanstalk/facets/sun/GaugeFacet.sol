@@ -254,7 +254,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // twaDeltaB <= 0 (below peg) && seasonsBelowPeg >= 12, ready to modify convertBonusFactor
         // and set convert bonus pdv capacity
-        console.log("\ntwaDeltaB <= 0 and seasonsBelowPeg >= 12, ready to modify convertBonusFactor");
+        console.log(
+            "\ntwaDeltaB <= 0 and seasonsBelowPeg >= 12, ready to modify convertBonusFactor"
+        );
 
         // 1. determine C, the conversion factor, aka the 1st Vmax scalar for the season
 
@@ -263,20 +265,22 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         bool shouldIncrease = (previousSeasonBdvCapacity - previousSeasonBdvCapacityLeft) <=
             getConvertBonusBdvUsedThreshold(uint256(-bs.twaDeltaB), previousSeasonBdvCapacity);
 
+        // amountChange has 1e18 precision
         uint256 amountChange;
         if (shouldIncrease) {
             console.log("previousSeasonBdvConverted < Z Pdv, increase convertBonusFactor");
             // Less than Z Pdv was converted, so we increase the percentage of stalk to issue as a bonus
             // convertBonusFactor = convertBonusFactor + (Δc × 0.01/(Δc×Pt-1)))
-            amountChange = (deltaC * 0.01e18) / (deltaC * bs.largestLiquidWellTwapBeanPrice);
+            // (1e42 / (1e18 * 1e6)) = 1e18
+            amountChange = (deltaC * 0.01e18 * 1e6) / (deltaC * bs.largestLiquidWellTwapBeanPrice);
         } else {
             console.log("previousSeasonBdvConverted >= Z Pdv, decrease convertBonusFactor");
             // if at least Z Pdv was converted case, we decrease the percentage of stalk to issue as a bonus
             // convertBonusFactor = convertBonusFactor - (Δc × Pt-1/L2SR))
+            // 1e18 * 1e6 * 1e18 / 1e18 / 1e6 = 1e18
             amountChange =
                 (deltaC * (bs.largestLiquidWellTwapBeanPrice * C.PRECISION)) /
-                bs.lpToSupplyRatio.value /
-                1e6;
+                (bs.lpToSupplyRatio.value * 1e6);
         }
 
         console.log("amountChange: ", amountChange);
@@ -297,6 +301,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         console.log("convertBonusFactor: ", convertBonusFactor);
 
+        console.log("s.sys.silo.stalk: ", s.sys.silo.stalk);
 
         // 2. set vmax (the maximum stalk Pinto is willing to issue for converts every season.)
         // (0,01% of total stalk supply)
@@ -315,7 +320,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // 4. Scale Vmax by the Conversion factor
         // V = C * Vmax
         // 1e18 * 1e16 / 1e18 = 1e16
-        uint256 stalkToIssue = (convertBonusFactor * maxStalkToIssue) / C.PRECISION;
+        uint256 stalkToIssue = (maxStalkToIssue * convertBonusFactor) / C.PRECISION;
 
         // 5. Further scale by the L2SR Factor
         // V = V * L2SR Factor
@@ -350,7 +355,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      * @return convertBonusBdvCapacity The convert bonus pdv capacity.
      */
     function getConvertBonusBdvCapacity(uint256 stalkToIssue) internal view returns (uint256) {
-        return (stalkToIssue * C.PRECISION) / getCurrentBonusStalkPerBdv();
+        return (stalkToIssue * STALK_PRECISION) / getCurrentBonusStalkPerBdv();
     }
 
     /**

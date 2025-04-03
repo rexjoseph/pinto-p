@@ -646,7 +646,7 @@ contract ConvertTest is TestHelper {
         setDeltaBforWell(int256(-100e6), BEAN_ETH_WELL, WETH);
 
         // wait 13 seasons to allow convert up bonus to be applied.
-        for (uint256 i; i < 13; i++) {
+        for (uint256 i; i < 12; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
             bs.sunrise();
@@ -657,6 +657,13 @@ contract ConvertTest is TestHelper {
             console.log("seasonsBelowPeg", seasonsBelowPeg);
             assertEq(seasonsBelowPeg, i + 1, "seasonsBelowPeg should be increasing");
         }
+
+        // bonus season
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        // set total stalk to 10_000e16
+        bs.setTotalStalkE(10_000e16);
+        bs.sunrise();
 
         // create encoding for a bean -> well convert.
         // (
