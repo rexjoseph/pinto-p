@@ -66,6 +66,9 @@ library LibSiloHelpers {
         vars.tempAvailableBeans = new uint256[](vars.whitelistLength);
         vars.totalSourceTokens = 0;
 
+        // Initialize total available beans
+        combinedPlan.totalAvailableBeans = 0;
+
         // Process each whitelisted token
         for (vars.i = 0; vars.i < vars.whitelistLength; vars.i++) {
             vars.token = whitelistStatuses[vars.i].token;
@@ -171,6 +174,9 @@ library LibSiloHelpers {
                 }
             }
 
+            // Add to total available beans
+            combinedPlan.totalAvailableBeans += vars.tempAvailableBeans[vars.totalSourceTokens];
+
             vars.totalSourceTokens++;
         }
 
@@ -186,12 +192,6 @@ library LibSiloHelpers {
             combinedPlan.stems[vars.i] = vars.tempStems[vars.i];
             combinedPlan.amounts[vars.i] = vars.tempAmounts[vars.i];
             combinedPlan.availableBeans[vars.i] = vars.tempAvailableBeans[vars.i];
-        }
-
-        // Calculate total available beans
-        combinedPlan.totalAvailableBeans = 0;
-        for (vars.i = 0; vars.i < vars.totalSourceTokens; vars.i++) {
-            combinedPlan.totalAvailableBeans += combinedPlan.availableBeans[vars.i];
         }
 
         return combinedPlan;
