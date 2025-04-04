@@ -18,13 +18,13 @@ contract SowBlueprintv0 is PerFunctionPausable {
      * @notice Event emitted when a sow order is complete, or no longer executable due to min sow being less than min sow per season
      * @param blueprintHash The hash of the blueprint
      * @param publisher The address of the publisher
-     * @param amountSown The amount of beans sown
+     * @param totalAmountSown The amount of beans sown
      * @param amountUnfulfilled The amount of beans that were not sown
      */
     event SowOrderComplete(
         bytes32 indexed blueprintHash,
         address indexed publisher,
-        uint256 amountSown,
+        uint256 totalAmountSown,
         uint256 amountUnfulfilled
     );
 
