@@ -5,7 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
+import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -45,25 +45,25 @@ contract SowBlueprintv0Test is TractorHelper {
         beanstalkPrice = new BeanstalkPrice(address(bs));
         vm.label(address(beanstalkPrice), "BeanstalkPrice");
 
-        // Deploy SiloHelpers with PriceManipulation address
-        siloHelpers = new SiloHelpers(
+        // Deploy TractorHelpers with PriceManipulation address
+        tractorHelpers = new TractorHelpers(
             address(bs),
             address(beanstalkPrice),
             address(this),
             address(priceManipulation)
         );
-        vm.label(address(siloHelpers), "SiloHelpers");
+        vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy SowBlueprintv0 with SiloHelpers address
+        // Deploy SowBlueprintv0 with TractorHelpers address
         sowBlueprintv0 = new SowBlueprintv0(
             address(bs),
             address(beanstalkPrice),
             address(this),
-            address(siloHelpers)
+            address(tractorHelpers)
         );
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
-        setSiloHelpers(address(siloHelpers));
+        setTractorHelpers(address(tractorHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
 
         addLiquidityToWell(
@@ -138,8 +138,8 @@ contract SowBlueprintv0Test is TractorHelper {
 
             // Expect the OperatorReward event to be emitted with correct parameters
             vm.expectEmit(true, true, true, true);
-            emit SiloHelpers.OperatorReward(
-                SiloHelpers.RewardType.ERC20,
+            emit TractorHelpers.OperatorReward(
+                TractorHelpers.RewardType.ERC20,
                 state.user,
                 state.operator,
                 state.beanToken,
@@ -354,8 +354,8 @@ contract SowBlueprintv0Test is TractorHelper {
 
             // Expect the OperatorReward event to be emitted with negative tip amount
             vm.expectEmit(true, true, true, true);
-            emit SiloHelpers.OperatorReward(
-                SiloHelpers.RewardType.ERC20,
+            emit TractorHelpers.OperatorReward(
+                TractorHelpers.RewardType.ERC20,
                 state.user,
                 state.operator,
                 state.beanToken,

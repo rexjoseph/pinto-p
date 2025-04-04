@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {SiloHelpers} from "./SiloHelpers.sol";
+import {TractorHelpers} from "./TractorHelpers.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
-import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 
 /**
  * @title SowBlueprintv0
@@ -39,7 +39,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         address tipAddress;
         address account;
         uint256 totalAmountToSow;
-        LibSiloHelpers.WithdrawalPlan withdrawalPlan;
+        LibTractorHelpers.WithdrawalPlan withdrawalPlan;
     }
 
     /**
@@ -97,7 +97,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
     }
 
     IBeanstalk immutable beanstalk;
-    SiloHelpers public immutable siloHelpers;
+    TractorHelpers public immutable tractorHelpers;
 
     // Default slippage ratio for LP token withdrawals (1%)
     uint256 internal constant DEFAULT_SLIPPAGE_RATIO = 0.01e18;
@@ -119,12 +119,12 @@ contract SowBlueprintv0 is PerFunctionPausable {
         address _beanstalk,
         address _beanstalkPrice,
         address _owner,
-        address _siloHelpers
+        address _tractorHelpers
     ) PerFunctionPausable(_owner) {
         beanstalk = IBeanstalk(_beanstalk);
 
-        // Use existing SiloHelpers contract instead of deploying a new one
-        siloHelpers = SiloHelpers(_siloHelpers);
+        // Use existing TractorHelpers contract instead of deploying a new one
+        tractorHelpers = TractorHelpers(_tractorHelpers);
     }
 
     /**
@@ -155,7 +155,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
 
         // Check if the executing operator (msg.sender) is whitelisted
         require(
-            siloHelpers.isOperatorWhitelisted(params.opParams.whitelistedOperators),
+            tractorHelpers.isOperatorWhitelisted(params.opParams.whitelistedOperators),
             "Operator not whitelisted"
         );
 
@@ -173,7 +173,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         }
 
         // Execute the withdrawal plan
-        vars.beansWithdrawn = siloHelpers.withdrawBeansFromSources(
+        vars.beansWithdrawn = tractorHelpers.withdrawBeansFromSources(
             vars.account,
             params.sowParams.sourceTokenIndices,
             vars.totalBeansNeeded,
@@ -195,7 +195,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         }
 
         // Tip the operator
-        siloHelpers.tip(
+        tractorHelpers.tip(
             vars.beanToken,
             vars.account,
             vars.tipAddress,
@@ -382,7 +382,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
             uint256 pintoLeftToSow,
             uint256 totalAmountToSow,
             uint256 totalBeansNeeded,
-            LibSiloHelpers.WithdrawalPlan memory plan
+            LibTractorHelpers.WithdrawalPlan memory plan
         )
     {
         (availableSoil, beanToken, currentSeason) = getAndValidateBeanstalkState(params.sowParams);
@@ -410,7 +410,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         }
 
         // Check if enough beans are available using getWithdrawalPlan
-        plan = siloHelpers.getWithdrawalPlanExcludingPlan(
+        plan = tractorHelpers.getWithdrawalPlanExcludingPlan(
             blueprintPublisher,
             params.sowParams.sourceTokenIndices,
             totalBeansNeeded,
@@ -466,7 +466,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
                 uint256, // pintoLeftToSow
                 uint256, // totalAmountToSow
                 uint256, // totalBeansNeeded
-                LibSiloHelpers.WithdrawalPlan memory // plan
+                LibTractorHelpers.WithdrawalPlan memory // plan
             ) {
                 validOrderHashes[validCount] = orderHashes[i];
                 validCount++;

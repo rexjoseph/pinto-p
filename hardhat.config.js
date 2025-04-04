@@ -686,34 +686,34 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
   await priceManipulationContract.deployed();
   console.log("PriceManipulation deployed to:", priceManipulationContract.address);
 
-  // Deploy LibSiloHelpers first
-  const LibSiloHelpers = await ethers.getContractFactory("LibSiloHelpers");
-  const libSiloHelpers = await LibSiloHelpers.deploy();
-  await libSiloHelpers.deployed();
-  console.log("LibSiloHelpers deployed to:", libSiloHelpers.address);
+  // Deploy LibTractorHelpers first
+  const LibTractorHelpers = await ethers.getContractFactory("LibTractorHelpers");
+  const libTractorHelpers = await LibTractorHelpers.deploy();
+  await libTractorHelpers.deployed();
+  console.log("LibTractorHelpers deployed to:", libTractorHelpers.address);
 
-  // Deploy SiloHelpers with library linking
-  const SiloHelpers = await ethers.getContractFactory("SiloHelpers", {
+  // Deploy TractorHelpers with library linking
+  const TractorHelpers = await ethers.getContractFactory("TractorHelpers", {
     libraries: {
-      LibSiloHelpers: libSiloHelpers.address
+      LibTractorHelpers: libTractorHelpers.address
     }
   });
-  const siloHelpersContract = await SiloHelpers.deploy(
+  const tractorHelpersContract = await TractorHelpers.deploy(
     L2_PINTO,
     "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
     await owner.getAddress(), // owner address
     priceManipulationContract.address // price manipulation contract address
   );
-  await siloHelpersContract.deployed();
-  console.log("SiloHelpers deployed to:", siloHelpersContract.address);
+  await tractorHelpersContract.deployed();
+  console.log("TractorHelpers deployed to:", tractorHelpersContract.address);
 
-  // Deploy SowBlueprintv0 and connect it to the existing SiloHelpers
+  // Deploy SowBlueprintv0 and connect it to the existing TractorHelpers
   const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
   const sowBlueprintContract = await sowBlueprint.deploy(
     L2_PINTO,
     "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
     await owner.getAddress(), // owner address
-    siloHelpersContract.address // siloHelpers contract address
+    tractorHelpersContract.address // tractorHelpers contract address
   );
   await sowBlueprintContract.deployed();
   console.log("SowBlueprintv0 deployed to:", sowBlueprintContract.address);
@@ -1596,11 +1596,11 @@ task("updateOracleTimeouts", "Updates oracle timeouts for all whitelisted LP tok
   }
 );
 
-task("deploySiloHelpers", "Deploys the SiloHelpers contract").setAction(
+task("deployTractorHelpers", "Deploys the TractorHelpers contract").setAction(
   async (args, { network, ethers }) => {
     try {
       console.log("-----------------------------------");
-      console.log("Deploying SiloHelpers...");
+      console.log("Deploying TractorHelpers...");
 
       // Get deployer
       const deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
@@ -1609,11 +1609,14 @@ task("deploySiloHelpers", "Deploys the SiloHelpers contract").setAction(
       const BEANSTALK_PRICE = "0xd0fd333f7b30c7925debd81b7b7a4dfe106c3a5e";
 
       // Deploy contract
-      const SiloHelpers = await ethers.getContractFactory("SiloHelpers");
-      const siloHelpers = await SiloHelpers.connect(deployer).deploy(L2_PINTO, BEANSTALK_PRICE);
-      await siloHelpers.deployed();
+      const TractorHelpers = await ethers.getContractFactory("TractorHelpers");
+      const tractorHelpers = await TractorHelpers.connect(deployer).deploy(
+        L2_PINTO,
+        BEANSTALK_PRICE
+      );
+      await tractorHelpers.deployed();
 
-      console.log("\nSiloHelpers deployed to:", siloHelpers.address);
+      console.log("\nTractorHelpers deployed to:", tractorHelpers.address);
       console.log("-----------------------------------");
     } catch (error) {
       console.error("\x1b[31mError during deployment:\x1b[0m", error);
@@ -1635,11 +1638,11 @@ task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(as
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // Generate SiloHelpers ABI
-    const siloHelpersArtifact = await hre.artifacts.readArtifact("SiloHelpers");
+    // Generate TractorHelpers ABI
+    const tractorHelpersArtifact = await hre.artifacts.readArtifact("TractorHelpers");
     fs.writeFileSync(
-      `${outputDir}/SiloHelpers.json`,
-      JSON.stringify(siloHelpersArtifact.abi, null, 2)
+      `${outputDir}/TractorHelpers.json`,
+      JSON.stringify(tractorHelpersArtifact.abi, null, 2)
     );
 
     // Generate SowBlueprintv0 ABI

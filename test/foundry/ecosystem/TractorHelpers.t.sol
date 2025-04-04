@@ -11,7 +11,7 @@ import {LibChainlinkOracle} from "contracts/libraries/Oracle/LibChainlinkOracle.
 import {IMockFBeanstalk} from "contracts/interfaces/IMockFBeanstalk.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
-import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
+import {TractorHelpers} from "contracts/ecosystem/TractorHelpers.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {AdvancedFarmCall} from "contracts/libraries/LibFarm.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
@@ -22,12 +22,12 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {TractorHelper} from "test/foundry/utils/TractorHelper.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {PriceManipulation} from "contracts/ecosystem/PriceManipulation.sol";
-import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 import {console} from "forge-std/console.sol";
 /**
  * @notice Tests the functionality of the Oracles.
  */
-contract SiloHelpersTest is TractorHelper {
+contract TractorHelpersTest is TractorHelper {
     address[] farmers;
     BeanstalkPrice beanstalkPrice;
     PriceManipulation priceManipulation;
@@ -47,25 +47,25 @@ contract SiloHelpersTest is TractorHelper {
         priceManipulation = new PriceManipulation(address(bs));
         vm.label(address(priceManipulation), "PriceManipulation");
 
-        // Deploy SiloHelpers with PriceManipulation address
-        siloHelpers = new SiloHelpers(
+        // Deploy TractorHelpers with PriceManipulation address
+        tractorHelpers = new TractorHelpers(
             address(bs),
             address(beanstalkPrice),
             address(this),
             address(priceManipulation)
         );
-        vm.label(address(siloHelpers), "SiloHelpers");
+        vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy SowBlueprintv0 with SiloHelpers address
+        // Deploy SowBlueprintv0 with TractorHelpers address
         sowBlueprintv0 = new SowBlueprintv0(
             address(bs),
             address(beanstalkPrice),
             address(this),
-            address(siloHelpers)
+            address(tractorHelpers)
         );
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
-        setSiloHelpers(address(siloHelpers));
+        setTractorHelpers(address(tractorHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
 
         addLiquidityToWell(
@@ -94,7 +94,7 @@ contract SiloHelpersTest is TractorHelper {
         }
 
         // Get all deposits to find grown stalk values
-        (int96[] memory allStems, ) = siloHelpers.getSortedDeposits(farmers[0], BEAN);
+        (int96[] memory allStems, ) = tractorHelpers.getSortedDeposits(farmers[0], BEAN);
 
         // Get grown stalk per BDV for each deposit
         int96[] memory minStems = new int96[](3);
@@ -112,7 +112,7 @@ contract SiloHelpersTest is TractorHelper {
         testAmounts[5] = 50000e6; // All 50 full withdrawal
 
         // Create empty plan
-        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
 
         for (uint256 i; i < testAmounts.length; i++) {
             for (uint256 j; j < minStems.length; j++) {
@@ -128,7 +128,7 @@ contract SiloHelpersTest is TractorHelper {
                     int96[] memory stems,
                     uint256[] memory amounts,
                     uint256 availableAmount
-                ) = siloHelpers.getDepositStemsAndAmountsToWithdraw(
+                ) = tractorHelpers.getDepositStemsAndAmountsToWithdraw(
                         farmers[0],
                         BEAN,
                         testAmounts[i],
@@ -176,7 +176,7 @@ contract SiloHelpersTest is TractorHelper {
         }
 
         // Test with non-existent account
-        (int96[] memory noStems, uint256[] memory noAmounts, uint256 noAvailable) = siloHelpers
+        (int96[] memory noStems, uint256[] memory noAmounts, uint256 noAvailable) = tractorHelpers
             .getDepositStemsAndAmountsToWithdraw(address(0x123), BEAN, 1000e6, 0, emptyPlan);
         assertEq(noStems.length, 0, "Should return empty stems array for non-existent account");
         assertEq(noAmounts.length, 0, "Should return empty amounts array for non-existent account");
@@ -202,25 +202,25 @@ contract SiloHelpersTest is TractorHelper {
         priceManipulation = new PriceManipulation(PINTO_DIAMOND);
         vm.label(address(priceManipulation), "PriceManipulation");
 
-        // Deploy SiloHelpers with PriceManipulation address
-        siloHelpers = new SiloHelpers(
+        // Deploy TractorHelpers with PriceManipulation address
+        tractorHelpers = new TractorHelpers(
             PINTO_DIAMOND,
             BEANSTALK_PRICE,
             address(this),
             address(priceManipulation)
         );
-        vm.label(address(siloHelpers), "SiloHelpers");
+        vm.label(address(tractorHelpers), "TractorHelpers");
 
-        // Deploy SowBlueprintv0 with SiloHelpers address
+        // Deploy SowBlueprintv0 with TractorHelpers address
         sowBlueprintv0 = new SowBlueprintv0(
             PINTO_DIAMOND,
             BEANSTALK_PRICE,
             address(this),
-            address(siloHelpers)
+            address(tractorHelpers)
         );
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
-        setSiloHelpers(address(siloHelpers));
+        setTractorHelpers(address(tractorHelpers));
         setSowBlueprintv0(address(sowBlueprintv0));
 
         return (testWallet, PINTO_DIAMOND, PINTO);
@@ -236,10 +236,10 @@ contract SiloHelpersTest is TractorHelper {
         // uint256 gasBefore = gasleft();
 
         // Create empty plan
-        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get deposit stems and amounts to withdraw
-        (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = siloHelpers
+        (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount) = tractorHelpers
             .getDepositStemsAndAmountsToWithdraw(testWallet, PINTO, requestAmount, 0, emptyPlan);
 
         // uint256 gasUsed = gasBefore - gasleft();
@@ -279,7 +279,7 @@ contract SiloHelpersTest is TractorHelper {
         testAmounts[2] = 1000e6; // 1000 Beans
 
         for (uint256 i; i < testAmounts.length; i++) {
-            uint256 lpNeeded = siloHelpers.getLPTokensToWithdrawForBeans(
+            uint256 lpNeeded = tractorHelpers.getLPTokensToWithdrawForBeans(
                 testAmounts[i],
                 BEAN_ETH_WELL
             );
@@ -305,7 +305,7 @@ contract SiloHelpersTest is TractorHelper {
         }
 
         // Get all deposits to find grown stalk values
-        (int96[] memory allStems, uint256[] memory allAmounts) = siloHelpers.getSortedDeposits(
+        (int96[] memory allStems, uint256[] memory allAmounts) = tractorHelpers.getSortedDeposits(
             farmers[0],
             BEAN_ETH_WELL
         );
@@ -314,7 +314,7 @@ contract SiloHelpersTest is TractorHelper {
 
         // Setup a setupWithdrawBeansBlueprint to withdraw the total amount of beans
         uint8[] memory sourceTokenIndices = new uint8[](1);
-        sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
+        sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN_ETH_WELL);
         IMockFBeanstalk.Requisition memory req = setupWithdrawBeansBlueprint(
             farmers[0],
             totalBeansToWithdraw,
@@ -346,7 +346,7 @@ contract SiloHelpersTest is TractorHelper {
         }
 
         // Get all deposits to find grown stalk values
-        (int96[] memory allStems, uint256[] memory allAmounts) = siloHelpers.getSortedDeposits(
+        (int96[] memory allStems, uint256[] memory allAmounts) = tractorHelpers.getSortedDeposits(
             farmers[0],
             BEAN_ETH_WELL
         );
@@ -355,13 +355,13 @@ contract SiloHelpersTest is TractorHelper {
 
         // Setup a setupWithdrawBeansBlueprint to withdraw the total amount of beans
         uint8[] memory sourceTokenIndices = new uint8[](1);
-        sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
+        sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN_ETH_WELL);
 
         // Create empty plan
-        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get the plan that we would use to withdraw the total amount of beans
-        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+        LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             totalBeansToWithdraw,
@@ -369,23 +369,22 @@ contract SiloHelpersTest is TractorHelper {
         );
 
         // Now exclude that plan from the withdrawal, and get another plan
-        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
-            farmers[0],
-            sourceTokenIndices,
-            totalBeansToWithdraw,
-            MAX_GROWN_STALK_PER_BDV,
-            plan
-        );
+        LibTractorHelpers.WithdrawalPlan memory newPlan = tractorHelpers
+            .getWithdrawalPlanExcludingPlan(
+                farmers[0],
+                sourceTokenIndices,
+                totalBeansToWithdraw,
+                MAX_GROWN_STALK_PER_BDV,
+                plan
+            );
 
         // Combine the plans and verify the result
-        LibSiloHelpers.WithdrawalPlan[] memory plansToCombine = new LibSiloHelpers.WithdrawalPlan[](
-            2
-        );
+        LibTractorHelpers.WithdrawalPlan[]
+            memory plansToCombine = new LibTractorHelpers.WithdrawalPlan[](2);
         plansToCombine[0] = plan;
         plansToCombine[1] = newPlan;
-        LibSiloHelpers.WithdrawalPlan memory combinedPlan = siloHelpers.combineWithdrawalPlans(
-            plansToCombine
-        );
+        LibTractorHelpers.WithdrawalPlan memory combinedPlan = tractorHelpers
+            .combineWithdrawalPlans(plansToCombine);
 
         // Verify the combined plan
         assertEq(combinedPlan.sourceTokens.length, 1, "Should have one source token");
@@ -511,7 +510,7 @@ contract SiloHelpersTest is TractorHelper {
 
             // Create array with single index for Bean token
             uint8[] memory sourceTokenIndices = new uint8[](1);
-            sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN);
+            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN);
 
             // Setup and execute the blueprint
             IMockFBeanstalk.Requisition memory req = setupWithdrawBeansBlueprint(
@@ -543,14 +542,14 @@ contract SiloHelpersTest is TractorHelper {
             uint256 initialLPBalance = IERC20(BEAN_ETH_WELL).balanceOf(farmers[0]);
 
             // Calculate expected LP tokens needed
-            uint256 expectedLPAmount = siloHelpers.getLPTokensToWithdrawForBeans(
+            uint256 expectedLPAmount = tractorHelpers.getLPTokensToWithdrawForBeans(
                 withdrawAmount,
                 BEAN_ETH_WELL
             );
 
             // Setup and execute the blueprint
             uint8[] memory sourceTokenIndices = new uint8[](1);
-            sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
+            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN_ETH_WELL);
             IMockFBeanstalk.Requisition memory req = setupWithdrawBeansBlueprint(
                 farmers[0],
                 withdrawAmount,
@@ -584,13 +583,13 @@ contract SiloHelpersTest is TractorHelper {
 
             // Create array with single index for Bean token
             uint8[] memory sourceTokenIndices = new uint8[](1);
-            sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN);
+            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN);
 
             // Create empty plan
-            LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+            LibTractorHelpers.WithdrawalPlan memory emptyPlan;
 
             // Get withdrawal plan
-            LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+            LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
@@ -598,7 +597,7 @@ contract SiloHelpersTest is TractorHelper {
             );
 
             vm.expectRevert("Silo: Crate balance too low."); // NOTE: this test will be updated with the plan change
-            siloHelpers.withdrawBeansFromSources(
+            tractorHelpers.withdrawBeansFromSources(
                 farmers[0],
                 sourceTokenIndices,
                 withdrawAmount,
@@ -620,8 +619,8 @@ contract SiloHelpersTest is TractorHelper {
 
             // Create array with both Bean and LP token indices
             uint8[] memory sourceTokenIndices = new uint8[](2);
-            sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN);
-            sourceTokenIndices[1] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
+            sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN);
+            sourceTokenIndices[1] = tractorHelpers.getTokenIndex(BEAN_ETH_WELL);
 
             // Setup and execute the blueprint
             IMockFBeanstalk.Requisition memory req = setupWithdrawBeansBlueprint(
@@ -656,7 +655,7 @@ contract SiloHelpersTest is TractorHelper {
 
     function test_getSortedWhitelistedTokensBySeeds() public {
         // Get sorted tokens and seeds
-        (address[] memory tokens, uint256[] memory seeds) = siloHelpers
+        (address[] memory tokens, uint256[] memory seeds) = tractorHelpers
             .getSortedWhitelistedTokensBySeeds();
 
         // Verify arrays are same length and not empty
@@ -677,7 +676,7 @@ contract SiloHelpersTest is TractorHelper {
 
     function test_getHighestSeedToken() public {
         // Get highest seed token
-        (address highestSeedToken, uint256 seedAmount) = siloHelpers.getHighestSeedToken();
+        (address highestSeedToken, uint256 seedAmount) = tractorHelpers.getHighestSeedToken();
 
         // Get all tokens and verify this is indeed the highest
         address[] memory tokens = bs.getWhitelistedTokens();
@@ -701,7 +700,7 @@ contract SiloHelpersTest is TractorHelper {
 
     function test_getLowestSeedToken() public {
         // Get lowest seed token
-        (address lowestSeedToken, uint256 seedAmount) = siloHelpers.getLowestSeedToken();
+        (address lowestSeedToken, uint256 seedAmount) = tractorHelpers.getLowestSeedToken();
 
         // Get all tokens and verify this is indeed the lowest
         address[] memory tokens = bs.getWhitelistedTokens();
@@ -727,14 +726,14 @@ contract SiloHelpersTest is TractorHelper {
         address user = farmers[0];
 
         // Initially user should have no deposits
-        address[] memory initialTokens = siloHelpers.getUserDepositedTokens(user);
+        address[] memory initialTokens = tractorHelpers.getUserDepositedTokens(user);
         assertEq(initialTokens.length, 0, "User should have no deposits initially");
 
         // Setup deposits
         setupUserDeposits(user);
 
         // Get user's deposited tokens
-        address[] memory depositedTokens = siloHelpers.getUserDepositedTokens(user);
+        address[] memory depositedTokens = tractorHelpers.getUserDepositedTokens(user);
 
         // Verify correct number of tokens
         assertEq(depositedTokens.length, 2, "User should have deposits in 2 tokens");
@@ -752,7 +751,7 @@ contract SiloHelpersTest is TractorHelper {
 
     function test_getTokensAscendingSeeds() public {
         // Get sorted tokens
-        (uint8[] memory tokenIndices, uint256[] memory seeds) = siloHelpers
+        (uint8[] memory tokenIndices, uint256[] memory seeds) = tractorHelpers
             .getTokensAscendingSeeds();
 
         // Verify arrays are not empty and have same length
@@ -784,7 +783,7 @@ contract SiloHelpersTest is TractorHelper {
         assertGt(price.price, 0, "Price should be non-zero");
 
         // Get sorted tokens
-        (uint8[] memory tokenIndices, uint256[] memory prices) = siloHelpers
+        (uint8[] memory tokenIndices, uint256[] memory prices) = tractorHelpers
             .getTokensAscendingPrice();
 
         // Verify arrays are not empty and have same length
@@ -856,7 +855,7 @@ contract SiloHelpersTest is TractorHelper {
         }
 
         // Get sorted deposits
-        (int96[] memory stems, uint256[] memory amounts) = siloHelpers.getSortedDeposits(
+        (int96[] memory stems, uint256[] memory amounts) = tractorHelpers.getSortedDeposits(
             farmers[0],
             BEAN
         );
@@ -879,14 +878,14 @@ contract SiloHelpersTest is TractorHelper {
         // Test with zero deposits
         address emptyUser = address(0x123);
         vm.expectRevert("No deposits");
-        siloHelpers.getSortedDeposits(emptyUser, BEAN);
+        tractorHelpers.getSortedDeposits(emptyUser, BEAN);
     }
 
     function test_forkGetSortedDeposits() public {
         (address testWallet, address PINTO_DIAMOND, address PINTO) = setupForkTest();
 
         // Get sorted deposits
-        (int96[] memory stems, uint256[] memory amounts) = siloHelpers.getSortedDeposits(
+        (int96[] memory stems, uint256[] memory amounts) = tractorHelpers.getSortedDeposits(
             testWallet,
             PINTO
         );
@@ -909,21 +908,21 @@ contract SiloHelpersTest is TractorHelper {
 
     function test_getTokenIndex() public {
         // Test Bean token returns 0
-        uint8 beanIndex = siloHelpers.getTokenIndex(BEAN);
+        uint8 beanIndex = tractorHelpers.getTokenIndex(BEAN);
         assertEq(beanIndex, 0, "Bean token should have index 0");
 
         // Test BEAN-ETH Well token returns correct index
-        uint8 beanEthIndex = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
+        uint8 beanEthIndex = tractorHelpers.getTokenIndex(BEAN_ETH_WELL);
         assertGt(beanEthIndex, 0, "BEAN-ETH Well token should have non-zero index");
 
         // Test non-existent token reverts
         vm.expectRevert("Token not found");
-        siloHelpers.getTokenIndex(address(0x123));
+        tractorHelpers.getTokenIndex(address(0x123));
 
         // Verify indices match whitelisted tokens array
         address[] memory whitelistedTokens = bs.getWhitelistedTokens();
         for (uint256 i = 0; i < whitelistedTokens.length; i++) {
-            uint8 index = siloHelpers.getTokenIndex(whitelistedTokens[i]);
+            uint8 index = tractorHelpers.getTokenIndex(whitelistedTokens[i]);
             assertEq(index, uint8(i), "Index should match position in whitelisted tokens array");
         }
     }
@@ -1064,9 +1063,9 @@ contract SiloHelpersTest is TractorHelper {
         strategyIndices[1] = 1;
 
         // Create empty plan
-        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
 
-        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+        LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
             farmers[0],
             strategyIndices,
             withdrawalAmount,
@@ -1164,15 +1163,15 @@ contract SiloHelpersTest is TractorHelper {
 
         // Setup withdrawal with multiple source tokens
         uint8[] memory sourceTokenIndices = new uint8[](3);
-        sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN);
-        sourceTokenIndices[1] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
-        sourceTokenIndices[2] = siloHelpers.getTokenIndex(BEAN_WSTETH_WELL);
+        sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN);
+        sourceTokenIndices[1] = tractorHelpers.getTokenIndex(BEAN_ETH_WELL);
+        sourceTokenIndices[2] = tractorHelpers.getTokenIndex(BEAN_WSTETH_WELL);
 
         // Create empty plan
-        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
 
         // Get the first plan for a smaller amount
-        LibSiloHelpers.WithdrawalPlan memory plan = siloHelpers.getWithdrawalPlan(
+        LibTractorHelpers.WithdrawalPlan memory plan = tractorHelpers.getWithdrawalPlan(
             farmers[0],
             sourceTokenIndices,
             (beanAmount * 1.2e6) / 1e6,
@@ -1180,23 +1179,22 @@ contract SiloHelpersTest is TractorHelper {
         );
 
         // Get the second plan excluding the first plan
-        LibSiloHelpers.WithdrawalPlan memory newPlan = siloHelpers.getWithdrawalPlanExcludingPlan(
-            farmers[0],
-            sourceTokenIndices,
-            (beanAmount * 1.2e6) / 1e6,
-            MAX_GROWN_STALK_PER_BDV,
-            plan
-        );
+        LibTractorHelpers.WithdrawalPlan memory newPlan = tractorHelpers
+            .getWithdrawalPlanExcludingPlan(
+                farmers[0],
+                sourceTokenIndices,
+                (beanAmount * 1.2e6) / 1e6,
+                MAX_GROWN_STALK_PER_BDV,
+                plan
+            );
 
         // Combine the plans and verify the result
-        LibSiloHelpers.WithdrawalPlan[] memory plansToCombine = new LibSiloHelpers.WithdrawalPlan[](
-            2
-        );
+        LibTractorHelpers.WithdrawalPlan[]
+            memory plansToCombine = new LibTractorHelpers.WithdrawalPlan[](2);
         plansToCombine[0] = plan;
         plansToCombine[1] = newPlan;
-        LibSiloHelpers.WithdrawalPlan memory combinedPlan = siloHelpers.combineWithdrawalPlans(
-            plansToCombine
-        );
+        LibTractorHelpers.WithdrawalPlan memory combinedPlan = tractorHelpers
+            .combineWithdrawalPlans(plansToCombine);
 
         // Verify the combined plan has all source tokens
         assertEq(combinedPlan.sourceTokens.length, 3, "Should have three source tokens");
@@ -1371,7 +1369,7 @@ contract SiloHelpersTest is TractorHelper {
         // Set up withdrawal
         uint256 withdrawAmount = 100e6;
         uint8[] memory sourceTokenIndices = new uint8[](1);
-        sourceTokenIndices[0] = siloHelpers.getTokenIndex(BEAN_ETH_WELL);
+        sourceTokenIndices[0] = tractorHelpers.getTokenIndex(BEAN_ETH_WELL);
 
         // Create a tractor blueprint instead of calling directly
         IMockFBeanstalk.Requisition memory req = setupWithdrawBeansBlueprint(
