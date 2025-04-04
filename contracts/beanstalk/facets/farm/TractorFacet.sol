@@ -176,7 +176,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * 1) No ERC-20 permissions are granted to the Beanstalk contract, and/or
      * 2) This function is not exploited maliciously.
      *
-     * Operators can check for this function in bytecode via the selector (0x9b8911f6)
+     * Operators can check for this function in bytecode via the selector (0xca1e71ae)
      */
     function sendTokenToInternalBalance(
         IERC20 token,
