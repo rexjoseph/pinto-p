@@ -85,6 +85,11 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     function publishRequisition(
         LibTractor.Requisition calldata requisition
     ) external fundsSafu noNetFlow noSupplyChange verifyRequisition(requisition) nonReentrant {
+        require(
+            LibTractor._getBlueprintNonce(requisition.blueprintHash) <
+                requisition.blueprint.maxNonce,
+            "TractorFacet: maxNonce reached"
+        );
         emit PublishRequisition(requisition);
     }
 
