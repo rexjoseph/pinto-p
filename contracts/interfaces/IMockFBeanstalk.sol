@@ -419,7 +419,6 @@ interface IMockFBeanstalk {
         uint256 amount,
         uint256[] bdvs
     );
-    event RemoveWhitelistStatus(address token, uint256 index);
     event RetryableTicketCreated(uint256 indexed ticketId);
     event SeasonOfPlentyField(uint256 toField);
     event SeasonOfPlentyWell(
@@ -1500,8 +1499,6 @@ interface IMockFBeanstalk {
     function remainingRecapitalization() external view returns (uint256);
 
     function removeWhitelistSelector(address token) external;
-
-    function removeWhitelistStatus(address token) external;
 
     function resetPools(address[] memory pools) external;
 
