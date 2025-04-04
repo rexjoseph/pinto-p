@@ -8,7 +8,7 @@ import {Call, IWell, IERC20} from "../../interfaces/basin/IWell.sol";
 import {IBeanstalkWellFunction} from "../../interfaces/basin/IBeanstalkWellFunction.sol";
 import {C} from "../../C.sol";
 import {IBeanstalk} from "../../interfaces/IBeanstalk.sol";
-import {console} from "forge-std/console.sol";
+
 interface dec {
     function decimals() external view returns (uint256);
 }
