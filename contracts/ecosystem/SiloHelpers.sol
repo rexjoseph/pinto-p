@@ -98,7 +98,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         require(targetAmount > 0, "Must withdraw non-zero amount");
 
         WithdrawLocalVars memory vars;
-        vars.whitelistedTokens = beanstalk.getWhitelistedTokens();
+        vars.whitelistedTokens = getWhitelistStatusAddresses();
         vars.beanToken = beanstalk.getBeanToken();
         vars.remainingBeansNeeded = targetAmount;
 
@@ -354,7 +354,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         returns (address[] memory tokens, uint256[] memory seeds)
     {
         // Get whitelisted tokens
-        tokens = beanstalk.getWhitelistedTokens();
+        tokens = getWhitelistStatusAddresses();
         seeds = new uint256[](tokens.length);
 
         // Get seed values for each token
@@ -378,7 +378,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         view
         returns (address highestSeedToken, uint256 seedAmount)
     {
-        address[] memory tokens = beanstalk.getWhitelistedTokens();
+        address[] memory tokens = getWhitelistStatusAddresses();
         require(tokens.length > 0, "No whitelisted tokens");
 
         highestSeedToken = tokens[0];
@@ -405,7 +405,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         view
         returns (address lowestSeedToken, uint256 seedAmount)
     {
-        address[] memory tokens = beanstalk.getWhitelistedTokens();
+        address[] memory tokens = getWhitelistStatusAddresses();
         require(tokens.length > 0, "No whitelisted tokens");
 
         lowestSeedToken = tokens[0];
@@ -430,7 +430,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     function getUserDepositedTokens(
         address account
     ) external view returns (address[] memory depositedTokens) {
-        address[] memory allWhitelistedTokens = beanstalk.getWhitelistedTokens();
+        address[] memory allWhitelistedTokens = getWhitelistStatusAddresses();
 
         // First, get the mow status for all tokens to check which ones have deposits
         IBeanstalk.MowStatus[] memory mowStatuses = beanstalk.getMowStatus(
@@ -591,7 +591,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         returns (uint8[] memory tokenIndices, uint256[] memory seeds)
     {
         // Get whitelisted tokens
-        address[] memory tokens = beanstalk.getWhitelistedTokens();
+        address[] memory tokens = getWhitelistStatusAddresses();
         require(tokens.length > 0, "No whitelisted tokens");
 
         // Initialize arrays
@@ -621,7 +621,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         returns (uint8[] memory tokenIndices, uint256[] memory prices)
     {
         // Get whitelisted tokens
-        address[] memory tokens = beanstalk.getWhitelistedTokens();
+        address[] memory tokens = getWhitelistStatusAddresses();
         require(tokens.length > 0, "No whitelisted tokens");
 
         // Initialize arrays
@@ -734,7 +734,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         if (token == beanstalk.getBeanToken()) {
             return 0;
         }
-        address[] memory whitelistedTokens = beanstalk.getWhitelistedTokens();
+        address[] memory whitelistedTokens = getWhitelistStatusAddresses();
         for (uint256 i = 0; i < whitelistedTokens.length; i++) {
             if (whitelistedTokens[i] == token) {
                 return uint8(i);
@@ -884,5 +884,18 @@ contract SiloHelpers is Junction, PerFunctionPausable {
             }
         }
         return false;
+    }
+
+    /**
+     * @notice Returns the addresses of all whitelisted tokens, even those that have been Dewhitelisted
+     * @return addresses The addresses of all whitelisted tokens
+     */
+    function getWhitelistStatusAddresses() public view returns (address[] memory) {
+        IBeanstalk.WhitelistStatus[] memory whitelistStatuses = beanstalk.getWhitelistStatuses();
+        address[] memory addresses = new address[](whitelistStatuses.length);
+        for (uint256 i = 0; i < whitelistStatuses.length; i++) {
+            addresses[i] = whitelistStatuses[i].token;
+        }
+        return addresses;
     }
 }

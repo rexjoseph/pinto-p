@@ -64,6 +64,14 @@ interface IBeanstalk {
         bytes32[8] _buffer;
     }
 
+    struct WhitelistStatus {
+        address token;
+        bool isWhitelisted;
+        bool isWhitelistedLp;
+        bool isWhitelistedWell;
+        bool isSoppable;
+    }
+
     function advancedFarm(
         AdvancedFarmCall[] calldata data
     ) external payable returns (bytes[] memory results);
@@ -209,4 +217,8 @@ interface IBeanstalk {
     function getMillionUsdPrice(address token, uint256 lookback) external view returns (uint256);
     function bdv(address token, uint256 amount) external view returns (uint256);
     function poolCurrentDeltaB(address pool) external view returns (int256 deltaB);
+    function getWhitelistStatuses()
+        external
+        view
+        returns (WhitelistStatus[] memory _whitelistStatuses);
 }
