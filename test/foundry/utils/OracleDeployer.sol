@@ -176,7 +176,7 @@ contract OracleDeployer is Utils {
     }
 
     function initWhitelistOracles(bool verbose) internal {
-        // deploy LSD Chainlink Oracle/
+        // deploy LSD Chainlink Oracle
         lsdChainlinkOracle = address(new LSDChainlinkOracle());
         vm.label(lsdChainlinkOracle, "LSD Chainlink Oracle");
         // new custom oracles should be added here.
