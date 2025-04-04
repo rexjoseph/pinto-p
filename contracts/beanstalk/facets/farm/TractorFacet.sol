@@ -23,11 +23,15 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     using LibBytes for bytes32;
     using LibRedundantMath256 for uint256;
 
-    event PublishRequisition(LibTractor.Requisition requisition);
+    event PublishRequisition(LibTractor.Requisition indexed requisition);
 
-    event CancelBlueprint(bytes32 blueprintHash);
+    event CancelBlueprint(bytes32 indexed blueprintHash);
 
-    event Tractor(address indexed operator, address indexed publisher, bytes32 blueprintHash);
+    event Tractor(
+        address indexed operator,
+        address indexed publisher,
+        bytes32 indexed blueprintHash
+    );
 
     /**
      * @notice Ensure requisition hash matches blueprint data and signer is publisher.
