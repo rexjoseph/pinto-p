@@ -391,9 +391,9 @@ contract OracleTest is TestHelper {
                 0xBEa00BbE8b5da39a3F57824a1a13Ec2a8848D74F // the bean/wsteth pool on arbitrum
             );
             assertEq(price.price, 0.449594e6, "bean price from wsteth pool"); // $0.44
-            assertEq(price.liquidity, 12939952.763734e6, "liquidity from wsteth pool"); // $12.9m
+            assertEq(price.liquidity, 12941139.831533e6, "liquidity from wsteth pool"); // $12.9m
             assertEq(price.beanLiquidity, 6470568.833889e6, "bean liquidity from wsteth pool"); // $6.4m
-            assertEq(price.nonBeanLiquidity, 6469383.929845e6, "wsteth liquidity from wsteth pool"); // $6.4m
+            assertEq(price.nonBeanLiquidity, 6470570.997644e6, "wsteth liquidity from wsteth pool"); // $6.4m
         }
         {
             P.Pool memory price = BeanstalkPrice(beanstalkPrice).poolPrice(
@@ -434,7 +434,7 @@ contract OracleTest is TestHelper {
                     assertEq(price.ps[i].price, 0.449594e6, "bean price from wsteth pool");
                     assertEq(
                         price.ps[i].liquidity,
-                        12939952.763734e6,
+                        12941139.831533e6,
                         "liquidity from wsteth pool"
                     );
                     assertEq(
@@ -444,7 +444,7 @@ contract OracleTest is TestHelper {
                     );
                     assertEq(
                         price.ps[i].nonBeanLiquidity,
-                        6469383.929845e6,
+                        6470570.997644e6,
                         "wsteth liquidity from wsteth pool"
                     );
                 }

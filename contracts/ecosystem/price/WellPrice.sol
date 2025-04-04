@@ -76,7 +76,7 @@ contract WellPrice {
         // and the usd value of the non-bean portion of the pool.
 
         pool.beanLiquidity = pool.balances[beanIndex].mul(pool.price).div(PRICE_PRECISION);
-        pool.nonBeanLiquidity = WELL_DECIMALS.div(assetPrice).mul(pool.balances[tknIndex]).div(
+        pool.nonBeanLiquidity = WELL_DECIMALS.mul(pool.balances[tknIndex]).div(assetPrice).div(
             PRICE_PRECISION * PRICE_PRECISION
         );
 
