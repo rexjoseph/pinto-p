@@ -12,6 +12,7 @@ import {LibAppStorage, AppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {Implementation} from "contracts/beanstalk/storage/System.sol";
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {console} from "forge-std/console.sol";
 
 interface IERC20Decimals {
     function decimals() external view returns (uint8);

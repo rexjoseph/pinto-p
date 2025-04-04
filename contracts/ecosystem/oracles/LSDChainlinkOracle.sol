@@ -4,7 +4,7 @@
 pragma solidity ^0.8.20;
 
 import {LibChainlinkOracle} from "contracts/libraries/Oracle/LibChainlinkOracle.sol";
-
+import {console} from "forge-std/console.sol";
 /**
  * @title LSDChainlinkOracle
  * @notice An oracle implementation that returns the price of a ETH LSD in USD.

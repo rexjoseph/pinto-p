@@ -176,7 +176,7 @@ contract OracleDeployer is Utils {
     }
 
     function initWhitelistOracles(bool verbose) internal {
-        // deploy LSD Chainlink Oracle
+        // deploy LSD Chainlink Oracle/
         lsdChainlinkOracle = address(new LSDChainlinkOracle());
         vm.label(lsdChainlinkOracle, "LSD Chainlink Oracle");
         // new custom oracles should be added here.
@@ -230,13 +230,7 @@ contract OracleDeployer is Utils {
                 lsdChainlinkOracle,
                 LSDChainlinkOracle.getPrice.selector,
                 bytes1(0x00),
-                abi.encode(
-                    _ethChainlinkOracle,
-                    _ethTimeout,
-                    tokenChainlinkOracle,
-                    tokenTimeout,
-                    token
-                )
+                abi.encode(_ethChainlinkOracle, _ethTimeout, tokenChainlinkOracle, tokenTimeout)
             )
         );
     }
