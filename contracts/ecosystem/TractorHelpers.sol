@@ -341,11 +341,10 @@ contract TractorHelpers is Junction, PerFunctionPausable {
                     type(uint256).max
                 );
 
-                // approve spending of Beans from this contract's external balance
-                IERC20(beanToken).approve(address(beanstalk), plan.availableBeans[i]);
-
                 // Transfer from this contract's external balance to the user's internal/external balance depending on mode
                 if (mode == LibTransfer.To.INTERNAL) {
+                    // approve spending of Beans from this contract's external balance
+                    IERC20(beanToken).approve(address(beanstalk), plan.availableBeans[i]);
                     beanstalk.sendTokenToInternalBalance(
                         beanToken,
                         account,
