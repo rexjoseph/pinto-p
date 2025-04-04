@@ -8,7 +8,7 @@ import {Call, IWell, IERC20} from "../../interfaces/basin/IWell.sol";
 import {IBeanstalkWellFunction} from "../../interfaces/basin/IBeanstalkWellFunction.sol";
 import {C} from "../../C.sol";
 import {IBeanstalk} from "../../interfaces/IBeanstalk.sol";
-
+import {console} from "forge-std/console.sol";
 interface dec {
     function decimals() external view returns (uint256);
 }
@@ -64,11 +64,11 @@ contract WellPrice {
 
         // swap 1 bean of the opposite asset to get the bean price
         // price = amtOut/tknOutPrice
-        uint256 assetPrice = beanstalk.getUsdTokenPrice(pool.tokens[tknIndex]); // $1 gets assetPrice worth of tokens
+        uint256 assetPrice = beanstalk.getMillionUsdPrice(pool.tokens[tknIndex], 0); // $1000000 gets assetPrice worth of tokens
         if (assetPrice > 0) {
             pool.price = well
                 .getSwapOut(wellTokens[beanIndex], wellTokens[tknIndex], 1e6)
-                .mul(PRICE_PRECISION)
+                .mul(PRICE_PRECISION * PRICE_PRECISION)
                 .div(assetPrice);
         }
 
@@ -77,7 +77,7 @@ contract WellPrice {
 
         pool.beanLiquidity = pool.balances[beanIndex].mul(pool.price).div(PRICE_PRECISION);
         pool.nonBeanLiquidity = WELL_DECIMALS.mul(pool.balances[tknIndex]).div(assetPrice).div(
-            PRICE_PRECISION * PRICE_PRECISION
+            PRICE_PRECISION
         );
 
         pool.liquidity = pool.beanLiquidity.add(pool.nonBeanLiquidity);
