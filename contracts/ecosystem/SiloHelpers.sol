@@ -11,6 +11,7 @@ import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {PriceManipulation} from "./PriceManipulation.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {IOperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 
 /**
  * @title SiloHelpers
@@ -58,14 +59,6 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint256 totalAvailableBeans;
     }
 
-    struct WithdrawalPlan {
-        address[] sourceTokens;
-        int96[][] stems;
-        uint256[][] amounts;
-        uint256[] availableBeans;
-        uint256 totalAvailableBeans;
-    }
-
     constructor(
         address _beanstalk,
         address _beanstalkPrice,
@@ -86,14 +79,16 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
      * @param targetAmount The total amount of beans to withdraw
      * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
      * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
      */
-    function getWithdrawalPlan(
+    function getWithdrawalPlanExcludingPlan(
         address account,
         uint8[] memory tokenIndices,
         uint256 targetAmount,
-        uint256 maxGrownStalkPerBdv
-    ) public view returns (WithdrawalPlan memory plan) {
+        uint256 maxGrownStalkPerBdv,
+        LibSiloHelpers.WithdrawalPlan memory excludingPlan
+    ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
         require(tokenIndices.length > 0, "Must provide at least one source token");
         require(targetAmount > 0, "Must withdraw non-zero amount");
 
@@ -143,7 +138,8 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                     account,
                     sourceToken,
                     vars.remainingBeansNeeded,
-                    minStem
+                    minStem,
+                    excludingPlan
                 );
 
                 // Skip if no beans available from this source
@@ -175,7 +171,8 @@ contract SiloHelpers is Junction, PerFunctionPausable {
                     account,
                     sourceToken,
                     vars.lpNeeded,
-                    minStem
+                    minStem,
+                    excludingPlan
                 );
 
                 // Skip if no LP available from this source
@@ -228,6 +225,34 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     }
 
     /**
+     * @notice Returns a plan for withdrawing beans from multiple sources
+     * @param account The account to withdraw from
+     * @param tokenIndices Array of indices corresponding to whitelisted tokens to try as sources.
+     * Special cases when array length is 1:
+     * - If value is LOWEST_PRICE_STRATEGY (uint8.max): Use tokens in ascending price order
+     * - If value is LOWEST_SEED_STRATEGY (uint8.max - 1): Use tokens in ascending seed order
+     * @param targetAmount The total amount of beans to withdraw
+     * @param maxGrownStalkPerBdv The maximum amount of grown stalk allowed to be used for the withdrawal, per bdv
+     * @return plan The withdrawal plan containing source tokens, stems, amounts, and available beans
+     */
+    function getWithdrawalPlan(
+        address account,
+        uint8[] memory tokenIndices,
+        uint256 targetAmount,
+        uint256 maxGrownStalkPerBdv
+    ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        return
+            getWithdrawalPlanExcludingPlan(
+                account,
+                tokenIndices,
+                targetAmount,
+                maxGrownStalkPerBdv,
+                emptyPlan
+            );
+    }
+
+    /**
      * @notice Withdraws beans from multiple sources in order until the target amount is fulfilled
      * @param account The account to withdraw from
      * @param tokenIndices Array of indices corresponding to whitelisted tokens to try as sources.
@@ -248,7 +273,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint256 maxGrownStalkPerBdv,
         uint256 slippageRatio,
         LibTransfer.To mode,
-        WithdrawalPlan memory plan
+        LibSiloHelpers.WithdrawalPlan memory plan
     ) external payable whenFunctionNotPaused returns (uint256) {
         // If passed in plan is empty, get one
         if (plan.sourceTokens.length == 0) {
@@ -462,13 +487,13 @@ contract SiloHelpers is Junction, PerFunctionPausable {
     }
 
     /**
-     * @notice Returns an array of stems and amounts needed to fulfill a withdrawal amount,
-     * starting with the highest stem (least grown stalk). If not enough deposits are available,
-     * returns the maximum amount possible.
+     * @notice Returns arrays of stems and amounts for all deposits, sorted by stem in descending order
+     * @dev This function could be made more gas efficient by using a more efficient sorting algorithm
      * @param account The address of the account that owns the deposits
-     * @param token The token to withdraw
+     * @param token The token to get deposits for
      * @param amount The amount of tokens to withdraw
      * @param minStem The minimum stem value to consider for withdrawal
+     * @param excludingPlan Optional plan containing deposits that have been partially used. The function will account for remaining amounts in these deposits.
      * @return stems Array of stems in descending order
      * @return amounts Array of corresponding amounts for each stem
      * @return availableAmount The total amount available to withdraw (may be less than requested amount)
@@ -477,7 +502,8 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         address account,
         address token,
         uint256 amount,
-        int96 minStem
+        int96 minStem,
+        LibSiloHelpers.WithdrawalPlan memory excludingPlan
     )
         public
         view
@@ -506,9 +532,32 @@ contract SiloHelpers is Junction, PerFunctionPausable {
 
             (uint256 depositAmount, ) = beanstalk.getDeposit(account, token, stem);
 
+            // Check if this deposit is in the existing plan and calculate remaining amount
+            uint256 remainingAmount = depositAmount;
+            for (uint256 j = 0; j < excludingPlan.sourceTokens.length; j++) {
+                if (excludingPlan.sourceTokens[j] == token) {
+                    for (uint256 k = 0; k < excludingPlan.stems[j].length; k++) {
+                        if (excludingPlan.stems[j][k] == stem) {
+                            // If the deposit was fully used in the existing plan, skip it
+                            if (excludingPlan.amounts[j][k] >= depositAmount) {
+                                remainingAmount = 0;
+                                break;
+                            }
+                            // Otherwise, subtract the used amount from the remaining amount
+                            remainingAmount = depositAmount - excludingPlan.amounts[j][k];
+                            break;
+                        }
+                    }
+                    if (remainingAmount == 0) break;
+                }
+            }
+
+            // Skip if no remaining amount available
+            if (remainingAmount == 0) continue;
+
             // Calculate amount to take from this deposit
-            uint256 amountFromDeposit = depositAmount;
-            if (depositAmount > remainingBeansNeeded) {
+            uint256 amountFromDeposit = remainingAmount;
+            if (remainingAmount > remainingBeansNeeded) {
                 amountFromDeposit = remainingBeansNeeded;
             }
 
@@ -528,6 +577,31 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         }
 
         return (stems, amounts, availableAmount);
+    }
+
+    /**
+     * @notice Returns arrays of stems and amounts for all deposits, sorted by stem in descending order
+     * @dev This function could be made more gas efficient by using a more efficient sorting algorithm
+     * @param account The address of the account that owns the deposits
+     * @param token The token to get deposits for
+     * @param amount The amount of tokens to withdraw
+     * @param minStem The minimum stem value to consider for withdrawal
+     * @return stems Array of stems in descending order
+     * @return amounts Array of corresponding amounts for each stem
+     * @return availableAmount The total amount available to withdraw (may be less than requested amount)
+     */
+    function getDepositStemsAndAmountsToWithdraw(
+        address account,
+        address token,
+        uint256 amount,
+        int96 minStem
+    )
+        public
+        view
+        returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
+    {
+        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        return getDepositStemsAndAmountsToWithdraw(account, token, amount, minStem, emptyPlan);
     }
 
     /**
@@ -884,6 +958,19 @@ contract SiloHelpers is Junction, PerFunctionPausable {
             }
         }
         return false;
+    }
+
+    /**
+     * @notice Combines multiple withdrawal plans into a single plan
+     * @dev This function aggregates the amounts used from each deposit across all plans
+     * @param plans Array of withdrawal plans to combine
+     * @return combinedPlan A single withdrawal plan that represents the total usage across all input plans
+     */
+    function combineWithdrawalPlans(
+        LibSiloHelpers.WithdrawalPlan[] memory plans
+    ) external view returns (LibSiloHelpers.WithdrawalPlan memory) {
+        // Call the library function directly
+        return LibSiloHelpers.combineWithdrawalPlans(plans, beanstalk);
     }
 
     /**

@@ -5,6 +5,7 @@ pragma abicoder v2;
 import {TestHelper, LibTransfer, C, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {SowBlueprintv0} from "contracts/ecosystem/SowBlueprintv0.sol";
 import {SiloHelpers} from "contracts/ecosystem/SiloHelpers.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 
 contract TractorHelper is TestHelper {
     // Add this at the top of the contract
@@ -96,7 +97,7 @@ contract TractorHelper is TestHelper {
                 maxGrownStalkPerBdv,
                 0.01e18, // 1%
                 uint8(mode),
-                SiloHelpers.WithdrawalPlan(
+                LibSiloHelpers.WithdrawalPlan(
                     new address[](0),
                     new int96[][](0),
                     new uint256[][](0),

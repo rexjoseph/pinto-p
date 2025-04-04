@@ -6,6 +6,7 @@ import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {SiloHelpers} from "./SiloHelpers.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {BeanstalkPrice} from "./price/BeanstalkPrice.sol";
+import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
 
 /**
  * @title SowBlueprintv0
@@ -38,7 +39,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
         address tipAddress;
         address account;
         uint256 totalAmountToSow;
-        SiloHelpers.WithdrawalPlan withdrawalPlan;
+        LibSiloHelpers.WithdrawalPlan withdrawalPlan;
     }
 
     /**
@@ -381,7 +382,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
             uint256 pintoLeftToSow,
             uint256 totalAmountToSow,
             uint256 totalBeansNeeded,
-            SiloHelpers.WithdrawalPlan memory plan
+            LibSiloHelpers.WithdrawalPlan memory plan
         )
     {
         (availableSoil, beanToken, currentSeason) = getAndValidateBeanstalkState(params.sowParams);
@@ -409,11 +410,12 @@ contract SowBlueprintv0 is PerFunctionPausable {
         }
 
         // Check if enough beans are available using getWithdrawalPlan
-        plan = siloHelpers.getWithdrawalPlan(
+        plan = siloHelpers.getWithdrawalPlanExcludingPlan(
             blueprintPublisher,
             params.sowParams.sourceTokenIndices,
             totalBeansNeeded,
-            params.sowParams.maxGrownStalkPerBdv
+            params.sowParams.maxGrownStalkPerBdv,
+            plan // Passed in plan is empty
         );
 
         // Verify enough beans are available
@@ -464,7 +466,7 @@ contract SowBlueprintv0 is PerFunctionPausable {
                 uint256, // pintoLeftToSow
                 uint256, // totalAmountToSow
                 uint256, // totalBeansNeeded
-                SiloHelpers.WithdrawalPlan memory // plan
+                LibSiloHelpers.WithdrawalPlan memory // plan
             ) {
                 validOrderHashes[validCount] = orderHashes[i];
                 validCount++;

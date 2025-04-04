@@ -686,9 +686,19 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
   await priceManipulationContract.deployed();
   console.log("PriceManipulation deployed to:", priceManipulationContract.address);
 
-  // Deploy SiloHelpers
-  const siloHelpers = await ethers.getContractFactory("SiloHelpers");
-  const siloHelpersContract = await siloHelpers.deploy(
+  // Deploy LibSiloHelpers first
+  const LibSiloHelpers = await ethers.getContractFactory("LibSiloHelpers");
+  const libSiloHelpers = await LibSiloHelpers.deploy();
+  await libSiloHelpers.deployed();
+  console.log("LibSiloHelpers deployed to:", libSiloHelpers.address);
+
+  // Deploy SiloHelpers with library linking
+  const SiloHelpers = await ethers.getContractFactory("SiloHelpers", {
+    libraries: {
+      LibSiloHelpers: libSiloHelpers.address
+    }
+  });
+  const siloHelpersContract = await SiloHelpers.deploy(
     L2_PINTO,
     "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
     await owner.getAddress(), // owner address
@@ -1039,6 +1049,8 @@ task("mintPinto", "Mints Pintos to an address")
   });
 
 task("diamondABI", "Generates ABI file for diamond, includes all ABIs of facets", async () => {
+  console.log("Compiling contracts to get updated artifacts...");
+  await hre.run("compile");
   // The path (relative to the root of `protocol` directory) where all modules sit.
   const modulesDir = path.join("contracts", "beanstalk", "facets");
 
@@ -1612,6 +1624,9 @@ task("deploySiloHelpers", "Deploys the SiloHelpers contract").setAction(
 
 task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(async () => {
   try {
+    console.log("Compiling contracts to get updated artifacts...");
+    await hre.run("compile");
+
     console.log("Generating ABIs for ecosystem contracts...");
 
     // Create output directory if it doesn't exist

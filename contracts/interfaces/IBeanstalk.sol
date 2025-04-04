@@ -217,6 +217,7 @@ interface IBeanstalk {
     function getMillionUsdPrice(address token, uint256 lookback) external view returns (uint256);
     function bdv(address token, uint256 amount) external view returns (uint256);
     function poolCurrentDeltaB(address pool) external view returns (int256 deltaB);
+
     function getWhitelistStatuses()
         external
         view
