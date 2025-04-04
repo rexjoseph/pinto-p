@@ -688,6 +688,7 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
 
   // Deploy LibTractorHelpers first
   const LibTractorHelpers = await ethers.getContractFactory("LibTractorHelpers");
+  console.log("LibTractorHelpers factory deployed");
   const libTractorHelpers = await LibTractorHelpers.deploy();
   await libTractorHelpers.deployed();
   console.log("LibTractorHelpers deployed to:", libTractorHelpers.address);
@@ -1593,35 +1594,6 @@ task("updateOracleTimeouts", "Updates oracle timeouts for all whitelisted LP tok
     }
 
     console.log("Finished oracle updates");
-  }
-);
-
-task("deployTractorHelpers", "Deploys the TractorHelpers contract").setAction(
-  async (args, { network, ethers }) => {
-    try {
-      console.log("-----------------------------------");
-      console.log("Deploying TractorHelpers...");
-
-      // Get deployer
-      const deployer = await impersonateSigner(PINTO_DIAMOND_DEPLOYER);
-      await mintEth(deployer.address);
-
-      const BEANSTALK_PRICE = "0xd0fd333f7b30c7925debd81b7b7a4dfe106c3a5e";
-
-      // Deploy contract
-      const TractorHelpers = await ethers.getContractFactory("TractorHelpers");
-      const tractorHelpers = await TractorHelpers.connect(deployer).deploy(
-        L2_PINTO,
-        BEANSTALK_PRICE
-      );
-      await tractorHelpers.deployed();
-
-      console.log("\nTractorHelpers deployed to:", tractorHelpers.address);
-      console.log("-----------------------------------");
-    } catch (error) {
-      console.error("\x1b[31mError during deployment:\x1b[0m", error);
-      process.exit(1);
-    }
   }
 );
 
