@@ -370,7 +370,7 @@ contract OracleTest is TestHelper {
         // fork arbitrum mainnet
         vm.createSelectFork(vm.envString("ARBITRUM_FORKING_RPC"), 267500000);
 
-        // deploy LSD oracle at the current arbitrum (known issue)
+        // deploy LSD oracle at the current arbitrum address (known issue)
         address lsdChainlinkOracle = address(new LSDChainlinkOracle());
         vm.etch(address(0xCCCCCC35b53c8a16404Ae414AFa31F30A5B35626), lsdChainlinkOracle.code);
 
