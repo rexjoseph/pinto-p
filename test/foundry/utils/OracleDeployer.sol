@@ -230,13 +230,7 @@ contract OracleDeployer is Utils {
                 lsdChainlinkOracle,
                 LSDChainlinkOracle.getPrice.selector,
                 bytes1(0x00),
-                abi.encode(
-                    _ethChainlinkOracle,
-                    _ethTimeout,
-                    tokenChainlinkOracle,
-                    tokenTimeout,
-                    token
-                )
+                abi.encode(_ethChainlinkOracle, _ethTimeout, tokenChainlinkOracle, tokenTimeout)
             )
         );
     }
