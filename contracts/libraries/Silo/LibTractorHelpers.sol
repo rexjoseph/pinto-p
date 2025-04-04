@@ -2,14 +2,13 @@
 pragma solidity ^0.8.20;
 
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
-import {console} from "forge-std/console.sol";
 
 /**
- * @title LibSiloHelpers
+ * @title LibTractorHelpers
  * @author FordPinto
  * @notice Library with helper functions for Silo operations
  */
-library LibSiloHelpers {
+library LibTractorHelpers {
     struct WithdrawalPlan {
         address[] sourceTokens;
         int96[][] stems;

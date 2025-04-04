@@ -11,14 +11,14 @@ import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {PriceManipulation} from "./PriceManipulation.sol";
 import {PerFunctionPausable} from "./PerFunctionPausable.sol";
 import {IOperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
-import {LibSiloHelpers} from "contracts/libraries/Silo/LibSiloHelpers.sol";
+import {LibTractorHelpers} from "contracts/libraries/Silo/LibTractorHelpers.sol";
 
 /**
- * @title SiloHelpers
+ * @title TractorHelpers
  * @author FordPinto
  * @notice Helper contract for Silo operations. For use with Tractor.
  */
-contract SiloHelpers is Junction, PerFunctionPausable {
+contract TractorHelpers is Junction, PerFunctionPausable {
     // Special token index values for withdrawal strategies
     uint8 internal constant LOWEST_PRICE_STRATEGY = type(uint8).max;
     uint8 internal constant LOWEST_SEED_STRATEGY = type(uint8).max - 1;
@@ -87,8 +87,8 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint8[] memory tokenIndices,
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv,
-        LibSiloHelpers.WithdrawalPlan memory excludingPlan
-    ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
+        LibTractorHelpers.WithdrawalPlan memory excludingPlan
+    ) public view returns (LibTractorHelpers.WithdrawalPlan memory plan) {
         require(tokenIndices.length > 0, "Must provide at least one source token");
         require(targetAmount > 0, "Must withdraw non-zero amount");
 
@@ -240,8 +240,8 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint8[] memory tokenIndices,
         uint256 targetAmount,
         uint256 maxGrownStalkPerBdv
-    ) public view returns (LibSiloHelpers.WithdrawalPlan memory plan) {
-        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+    ) public view returns (LibTractorHelpers.WithdrawalPlan memory plan) {
+        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
         return
             getWithdrawalPlanExcludingPlan(
                 account,
@@ -273,7 +273,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         uint256 maxGrownStalkPerBdv,
         uint256 slippageRatio,
         LibTransfer.To mode,
-        LibSiloHelpers.WithdrawalPlan memory plan
+        LibTractorHelpers.WithdrawalPlan memory plan
     ) external payable whenFunctionNotPaused returns (uint256) {
         // If passed in plan is empty, get one
         if (plan.sourceTokens.length == 0) {
@@ -503,7 +503,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         address token,
         uint256 amount,
         int96 minStem,
-        LibSiloHelpers.WithdrawalPlan memory excludingPlan
+        LibTractorHelpers.WithdrawalPlan memory excludingPlan
     )
         public
         view
@@ -600,7 +600,7 @@ contract SiloHelpers is Junction, PerFunctionPausable {
         view
         returns (int96[] memory stems, uint256[] memory amounts, uint256 availableAmount)
     {
-        LibSiloHelpers.WithdrawalPlan memory emptyPlan;
+        LibTractorHelpers.WithdrawalPlan memory emptyPlan;
         return getDepositStemsAndAmountsToWithdraw(account, token, amount, minStem, emptyPlan);
     }
 
@@ -967,10 +967,10 @@ contract SiloHelpers is Junction, PerFunctionPausable {
      * @return combinedPlan A single withdrawal plan that represents the total usage across all input plans
      */
     function combineWithdrawalPlans(
-        LibSiloHelpers.WithdrawalPlan[] memory plans
-    ) external view returns (LibSiloHelpers.WithdrawalPlan memory) {
+        LibTractorHelpers.WithdrawalPlan[] memory plans
+    ) external view returns (LibTractorHelpers.WithdrawalPlan memory) {
         // Call the library function directly
-        return LibSiloHelpers.combineWithdrawalPlans(plans, beanstalk);
+        return LibTractorHelpers.combineWithdrawalPlans(plans, beanstalk);
     }
 
     /**
