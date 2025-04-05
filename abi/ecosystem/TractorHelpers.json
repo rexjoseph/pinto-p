@@ -71,7 +71,7 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "enum SiloHelpers.RewardType",
+        "internalType": "enum TractorHelpers.RewardType",
         "name": "rewardType",
         "type": "uint8"
       },
@@ -213,7 +213,7 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct SiloHelpers.WithdrawalPlan[]",
+        "internalType": "struct LibTractorHelpers.WithdrawalPlan[]",
         "name": "plans",
         "type": "tuple[]"
       }
@@ -248,8 +248,8 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct SiloHelpers.WithdrawalPlan",
-        "name": "combinedPlan",
+        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
+        "name": "",
         "type": "tuple"
       }
     ],
@@ -434,8 +434,8 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct SiloHelpers.WithdrawalPlan",
-        "name": "existingPlan",
+        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
+        "name": "excludingPlan",
         "type": "tuple"
       }
     ],
@@ -686,93 +686,13 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "uint8[]",
-        "name": "tokenIndices",
-        "type": "uint8[]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "targetAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxGrownStalkPerBdv",
-        "type": "uint256"
-      },
-      {
-        "components": [
-          {
-            "internalType": "address[]",
-            "name": "sourceTokens",
-            "type": "address[]"
-          },
-          {
-            "internalType": "int96[][]",
-            "name": "stems",
-            "type": "int96[][]"
-          },
-          {
-            "internalType": "uint256[][]",
-            "name": "amounts",
-            "type": "uint256[][]"
-          },
-          {
-            "internalType": "uint256[]",
-            "name": "availableBeans",
-            "type": "uint256[]"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalAvailableBeans",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct SiloHelpers.WithdrawalPlan",
-        "name": "existingPlan",
-        "type": "tuple"
-      }
-    ],
-    "name": "getWithdrawalPlan",
+    "inputs": [],
+    "name": "getWhitelistStatusAddresses",
     "outputs": [
       {
-        "components": [
-          {
-            "internalType": "address[]",
-            "name": "sourceTokens",
-            "type": "address[]"
-          },
-          {
-            "internalType": "int96[][]",
-            "name": "stems",
-            "type": "int96[][]"
-          },
-          {
-            "internalType": "uint256[][]",
-            "name": "amounts",
-            "type": "uint256[][]"
-          },
-          {
-            "internalType": "uint256[]",
-            "name": "availableBeans",
-            "type": "uint256[]"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalAvailableBeans",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct SiloHelpers.WithdrawalPlan",
-        "name": "plan",
-        "type": "tuple"
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
       }
     ],
     "stateMutability": "view",
@@ -831,7 +751,100 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct SiloHelpers.WithdrawalPlan",
+        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
+        "name": "plan",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint8[]",
+        "name": "tokenIndices",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "targetAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxGrownStalkPerBdv",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "sourceTokens",
+            "type": "address[]"
+          },
+          {
+            "internalType": "int96[][]",
+            "name": "stems",
+            "type": "int96[][]"
+          },
+          {
+            "internalType": "uint256[][]",
+            "name": "amounts",
+            "type": "uint256[][]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "availableBeans",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalAvailableBeans",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
+        "name": "excludingPlan",
+        "type": "tuple"
+      }
+    ],
+    "name": "getWithdrawalPlanExcludingPlan",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "sourceTokens",
+            "type": "address[]"
+          },
+          {
+            "internalType": "int96[][]",
+            "name": "stems",
+            "type": "int96[][]"
+          },
+          {
+            "internalType": "uint256[][]",
+            "name": "amounts",
+            "type": "uint256[][]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "availableBeans",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalAvailableBeans",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
         "name": "plan",
         "type": "tuple"
       }
@@ -1236,7 +1249,7 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct SiloHelpers.WithdrawalPlan",
+        "internalType": "struct LibTractorHelpers.WithdrawalPlan",
         "name": "plan",
         "type": "tuple"
       }
