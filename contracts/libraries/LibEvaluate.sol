@@ -46,7 +46,6 @@ library LibEvaluate {
     uint32 internal constant SOW_TIME_STEADY_LOWER = 300; // seconds, lower means closer to the bottom of the hour
     uint32 internal constant SOW_TIME_STEADY_UPPER = 300; // seconds, upper means closer to the top of the hour
     uint256 internal constant LIQUIDITY_PRECISION = 1e12;
-    uint256 internal constant MIN_SOIL_SOWN = 25e6; // minimum soil sown to calculate delta pod demand.
 
     struct BeanstalkState {
         Decimal.D256 deltaPodDemand;
