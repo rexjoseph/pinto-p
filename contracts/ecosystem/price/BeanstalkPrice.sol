@@ -28,6 +28,16 @@ contract BeanstalkPrice is WellPrice {
 
     /**
      * @notice Returns the non-manipulation resistant on-chain liquidity, deltaB and price data for
+     * Bean in all whitelisted liquidity pools.
+     * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
+     **/
+    function price() external view returns (Prices memory p) {
+        address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
+        return priceForWells(wells, false);
+    }
+
+    /**
+     * @notice Returns the manipulation or non-manipulation resistant on-chain liquidity, deltaB and price data for
      * Bean for the passed in wells.
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
      **/
@@ -49,6 +59,15 @@ contract BeanstalkPrice is WellPrice {
 
     /**
      * @notice Returns the non-manipulation resistant on-chain liquidity, deltaB and price data for
+     * Bean for the passed in wells.
+     * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
+     **/
+    function priceForWells(address[] memory wells) public view returns (Prices memory p) {
+        return priceForWells(wells, false);
+    }
+
+    /**
+     * @notice Returns the manipulation or non-manipulation resistant on-chain liquidity, deltaB and price data for
      * Bean in the specified liquidity pools.
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
      **/
@@ -57,5 +76,14 @@ contract BeanstalkPrice is WellPrice {
         bool useManipulationResistantPrice
     ) public view returns (P.Pool memory p) {
         return getWell(pool, useManipulationResistantPrice);
+    }
+
+    /**
+     * @notice Returns the non-manipulation resistant on-chain liquidity, deltaB and price data for
+     * Bean in the specified liquidity pools.
+     * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
+     **/
+    function poolPrice(address pool) public view returns (P.Pool memory p) {
+        return poolPrice(pool, false);
     }
 }
