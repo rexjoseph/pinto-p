@@ -28,6 +28,7 @@ import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellF
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import "forge-std/console.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 
 /**
  * @title LibConvert
@@ -602,7 +603,7 @@ library LibConvert {
             // bonus up for WELL -> BEAN
             (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
             // reduce the bdv capacity by the amount of bdv that got the bonus
-            updateBdvConverted(bdvCapacityUsed);
+            if (bdvCapacityUsed > 0) updateBonusBdvConverted(bdvCapacityUsed);
             // update the grown stalk by the amount of grown stalk gained
             newGrownStalk = grownStalk + grownStalkGained;
             emit ConvertUpBonus(account, grownStalkGained);
@@ -702,13 +703,13 @@ library LibConvert {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // get gauge value: how much bonus stalk to issue per BDV
-        (, , uint256 stalkPerBdv, uint256 maxBdv) = abi.decode(
+        (, , , uint256 stalkPerBdv, uint256 convertCapacity) = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
-            (uint256, uint256, uint256, uint256)
+            (uint256, uint256, uint256, uint256, uint256)
         );
 
-        // First limit the BDV that can get the bonus
-        uint256 bdvWithBonus = min(toBdv, maxBdv);
+        // limit the bdv that can get the bonus
+        uint256 bdvWithBonus = min(toBdv, convertCapacity);
 
         // Then calculate the bonus stalk based on the limited BDV
         grownStalkGained = (bdvWithBonus * stalkPerBdv) / 1e6;
@@ -721,27 +722,20 @@ library LibConvert {
      * @dev Separated here to allow `stalkBonus` to be called as a getter without touching state.
      * @param bdvConverted The amount of bdv that got the bonus.
      */
-    function updateBdvConverted(uint256 bdvConverted) internal {
+    function updateBonusBdvConverted(uint256 bdvConverted) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        // get current gaugeData
-        (
-            uint256 deltaC,
-            uint256 minConvertBonusFactor,
-            uint256 maxConvertBonusFactor,
-            uint256 lastSeasonBdvConverted,
-            uint256 thisSeasonBdvConverted
-        ) = abi.decode(
-                s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
-                (uint256, uint256, uint256, uint256, uint256)
-            );
 
-        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data = abi.encode(
-            deltaC,
-            minConvertBonusFactor,
-            maxConvertBonusFactor,
-            lastSeasonBdvConverted,
-            thisSeasonBdvConverted + bdvConverted
+        // Get current gauge data using the new struct
+        LibGaugeHelpers.ConvertBonusGaugeData memory convertBonusGaugeData = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
+            (LibGaugeHelpers.ConvertBonusGaugeData)
         );
+
+        // Update this season's converted amount
+        convertBonusGaugeData.thisSeasonBdvConverted += bdvConverted;
+
+        // Encode and store updated gauge data
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data = abi.encode(convertBonusGaugeData);
     }
 
     function abs(int256 a) internal pure returns (uint256) {

@@ -54,6 +54,8 @@ interface IGaugeFacet {
  * as well as adding, replacing, and removing Gauges.
  */
 contract GaugeFacet is GaugeDefault, ReentrancyGuard {
+    using LibGaugeHelpers for LibGaugeHelpers.ConvertBonusGaugeData;
+
     uint256 internal constant PRICE_PRECISION = 1e6;
     uint256 internal constant DELTA_C_PRECISION = 1e18;
     uint256 internal constant DELTA_B_PRECISION = 1e6;
@@ -176,42 +178,25 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     }
 
     /**
-     * @notice Calculates the maximum stalk the protocol is willing to issue
-     * for upward converts every season as a percentage of the total stalk supply.
-     * ----------------------------------------------------------------
-     * @notice Adjusts the convert bonus factor as a scalar of the maximum stalk the protocol is willing to issue
-     * in a given season as a bonus of converting up towards peg (C parameter).
-     * - C ranges from 0 to 1e18, where 0 is no bonus and 1e18 is full bonus (0-100%).
-     * - C Resets to 0 upon the system crossing target. Stays at 0 above target.
-     * - C does not increase until after 12 seasons after a below target cross.
-     * ---------------------------------------------------------------
-     * C decreases by X when the system converts at least Z pdv in a season.
-     * X = (previousSeasonBeanPrice * deltaC) / lpToSupplyRatio
-     * ---------------------------------------------------------------
-     * C increases by Y when it converts less than Z pdv in a season.
-     * Y = (deltaC * 0.01e18) / (previousSeasonBeanPrice * deltaC)
-     * ---------------------------------------------------------------
-     * @notice Calculates the stalkPerBdv bonus for the current season.
-     * The stalkPerBdv is the difference between the current stem tip and
-     * the stemTip at a target cross, choosing the smallest amongst all whitelisted lp tokens.
-     * ----------------------------------------------------------------
-     * @notice From the values above, it calculates the amount of bonus stalk available for converts
-     * in the current season. Finally, it calculates the convert bonus pdv capacity as
-     * stalkToIssue / stalkPerBdv.
+     * @notice Calculates the stalk per pdv the protocol is willing to issue along with the
+     * correspoinding pdv capacity.
      * ----------------------------------------------------------------
      * @return value
-     *  The gauge value is encoded as (uint256, uint256, uint256):
+     *  The gauge value is encoded as (uint256, uint256, uint256, uint256):
      *     - seasonsBelowPeg - the rolling count of seasons below peg.
      *     - convertBonusFactor - the convert bonus ratio.
+     *     - convertCapacityFactor - the convert bonus bdv capacity factor.
      *     - bonusStalkPerBdv - the bonus stalk per bdv to issue for converts.
      * @return gaugeData
-     *  The gaugeData are ecoded as (uint256, uint256, uint256, uint256, uint256):
+     *  The gaugeData are ecoded as (uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256):
      *     - deltaC - the delta used in adjusting convertBonusFactor.
-     *     - minconvertBonusFactor - the minimum value of the conversion factor (0).
-     *     - maxconvertBonusFactor - the maximum value of the conversion factor (1e18).
-     *     - previousSeasonBdvCapacityLeft - how much pdv was converted in the previous season and received a bonus.
-     *     (resets at the gauge level and gets updated by the convert system)
-     *     previousSeasonBdvCapacity - previous season's initial convertBonusBdvCapacity.
+     *     - deltaT - the delta used in adjusting the convert bonus bdv capacity factor.
+     *     - minConvertBonusFactor - the minimum value of the conversion factor (0).
+     *     - maxConvertBonusFactor - the maximum value of the conversion factor (1e18).
+     *     - minCapacityFactor - the minimum value of the convert bonus bdv capacity factor.
+     *     - maxCapacityFactor - the maximum value of the convert bonus bdv capacity factor.
+     *     - lastSeasonBdvConverted - amount of bdv converted last season.
+     *     - thisSeasonBdvConverted - amount of bdv converted this season.
      * ----------------------------------------------------------------
      * PRECISIONS:
      *     - l2sr precision is 1e18
@@ -228,184 +213,131 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         LibEvaluate.BeanstalkState memory bs = abi.decode(systemData, (LibEvaluate.BeanstalkState));
 
         // Decode current convert bonus ratio value and rolling count of seasons below peg
-        (uint256 seasonsBelowPeg, uint256 convertBonusFactor, uint256 bonusStalkPerBdv, ) = abi
-            .decode(value, (uint256, uint256, uint256, uint256));
-
-        // Decode gauge data
         (
-            uint256 deltaC, // delta used in adjusting convertBonusFactor
-            uint256 minConvertBonusFactor, // minimum value of the conversion factor
-            uint256 maxConvertBonusFactor, // maximum value of the conversion factor
-            uint256 lastSeasonBdvConverted, // amount of bdv converted last season
-            uint256 thisSeasonBdvConverted // amount of bdv converted this season
-        ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256));
+            uint256 seasonsBelowPeg,
+            uint256 convertBonusFactor,
+            uint256 convertCapacityFactor,
+            uint256 bonusStalkPerBdv,
+            uint256 convertCapacity
+        ) = abi.decode(value, (uint256, uint256, uint256, uint256, uint256));
 
-        // reset the gaugeData (i.e. set the amount converted last season to the amount converted this season and set the amount converted this season to 0)
-        bytes memory newGaugeData = abi.encode(
-            deltaC,
-            minConvertBonusFactor,
-            maxConvertBonusFactor,
-            thisSeasonBdvConverted, // set the amount converted last season to the amount converted this season
-            0 // set the amount converted this season to 0
+        // Decode gauge data using the struct
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+            gaugeData,
+            (LibGaugeHelpers.ConvertBonusGaugeData)
         );
+
+        // reset the gaugeData
+        // (i.e. set the amount converted last season to the amount converted this
+        // season and set the amount converted this season to 0)
+        gd.lastSeasonBdvConverted = gd.thisSeasonBdvConverted;
+        gd.thisSeasonBdvConverted = 0;
+        bytes memory newGaugeData = abi.encode(gd);
 
         // If twaDeltaB > 0 (above peg), reset values to 0
         if (bs.twaDeltaB > 0) {
             console.log("twaDeltaB > 0, reset convertBonusFactor and seasonsBelowPeg to 0");
-            return (abi.encode(0, 0, 0, 0), newGaugeData);
+            return (abi.encode(0, 0, 0, 0, 0), newGaugeData);
         }
 
         // If seasonsBelowPeg < 12, convertBonusFactor is 0 but seasonsBelowPeg increases
+        // todo: make 12 an evaluation parameter
         if (bs.twaDeltaB <= 0 && seasonsBelowPeg < 12) {
             console.log("twaDeltaB <= 0 and seasonsBelowPeg < 12, increase seasonsBelowPeg by 1");
-            return (abi.encode(seasonsBelowPeg + 1, 0, 0, 0), newGaugeData);
+            return (abi.encode(seasonsBelowPeg + 1, 0, 0, 0, 0), newGaugeData);
         }
 
         // twaDeltaB <= 0 (below peg) && seasonsBelowPeg >= 12, ready to modify convertBonusFactor
         // and set convert bonus pdv capacity
-        console.log(
-            "\ntwaDeltaB <= 0 and seasonsBelowPeg >= 12, ready to modify convertBonusFactor"
-        );
+        console.log("--------------------------------");
+        console.log("twaDeltaB <= 0 and seasonsBelowPeg >= 12, ready to modify convertBonusFactor");
 
-        // 1. determine C, the conversion factor, aka the 1st Vmax scalar for the season
+        // 1. determine C, the conversion factor, aka the stalkPerBdv scalar
+        // 2. determine T, the convert bonus bdv capacity factor aka the deltaB scalar
 
-        // if no bdv converted this season, set convertBonusFactor to 0
         bool shouldIncrease;
-        if (thisSeasonBdvConverted == 0) {
-            shouldIncrease = false;
-        } else if (lastSeasonBdvConverted == 0) {
-            // if no bdv converted last season, set convertBonusFactor to 1e18
+        if (gd.thisSeasonBdvConverted == 0) {
+            // no bdv converted this season, we should increase the bonus and limit capacity
             shouldIncrease = true;
+        } else if (gd.lastSeasonBdvConverted == 0) {
+            // no bdv was converted in the previous season but some was converted in the current season,
+            // we should decrease bonus and increase capacity
+            shouldIncrease = false;
         } else {
-            // if bdv converted this season is greater than last season, set shouldIncrease to true
-            uint256 convertRatio = (thisSeasonBdvConverted * C.PRECISION) / lastSeasonBdvConverted;
-            // if the convert ratio resides within a range, do nothing:
-            if (convertRatio >= 0.95e18 && convertRatio <= 1.05e18) {
+            uint256 pdvRatio = (gd.thisSeasonBdvConverted * C.PRECISION) /
+                gd.lastSeasonBdvConverted;
+            // if the pdv ratio resides within a range, do nothing:
+            if (pdvRatio >= 0.95e18 && pdvRatio <= 1.05e18) {
                 return (
-                    abi.encode(seasonsBelowPeg + 1, convertBonusFactor, bonusStalkPerBdv),
+                    abi.encode(
+                        seasonsBelowPeg + 1,
+                        convertBonusFactor,
+                        convertCapacityFactor,
+                        bonusStalkPerBdv,
+                        convertCapacity
+                    ),
                     newGaugeData
                 );
             } else {
-                shouldIncrease = convertRatio > 1.05e18;
+                // For convertBonusFactor, increase when pdvRatio decreases (<0.95)
+                // Opposite behavior for convertCapacityFactor
+                shouldIncrease = pdvRatio < 0.95e18;
             }
         }
-
-        console.log("amountChange: ", amountChange);
-        console.log("minConvertBonusFactor: ", minConvertBonusFactor);
-        console.log("maxConvertBonusFactor: ", maxConvertBonusFactor);
-        console.log("shouldIncrease: ", shouldIncrease);
 
         // increase/decrease convertBonusFactor via the linear function
         convertBonusFactor = uint256(
             LibGaugeHelpers.linear(
-                int256(deltaC),
+                int256(convertBonusFactor),
                 shouldIncrease,
-                amountChange,
-                int256(minConvertBonusFactor),
-                int256(maxConvertBonusFactor)
+                gd.deltaC,
+                int256(gd.minConvertBonusFactor),
+                int256(gd.maxConvertBonusFactor)
+            )
+        );
+
+        // increase/decrease convertCapacityFactor via the linear function (opposite behavior)
+        convertCapacityFactor = uint256(
+            LibGaugeHelpers.linear(
+                int256(convertCapacityFactor),
+                !shouldIncrease,
+                gd.deltaT,
+                int256(gd.minCapacityFactor),
+                int256(gd.maxCapacityFactor)
             )
         );
 
         console.log("convertBonusFactor: ", convertBonusFactor);
 
-        console.log("s.sys.silo.stalk: ", s.sys.silo.stalk);
-
-        // 2. set vmax (the maximum stalk Pinto is willing to issue for converts every season.)
-        // (0,01% of total stalk supply)
-        // todo: change to a % of grown stalk supply after we figure out how to get that
-        // 1e16 * 1e18 / 1e18 = 1e16
-        uint256 maxStalkToIssue = (s.sys.silo.stalk *
-            s.sys.extEvaluationParameters.convertBonusStalkScalar) / C.PRECISION;
-
-        console.log("maxStalkToIssue: ", maxStalkToIssue);
-
-        // 3. Calculate the L2SR Factor that further scales Vmax based on the L2SR
-        uint256 l2srFactor = getL2SRFactor(bs.lpToSupplyRatio.value);
-
-        console.log("l2srFactor: ", l2srFactor);
-
-        // 4. Scale Vmax by the Conversion factor
-        // V = C * Vmax
-        // 1e18 * 1e16 / 1e18 = 1e16
-        uint256 stalkToIssue = (maxStalkToIssue * convertBonusFactor) / C.PRECISION;
-
-        // 5. Further scale by the L2SR Factor
-        // V = V * L2SR Factor
-        // 1e16 * 1e18 / 1e18 = 1e16
-        stalkToIssue = (stalkToIssue * l2srFactor) / C.PRECISION;
-
-        console.log("total stalkToIssue as a bonus: ", stalkToIssue);
-
-        // log capacity
-        console.log("convertBonusBdvCapacity: ", getConvertBonusBdvCapacity(stalkToIssue));
-
-        console.log("CurrentBonusStalkPerBdv(): ", getCurrentBonusStalkPerBdv());
-
-        // value, gaugeData
         return (
             abi.encode(
                 seasonsBelowPeg + 1,
                 convertBonusFactor,
+                convertCapacityFactor,
                 getCurrentBonusStalkPerBdv(),
-                (bs.twaDeltaB * 0.1e6) / 1e6
+                ((uint256(-bs.twaDeltaB) * convertCapacityFactor) / C.PRECISION)
             ),
-            abi.encode(
-                deltaC, // same constant as before
-                minConvertBonusFactor, // same constant as before
-                maxConvertBonusFactor, // same constant as before
-                0, // previousSeasonBdvConverted resets to 0 at the start of the new season
-                getConvertBonusBdvCapacity(stalkToIssue) // 6. convert bonus pdv capacity as V / stalkPerBdv
-            )
+            newGaugeData
         );
-    }
-
-    /**
-     * @notice Gets the convert bonus pdv capacity as V / stalkPerBdv
-     * @dev V is the stalk the protocol is willing to issue for converts every season.
-     * @dev stalkPerBdv is determined by taking the difference between the current stem tip
-     * and the stemTip at a target cross, and choosing the largest amongst all whitelisted lp tokens.
-     * @return convertBonusBdvCapacity The convert bonus pdv capacity.
-     */
-    function getConvertBonusBdvCapacity(uint256 stalkToIssue) internal view returns (uint256) {
-        return (stalkToIssue * STALK_PRECISION) / getCurrentBonusStalkPerBdv();
-    }
-
-    /**
-     * @notice Gets the L2SR factor that further scales Vmax based on the L2SR
-     * @dev Returns 0 if lpToSupplyRatio is less than or equal to the lower bound
-     * @dev Returns 1.5e18 if lpToSupplyRatio is greater than or equal to the upper bound
-     * @dev Returns 1e18 if lpToSupplyRatio is between the lower and upper bounds
-     */
-    function getL2SRFactor(uint256 lpToSupplyRatio) internal view returns (uint256) {
-        console.log("lpToSupplyRatio", lpToSupplyRatio);
-        uint256 lowerBound = s.sys.evaluationParameters.lpToSupplyRatioLowerBound;
-        uint256 upperBound = s.sys.evaluationParameters.lpToSupplyRatioUpperBound;
-        if (lpToSupplyRatio <= lowerBound) {
-            return 0.2e18;
-        } else if (lpToSupplyRatio >= upperBound) {
-            return 1.5e18;
-        } else {
-            return 1e18;
-        }
     }
 
     /**
      * @notice Gets the bonus stalk per bdv for the current season.
      * @dev The stalkPerPDV is determined by taking the difference between the current stem tip
-     * and the stemTip at a peg cross, and choosing the largest amongst all whitelisted lp tokens.
+     * and the stemTip at a peg cross, and choosing the smallest amongst all whitelisted lp tokens.
      * This way the bonus cannot be gamed since someone could withdraw, deposit and convert without losing stalk.
      * @return stalkPerBdv The bonus stalk per bdv for the current season.
      */
     function getCurrentBonusStalkPerBdv() internal view returns (uint256) {
         // get stem tips for all whitelisted lp tokens and get the min
         address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
-        uint96 stalkPerBdv = type(uint96).min;
+        uint96 stalkPerBdv = type(uint96).max;
         for (uint256 i = 0; i < lpTokens.length; i++) {
             int96 currentStemTip = LibTokenSilo.stemTipForToken(lpTokens[i]);
             uint96 tokenStalkPerBdv = uint96(
                 currentStemTip - s.sys.belowPegCrossStems[lpTokens[i]]
             );
-            if (tokenStalkPerBdv > stalkPerBdv) stalkPerBdv = tokenStalkPerBdv;
+            if (tokenStalkPerBdv < stalkPerBdv) stalkPerBdv = tokenStalkPerBdv;
         }
         return uint256(stalkPerBdv);
     }

@@ -661,8 +661,8 @@ contract ConvertTest is TestHelper {
         // bonus season
         warpToNextSeasonAndUpdateOracles();
         vm.roll(block.number + 1800);
-        // set total stalk to 10_000e16
-        bs.setTotalStalkE(10_000e16);
+        // set total stalk to 1m
+        bs.setTotalStalkE(1_000_000e16);
         bs.sunrise();
 
         // create encoding for a bean -> well convert.

@@ -12,7 +12,7 @@ import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
  * @title InitPI8
  * @dev Initializes parameters for pinto improvement 8.
  **/
-contract InitPI8 {
+contract InitPI9 {
     // Gauge values
     uint256 internal constant INIT_CONVERT_UP_PENALTY_BONUS_RATIO = 0;
     uint256 internal constant INIT_SEASONS_BELOW_PEG = 0;

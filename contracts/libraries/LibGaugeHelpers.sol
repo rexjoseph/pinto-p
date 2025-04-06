@@ -12,6 +12,20 @@ library LibGaugeHelpers {
     // Gauge events
 
     /**
+     * @notice Struct for Convert Bonus Gauge Data
+     */
+    struct ConvertBonusGaugeData {
+        uint256 deltaC; // delta used in adjusting convertBonusFactor
+        uint256 deltaT; // delta used in adjusting the convert bonus bdv capacity factor
+        uint256 minConvertBonusFactor; // minimum value of the conversion factor
+        uint256 maxConvertBonusFactor; // maximum value of the conversion factor
+        uint256 minCapacityFactor; // minimum value of the convert bonus bdv capacity factor
+        uint256 maxCapacityFactor; // maximum value of the convert bonus bdv capacity factor
+        uint256 lastSeasonBdvConverted; // amount of bdv converted last season
+        uint256 thisSeasonBdvConverted; // amount of bdv converted this season
+    }
+
+    /**
      * @notice Emitted when a Gauge is engaged (i.e. its value is updated).
      * @param gaugeId The id of the Gauge that was engaged.
      * @param value The value of the Gauge after it was engaged.
