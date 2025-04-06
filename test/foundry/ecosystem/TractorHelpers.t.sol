@@ -779,7 +779,7 @@ contract TractorHelpersTest is TractorHelper {
 
     function test_getTokensAscendingPrice() public {
         // Call Price on beanstalkprice contract and verify it's not 0
-        BeanstalkPrice.Prices memory price = beanstalkPrice.price();
+        BeanstalkPrice.Prices memory price = beanstalkPrice.price(true);
         assertGt(price.price, 0, "Price should be non-zero");
 
         // Get sorted tokens

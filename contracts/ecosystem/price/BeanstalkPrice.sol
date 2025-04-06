@@ -17,24 +17,27 @@ contract BeanstalkPrice is WellPrice {
     }
 
     /**
-     * @notice Returns the non-manipulation resistant on-chain liquidiy, deltaB and price data for
+     * @notice Returns the manipulation or non-manipulation resistant on-chain liquidity, deltaB and price data for
      * Bean in all whitelisted liquidity pools.
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
      **/
-    function price() external view returns (Prices memory p) {
+    function price(bool useManipulationResistantPrice) external view returns (Prices memory p) {
         address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
-        return priceForWells(wells);
+        return priceForWells(wells, useManipulationResistantPrice);
     }
 
     /**
-     * @notice Returns the non-manipulation resistant on-chain liquidiy, deltaB and price data for
+     * @notice Returns the non-manipulation resistant on-chain liquidity, deltaB and price data for
      * Bean for the passed in wells.
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
      **/
-    function priceForWells(address[] memory wells) public view returns (Prices memory p) {
+    function priceForWells(
+        address[] memory wells,
+        bool useManipulationResistantPrice
+    ) public view returns (Prices memory p) {
         p.ps = new P.Pool[](wells.length);
         for (uint256 i = 0; i < wells.length; i++) {
-            p.ps[i] = getWell(wells[i]);
+            p.ps[i] = getWell(wells[i], useManipulationResistantPrice);
         }
         for (uint256 i = 0; i < p.ps.length; i++) {
             p.price += p.ps[i].price.mul(p.ps[i].liquidity);
@@ -45,11 +48,14 @@ contract BeanstalkPrice is WellPrice {
     }
 
     /**
-     * @notice Returns the non-manipulation resistant on-chain liquidiy, deltaB and price data for
+     * @notice Returns the non-manipulation resistant on-chain liquidity, deltaB and price data for
      * Bean in the specified liquidity pools.
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
      **/
-    function poolPrice(address pool) public view returns (P.Pool memory p) {
-        return getWell(pool);
+    function poolPrice(
+        address pool,
+        bool useManipulationResistantPrice
+    ) public view returns (P.Pool memory p) {
+        return getWell(pool, useManipulationResistantPrice);
     }
 }

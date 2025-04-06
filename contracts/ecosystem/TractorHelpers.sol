@@ -702,7 +702,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         prices = new uint256[](tokens.length);
 
         // Get price from BeanstalkPrice for both Bean and LP tokens
-        BeanstalkPrice.Prices memory p = beanstalkPrice.price();
+        BeanstalkPrice.Prices memory p = beanstalkPrice.price(true);
 
         // Get prices for each token
         for (uint256 i = 0; i < tokens.length; i++) {

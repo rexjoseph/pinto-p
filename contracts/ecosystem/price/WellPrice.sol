@@ -8,6 +8,7 @@ import {Call, IWell, IERC20} from "../../interfaces/basin/IWell.sol";
 import {IBeanstalkWellFunction} from "../../interfaces/basin/IBeanstalkWellFunction.sol";
 import {C} from "../../C.sol";
 import {IBeanstalk} from "../../interfaces/IBeanstalk.sol";
+import {IMultiFlowPump} from "contracts/interfaces/basin/IMultiFlowPump.sol";
 
 interface dec {
     function decimals() external view returns (uint256);
@@ -51,12 +52,25 @@ contract WellPrice {
      * Bean in a given Well.
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
      **/
-    function getWell(address wellAddress) public view returns (P.Pool memory pool) {
+    function getWell(
+        address wellAddress,
+        bool useManipulationResistantPrice
+    ) public view returns (P.Pool memory pool) {
         IWell well = IWell(wellAddress);
         pool.pool = wellAddress;
         IERC20[] memory wellTokens = well.tokens();
         pool.tokens = [address(wellTokens[0]), address(wellTokens[1])];
-        uint256[] memory wellBalances = well.getReserves();
+        uint256[] memory wellBalances;
+        if (useManipulationResistantPrice) {
+            Call memory pump = well.pumps()[0];
+            // Get the readInstantaneousReserves from the pump
+            wellBalances = IMultiFlowPump(pump.target).readInstantaneousReserves(
+                wellAddress,
+                pump.data
+            );
+        } else {
+            wellBalances = well.getReserves();
+        }
         if (wellBalances[0] == 0 || wellBalances[1] == 0) return pool;
         pool.balances = [wellBalances[0], wellBalances[1]];
         uint256 beanIndex = beanstalk.getBeanIndex(wellTokens);

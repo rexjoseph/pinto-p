@@ -380,7 +380,8 @@ contract OracleTest is TestHelper {
         {
             // call get Pool price for 0xBea00ee04D8289aEd04f92EA122a96dC76A91bd7, the bean/usdc pool on arbitrum
             P.Pool memory price = BeanstalkPrice(beanstalkPrice).poolPrice(
-                0xBea00ee04D8289aEd04f92EA122a96dC76A91bd7
+                0xBea00ee04D8289aEd04f92EA122a96dC76A91bd7,
+                false
             );
             // as of block 267500000, USDC is worth 1000123 and bean is worth 446792 usdc
             // liquidity in the pool as of this block is the following:
@@ -392,7 +393,8 @@ contract OracleTest is TestHelper {
 
         {
             P.Pool memory price = BeanstalkPrice(beanstalkPrice).poolPrice(
-                0xBEa00BbE8b5da39a3F57824a1a13Ec2a8848D74F // the bean/wsteth pool on arbitrum
+                0xBEa00BbE8b5da39a3F57824a1a13Ec2a8848D74F, // the bean/wsteth pool on arbitrum
+                false
             );
             assertEq(price.price, 0.449594e6, "bean price from wsteth pool"); // $0.44
             assertEq(price.liquidity, 12941139.831533e6, "liquidity from wsteth pool"); // $12.9m
@@ -401,7 +403,8 @@ contract OracleTest is TestHelper {
         }
         {
             P.Pool memory price = BeanstalkPrice(beanstalkPrice).poolPrice(
-                0xBea00DDe4b34ACDcB1a30442bD2B39CA8Be1b09c // the bean/wbtc pool on arbitrum
+                0xBea00DDe4b34ACDcB1a30442bD2B39CA8Be1b09c, // the bean/wbtc pool on arbitrum
+                false
             );
             assertEq(price.price, 0.464166e6, "bean price from wbtc pool"); // $0.46
             assertEq(price.liquidity, 20.968998e6, "liquidity from wbtc pool"); // $20
@@ -411,7 +414,7 @@ contract OracleTest is TestHelper {
 
         // also test price() which returns all pools
         {
-            BeanstalkPrice.Prices memory price = BeanstalkPrice(beanstalkPrice).price();
+            BeanstalkPrice.Prices memory price = BeanstalkPrice(beanstalkPrice).price(false);
             for (uint256 i = 0; i < price.ps.length; i++) {
                 if (price.ps[i].pool == 0xBea00ee04D8289aEd04f92EA122a96dC76A91bd7) {
                     // verify liquidity in bean/usdc pool
@@ -462,7 +465,8 @@ contract OracleTest is TestHelper {
             wells[1] = BEAN_WBTC_WELL;
 
             BeanstalkPrice.Prices memory price = BeanstalkPrice(beanstalkPrice).priceForWells(
-                wells
+                wells,
+                false
             );
             console.log("priceForWells");
             console.log(price.price);
