@@ -228,28 +228,37 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         LibEvaluate.BeanstalkState memory bs = abi.decode(systemData, (LibEvaluate.BeanstalkState));
 
         // Decode current convert bonus ratio value and rolling count of seasons below peg
-        (uint256 seasonsBelowPeg, uint256 convertBonusFactor, uint256 bonusStalkPerBdv) = abi
-            .decode(value, (uint256, uint256, uint256));
+        (uint256 seasonsBelowPeg, uint256 convertBonusFactor, uint256 bonusStalkPerBdv, ) = abi
+            .decode(value, (uint256, uint256, uint256, uint256));
 
         // Decode gauge data
         (
             uint256 deltaC, // delta used in adjusting convertBonusFactor
             uint256 minConvertBonusFactor, // minimum value of the conversion factor
             uint256 maxConvertBonusFactor, // maximum value of the conversion factor
-            uint256 previousSeasonBdvCapacityLeft, // how much bonus pdv capacity was left in the previous season
-            uint256 previousSeasonBdvCapacity // previous season's initial convertBonusBdvCapacity
-        ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256));
+            uint256 lastSeasonBdvConverted, // amount of bdv converted last season
+            uint256 thisSeasonBdvConverted // amount of bdv converted this season
+        ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256));
+
+        // reset the gaugeData (i.e. set the amount converted last season to the amount converted this season and set the amount converted this season to 0)
+        bytes memory newGaugeData = abi.encode(
+            deltaC,
+            minConvertBonusFactor,
+            maxConvertBonusFactor,
+            thisSeasonBdvConverted, // set the amount converted last season to the amount converted this season
+            0 // set the amount converted this season to 0
+        );
 
         // If twaDeltaB > 0 (above peg), reset values to 0
         if (bs.twaDeltaB > 0) {
             console.log("twaDeltaB > 0, reset convertBonusFactor and seasonsBelowPeg to 0");
-            return (abi.encode(0, 0, 0), gaugeData);
+            return (abi.encode(0, 0, 0, 0), newGaugeData);
         }
 
         // If seasonsBelowPeg < 12, convertBonusFactor is 0 but seasonsBelowPeg increases
         if (bs.twaDeltaB <= 0 && seasonsBelowPeg < 12) {
             console.log("twaDeltaB <= 0 and seasonsBelowPeg < 12, increase seasonsBelowPeg by 1");
-            return (abi.encode(seasonsBelowPeg + 1, 0, 0), gaugeData);
+            return (abi.encode(seasonsBelowPeg + 1, 0, 0, 0), newGaugeData);
         }
 
         // twaDeltaB <= 0 (below peg) && seasonsBelowPeg >= 12, ready to modify convertBonusFactor
@@ -260,27 +269,25 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // 1. determine C, the conversion factor, aka the 1st Vmax scalar for the season
 
-        // if the amount of pdv converted in the previous season is <= Z, we increase the convertBonusFactor
-        // Note: twaDeltaB is negative here, so we can convert it to a positive value uint256
-        bool shouldIncrease = (previousSeasonBdvCapacity - previousSeasonBdvCapacityLeft) <=
-            getConvertBonusBdvUsedThreshold(uint256(-bs.twaDeltaB), previousSeasonBdvCapacity);
-
-        // amountChange has 1e18 precision
-        uint256 amountChange;
-        if (shouldIncrease) {
-            console.log("previousSeasonBdvConverted < Z Pdv, increase convertBonusFactor");
-            // Less than Z Pdv was converted, so we increase the percentage of stalk to issue as a bonus
-            // convertBonusFactor = convertBonusFactor + (Δc × 0.01/(Δc×Pt-1)))
-            // (1e42 / (1e18 * 1e6)) = 1e18
-            amountChange = (deltaC * 0.01e18 * 1e6) / (deltaC * bs.largestLiquidWellTwapBeanPrice);
+        // if no bdv converted this season, set convertBonusFactor to 0
+        bool shouldIncrease;
+        if (thisSeasonBdvConverted == 0) {
+            shouldIncrease = false;
+        } else if (lastSeasonBdvConverted == 0) {
+            // if no bdv converted last season, set convertBonusFactor to 1e18
+            shouldIncrease = true;
         } else {
-            console.log("previousSeasonBdvConverted >= Z Pdv, decrease convertBonusFactor");
-            // if at least Z Pdv was converted case, we decrease the percentage of stalk to issue as a bonus
-            // convertBonusFactor = convertBonusFactor - (Δc × Pt-1/L2SR))
-            // 1e18 * 1e6 * 1e18 / 1e18 / 1e6 = 1e18
-            amountChange =
-                (deltaC * (bs.largestLiquidWellTwapBeanPrice * C.PRECISION)) /
-                (bs.lpToSupplyRatio.value * 1e6);
+            // if bdv converted this season is greater than last season, set shouldIncrease to true
+            uint256 convertRatio = (thisSeasonBdvConverted * C.PRECISION) / lastSeasonBdvConverted;
+            // if the convert ratio resides within a range, do nothing:
+            if (convertRatio >= 0.95e18 && convertRatio <= 1.05e18) {
+                return (
+                    abi.encode(seasonsBelowPeg + 1, convertBonusFactor, bonusStalkPerBdv),
+                    newGaugeData
+                );
+            } else {
+                shouldIncrease = convertRatio > 1.05e18;
+            }
         }
 
         console.log("amountChange: ", amountChange);
@@ -291,7 +298,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // increase/decrease convertBonusFactor via the linear function
         convertBonusFactor = uint256(
             LibGaugeHelpers.linear(
-                int256(convertBonusFactor),
+                int256(deltaC),
                 shouldIncrease,
                 amountChange,
                 int256(minConvertBonusFactor),
@@ -336,7 +343,12 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // value, gaugeData
         return (
-            abi.encode(seasonsBelowPeg + 1, convertBonusFactor, getCurrentBonusStalkPerBdv()),
+            abi.encode(
+                seasonsBelowPeg + 1,
+                convertBonusFactor,
+                getCurrentBonusStalkPerBdv(),
+                (bs.twaDeltaB * 0.1e6) / 1e6
+            ),
             abi.encode(
                 deltaC, // same constant as before
                 minConvertBonusFactor, // same constant as before
@@ -356,22 +368,6 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      */
     function getConvertBonusBdvCapacity(uint256 stalkToIssue) internal view returns (uint256) {
         return (stalkToIssue * STALK_PRECISION) / getCurrentBonusStalkPerBdv();
-    }
-
-    /**
-     * @notice Gets the threshold amount of PDV (Z) that determines whether C increases or decreases
-     * @dev Z is calculated as:
-     *      - min(max(50 PDV, 1% of deltaP), previous season's maximum PDV eligible for bonus)
-     */
-    function getConvertBonusBdvUsedThreshold(
-        uint256 deltaB,
-        uint256 previousSeasonConvertBonusBdvCapacity
-    ) internal view returns (uint256) {
-        return
-            Math.min(
-                Math.max(50e6, (deltaB * 0.01e6) / DELTA_B_PRECISION),
-                previousSeasonConvertBonusBdvCapacity
-            );
     }
 
     /**

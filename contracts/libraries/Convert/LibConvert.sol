@@ -602,7 +602,7 @@ library LibConvert {
             // bonus up for WELL -> BEAN
             (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
             // reduce the bdv capacity by the amount of bdv that got the bonus
-            updateConvertBonusBdvCapacity(bdvCapacityUsed);
+            updateBdvConverted(bdvCapacityUsed);
             // update the grown stalk by the amount of grown stalk gained
             newGrownStalk = grownStalk + grownStalkGained;
             emit ConvertUpBonus(account, grownStalkGained);
@@ -702,25 +702,13 @@ library LibConvert {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // get gauge value: how much bonus stalk to issue per BDV
-        (, , uint256 stalkPerBdv) = abi.decode(
+        (, , uint256 stalkPerBdv, uint256 maxBdv) = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
-            (uint256, uint256, uint256)
+            (uint256, uint256, uint256, uint256)
         );
 
-        // get how much bonus stalk capacity is left from gaugeData
-        (
-            uint256 deltaC,
-            uint256 minConvertBonusFactor,
-            uint256 maxConvertBonusFactor,
-            uint256 bdvCapacityLeft,
-            uint256 initialBdvCapacity
-        ) = abi.decode(
-                s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
-                (uint256, uint256, uint256, uint256, uint256)
-            );
-
         // First limit the BDV that can get the bonus
-        uint256 bdvWithBonus = min(toBdv, bdvCapacityLeft);
+        uint256 bdvWithBonus = min(toBdv, maxBdv);
 
         // Then calculate the bonus stalk based on the limited BDV
         grownStalkGained = (bdvWithBonus * stalkPerBdv) / 1e6;
@@ -731,17 +719,17 @@ library LibConvert {
     /**
      * @notice Updates the convert bonus bdv capacity in the convert bonus gauge data.
      * @dev Separated here to allow `stalkBonus` to be called as a getter without touching state.
-     * @param bdvCapacityUsed The amount of bdv that got the bonus.
+     * @param bdvConverted The amount of bdv that got the bonus.
      */
-    function updateConvertBonusBdvCapacity(uint256 bdvCapacityUsed) internal {
+    function updateBdvConverted(uint256 bdvConverted) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // get current gaugeData
         (
             uint256 deltaC,
             uint256 minConvertBonusFactor,
             uint256 maxConvertBonusFactor,
-            uint256 bdvCapacityLeft,
-            uint256 initialBdvCapacity
+            uint256 lastSeasonBdvConverted,
+            uint256 thisSeasonBdvConverted
         ) = abi.decode(
                 s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
                 (uint256, uint256, uint256, uint256, uint256)
@@ -751,8 +739,8 @@ library LibConvert {
             deltaC,
             minConvertBonusFactor,
             maxConvertBonusFactor,
-            bdvCapacityLeft - bdvCapacityUsed,
-            initialBdvCapacity
+            lastSeasonBdvConverted,
+            thisSeasonBdvConverted + bdvConverted
         );
     }
 
