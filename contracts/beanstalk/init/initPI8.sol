@@ -19,14 +19,14 @@ contract InitPI8 {
         // Update min soil sown demand.
         s.sys.extEvaluationParameters.minSoilSownDemand = MIN_SOIL_SOWN_DEMAND;
         emit LibUpdate.UpdatedExtEvaluationParameters(
-            s.season.currentSeason,
+            s.sys.season.current,
             s.sys.extEvaluationParameters
         );
 
         // increase max crop ratio to 200%
         s.sys.evaluationParameters.maxBeanMaxLpGpPerBdvRatio = 2e18;
         emit LibUpdate.UpdatedEvaluationParameters(
-            s.season.currentSeason,
+            s.sys.season.current,
             s.sys.evaluationParameters
         );
 
@@ -36,9 +36,9 @@ contract InitPI8 {
         // change crop scalar to 66% (50% + 1.5*(66%) = 150%)
         s.sys.seedGauge.beanToMaxLpGpPerBdvRatio = 66e18;
         emit Weather.BeanToMaxLpGpPerBdvRatioChange(
-            s.season.currentSeason,
+            s.sys.season.current,
             type(uint256).max,
-            -int256(currentCropScalar - s.sys.seedGauge.beanToMaxLpGpPerBdvRatio)
+            -int80(int256(currentCropScalar - s.sys.seedGauge.beanToMaxLpGpPerBdvRatio))
         );
     }
 }

@@ -3,7 +3,7 @@
 */
 
 pragma solidity ^0.8.20;
-import "../../libraries/LibAppStorage.sol";
+import {ExtEvaluationParameters, EvaluationParameters} from "contracts/beanstalk/storage/System.sol";
 
 /**
  * @title LibUpdate
