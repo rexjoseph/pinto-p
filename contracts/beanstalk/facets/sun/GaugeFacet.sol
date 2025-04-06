@@ -347,7 +347,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
                 seasonsBelowPeg + 1,
                 convertBonusFactor,
                 getCurrentBonusStalkPerBdv(),
-                bs.twaDeltaB * 
+                (bs.twaDeltaB * 0.1e6) / 1e6
             ),
             abi.encode(
                 deltaC, // same constant as before
