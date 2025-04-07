@@ -175,19 +175,17 @@ contract MockSeasonFacet is SeasonFacet {
         require(!s.sys.paused, "Season: Paused.");
         s.sys.season.current += 1;
         s.sys.season.sunriseBlock = uint64(block.number);
-        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, oracleFailure);
-        stepSun(
-            caseId,
-            LibEvaluate.BeanstalkState({
-                deltaPodDemand: Decimal.zero(),
-                lpToSupplyRatio: Decimal.zero(),
-                podRate: Decimal.zero(),
-                largestLiqWell: address(0),
-                oracleFailure: false,
-                largestLiquidWellTwapBeanPrice: 0,
-                twaDeltaB: deltaB
-            })
-        ); // Do not scale soil down using L2SR
+        LibEvaluate.BeanstalkState memory bs = LibEvaluate.BeanstalkState({
+            deltaPodDemand: Decimal.zero(),
+            lpToSupplyRatio: Decimal.zero(),
+            podRate: Decimal.zero(),
+            largestLiqWell: address(0),
+            oracleFailure: false,
+            largestLiquidWellTwapBeanPrice: 0,
+            twaDeltaB: deltaB
+        });
+        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, oracleFailure);
+        stepSun(caseId, bs); // Do not scale soil down using L2SR
     }
 
     function seedGaugeSunSunrise(int256 deltaB, uint256 caseId) public {
@@ -708,7 +706,7 @@ contract MockSeasonFacet is SeasonFacet {
         }
         // Calculate Case Id
         (caseId, bs) = LibEvaluate.evaluateBeanstalk(deltaB, beanSupply);
-        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, false);
+        updateTemperatureAndBeanToMaxLpGpPerBdvRatio(caseId, bs, false);
         LibFlood.handleRain(caseId);
     }
 
