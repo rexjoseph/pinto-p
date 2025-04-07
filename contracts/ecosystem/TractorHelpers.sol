@@ -5,6 +5,7 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {BeanstalkPrice, P} from "./price/BeanstalkPrice.sol";
+import {ReservesType} from "./price/WellPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {Junction} from "./junction/Junction.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
@@ -702,7 +703,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         prices = new uint256[](tokens.length);
 
         // Get price from BeanstalkPrice for both Bean and LP tokens
-        BeanstalkPrice.Prices memory p = beanstalkPrice.price();
+        BeanstalkPrice.Prices memory p = beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES);
 
         // Get prices for each token
         for (uint256 i = 0; i < tokens.length; i++) {
