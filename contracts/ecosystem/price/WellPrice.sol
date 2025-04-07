@@ -14,6 +14,12 @@ interface dec {
     function decimals() external view returns (uint256);
 }
 
+enum ReservesType {
+    CURRENT_RESERVES,
+    INSTANTANEOUS_RESERVES,
+    CAPPED_RESERVES
+}
+
 contract WellPrice {
     using LibRedundantMath256 for uint256;
     using SafeCast for uint256;
@@ -54,21 +60,25 @@ contract WellPrice {
      **/
     function getWell(
         address wellAddress,
-        bool useManipulationResistantPrice
+        ReservesType reservesType
     ) public view returns (P.Pool memory pool) {
         IWell well = IWell(wellAddress);
         pool.pool = wellAddress;
         IERC20[] memory wellTokens = well.tokens();
         pool.tokens = [address(wellTokens[0]), address(wellTokens[1])];
         uint256[] memory wellBalances;
-        if (useManipulationResistantPrice) {
+        if (reservesType == ReservesType.INSTANTANEOUS_RESERVES) {
             Call memory pump = well.pumps()[0];
             // Get the readInstantaneousReserves from the pump
             wellBalances = IMultiFlowPump(pump.target).readInstantaneousReserves(
                 wellAddress,
                 pump.data
             );
+        } else if (reservesType == ReservesType.CAPPED_RESERVES) {
+            Call memory pump = well.pumps()[0];
+            wellBalances = IMultiFlowPump(pump.target).readCappedReserves(wellAddress, pump.data);
         } else {
+            // Current reserves
             wellBalances = well.getReserves();
         }
         if (wellBalances[0] == 0 || wellBalances[1] == 0) return pool;

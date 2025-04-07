@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
-import {WellPrice, P, C} from "./WellPrice.sol";
+import {WellPrice, P, C, ReservesType} from "./WellPrice.sol";
 
 contract BeanstalkPrice is WellPrice {
     using LibRedundantMath256 for uint256;
@@ -21,9 +21,9 @@ contract BeanstalkPrice is WellPrice {
      * Bean in all whitelisted liquidity pools.
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
      **/
-    function price(bool useManipulationResistantPrice) external view returns (Prices memory p) {
+    function price(ReservesType reservesType) external view returns (Prices memory p) {
         address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
-        return priceForWells(wells, useManipulationResistantPrice);
+        return priceForWells(wells, reservesType);
     }
 
     /**
@@ -33,7 +33,7 @@ contract BeanstalkPrice is WellPrice {
      **/
     function price() external view returns (Prices memory p) {
         address[] memory wells = beanstalk.getWhitelistedWellLpTokens();
-        return priceForWells(wells, false);
+        return priceForWells(wells, ReservesType.CURRENT_RESERVES);
     }
 
     /**
@@ -43,11 +43,11 @@ contract BeanstalkPrice is WellPrice {
      **/
     function priceForWells(
         address[] memory wells,
-        bool useManipulationResistantPrice
+        ReservesType reservesType
     ) public view returns (Prices memory p) {
         p.ps = new P.Pool[](wells.length);
         for (uint256 i = 0; i < wells.length; i++) {
-            p.ps[i] = getWell(wells[i], useManipulationResistantPrice);
+            p.ps[i] = getWell(wells[i], reservesType);
         }
         for (uint256 i = 0; i < p.ps.length; i++) {
             p.price += p.ps[i].price.mul(p.ps[i].liquidity);
@@ -63,7 +63,7 @@ contract BeanstalkPrice is WellPrice {
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
      **/
     function priceForWells(address[] memory wells) public view returns (Prices memory p) {
-        return priceForWells(wells, false);
+        return priceForWells(wells, ReservesType.CURRENT_RESERVES);
     }
 
     /**
@@ -73,9 +73,9 @@ contract BeanstalkPrice is WellPrice {
      **/
     function poolPrice(
         address pool,
-        bool useManipulationResistantPrice
+        ReservesType reservesType
     ) public view returns (P.Pool memory p) {
-        return getWell(pool, useManipulationResistantPrice);
+        return getWell(pool, reservesType);
     }
 
     /**
@@ -84,6 +84,6 @@ contract BeanstalkPrice is WellPrice {
      * @dev No protocol should use this function to calculate manipulation resistant Bean price data.
      **/
     function poolPrice(address pool) public view returns (P.Pool memory p) {
-        return poolPrice(pool, false);
+        return poolPrice(pool, ReservesType.CURRENT_RESERVES);
     }
 }
