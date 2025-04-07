@@ -27,7 +27,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
 
     event CancelBlueprint(bytes32 blueprintHash);
 
-    event Tractor(address indexed operator, bytes32 blueprintHash);
+    event Tractor(address indexed operator, address indexed publisher, bytes32 blueprintHash);
 
     /**
      * @notice Ensure requisition hash matches blueprint data and signer is publisher.
@@ -85,6 +85,11 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     function publishRequisition(
         LibTractor.Requisition calldata requisition
     ) external fundsSafu noNetFlow noSupplyChange verifyRequisition(requisition) nonReentrant {
+        require(
+            LibTractor._getBlueprintNonce(requisition.blueprintHash) <
+                requisition.blueprint.maxNonce,
+            "TractorFacet: maxNonce reached"
+        );
         emit PublishRequisition(requisition);
     }
 
@@ -154,7 +159,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         // Clear operator
         LibTractor._resetOperator();
 
-        emit Tractor(msg.sender, requisition.blueprintHash);
+        emit Tractor(msg.sender, requisition.blueprint.publisher, requisition.blueprintHash);
     }
 
     /**
@@ -171,7 +176,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * 1) No ERC-20 permissions are granted to the Beanstalk contract, and/or
      * 2) This function is not exploited maliciously.
      *
-     * Operators can check for this function in bytecode via the selector (0x9b8911f6)
+     * Operators can check for this function in bytecode via the selector (0xca1e71ae)
      */
     function sendTokenToInternalBalance(
         IERC20 token,

@@ -125,7 +125,8 @@ interface IMockFBeanstalk {
         uint256 abovePegDeltaBSoilScalar;
         uint256 soilDistributionPeriod;
         uint256 minSoilIssuance;
-        bytes32[61] buffer;
+        uint256 minSoilSownDemand;
+        bytes32[60] buffer;
     }
 
     struct Facet {
@@ -419,7 +420,6 @@ interface IMockFBeanstalk {
         uint256 amount,
         uint256[] bdvs
     );
-    event RemoveWhitelistStatus(address token, uint256 index);
     event RetryableTicketCreated(uint256 indexed ticketId);
     event SeasonOfPlentyField(uint256 toField);
     event SeasonOfPlentyWell(
@@ -462,7 +462,7 @@ interface IMockFBeanstalk {
     );
     event TotalGerminatingStalkChanged(uint256 germinationSeason, int256 deltaGerminatingStalk);
     event TotalStalkChangedFromGermination(int256 deltaStalk, int256 deltaRoots);
-    event Tractor(address indexed operator, bytes32 blueprintHash);
+    event Tractor(address indexed operator, address indexed publisher, bytes32 blueprintHash);
     event TractorVersionSet(string version);
     event TransferBatch(
         address indexed operator,
@@ -707,6 +707,8 @@ interface IMockFBeanstalk {
     function getGauge(GaugeId gaugeId) external view returns (Gauge memory);
 
     function getGaugeValue(GaugeId gaugeId) external view returns (bytes memory);
+
+    function getGaugeData(GaugeId gaugeId) external view returns (bytes memory);
 
     function cancelBlueprint(Requisition memory requisition) external;
 
@@ -1499,8 +1501,6 @@ interface IMockFBeanstalk {
 
     function removeWhitelistSelector(address token) external;
 
-    function removeWhitelistStatus(address token) external;
-
     function resetPools(address[] memory pools) external;
 
     function resetSeasonStart(uint256 amount) external;
@@ -1867,4 +1867,17 @@ interface IMockFBeanstalk {
     function woohoo() external pure returns (uint256);
 
     function wrapEth(uint256 amount, uint8 mode) external payable;
+
+    function downPenalizedGrownStalk(
+        address well,
+        uint256 bdvToConvert,
+        uint256 grownStalkToConvert
+    ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
+
+    function setLastSeasonAndThisSeasonBeanSown(
+        uint128 lastSeasonBeanSown,
+        uint128 thisSeasonBeanSown
+    ) external;
+
+    function setMinSoilSownDemand(uint256 minSoilSownDemand) external;
 }
