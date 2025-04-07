@@ -125,7 +125,8 @@ interface IMockFBeanstalk {
         uint256 abovePegDeltaBSoilScalar;
         uint256 soilDistributionPeriod;
         uint256 minSoilIssuance;
-        bytes32[61] buffer;
+        uint256 minSoilSownDemand;
+        bytes32[60] buffer;
     }
 
     struct Facet {

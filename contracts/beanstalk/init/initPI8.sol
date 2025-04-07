@@ -24,21 +24,10 @@ contract InitPI8 {
         );
 
         // increase max crop ratio to 200%
-        s.sys.evaluationParameters.maxBeanMaxLpGpPerBdvRatio = 2e18;
+        s.sys.evaluationParameters.maxBeanMaxLpGpPerBdvRatio = 200e18;
         emit LibUpdate.UpdatedEvaluationParameters(
             s.sys.season.current,
             s.sys.evaluationParameters
-        );
-
-        // get current crop scalar
-        uint256 currentCropScalar = s.sys.seedGauge.beanToMaxLpGpPerBdvRatio;
-
-        // change crop scalar to 66% (50% + 1.5*(66%) = 150%)
-        s.sys.seedGauge.beanToMaxLpGpPerBdvRatio = 66e18;
-        emit Weather.BeanToMaxLpGpPerBdvRatioChange(
-            s.sys.season.current,
-            type(uint256).max,
-            -int80(int256(currentCropScalar - s.sys.seedGauge.beanToMaxLpGpPerBdvRatio))
         );
     }
 }
