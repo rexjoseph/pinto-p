@@ -125,7 +125,8 @@ interface IMockFBeanstalk {
         uint256 abovePegDeltaBSoilScalar;
         uint256 soilDistributionPeriod;
         uint256 minSoilIssuance;
-        bytes32[61] buffer;
+        uint256 minSoilSownDemand;
+        bytes32[60] buffer;
     }
 
     struct Facet {
@@ -1872,4 +1873,11 @@ interface IMockFBeanstalk {
         uint256 bdvToConvert,
         uint256 grownStalkToConvert
     ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
+
+    function setLastSeasonAndThisSeasonBeanSown(
+        uint128 lastSeasonBeanSown,
+        uint128 thisSeasonBeanSown
+    ) external;
+
+    function setMinSoilSownDemand(uint256 minSoilSownDemand) external;
 }
