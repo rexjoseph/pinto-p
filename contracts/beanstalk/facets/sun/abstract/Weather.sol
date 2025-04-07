@@ -105,17 +105,19 @@ abstract contract Weather is Sun {
     ) internal {
         LibCases.CaseData memory cd = LibCases.decodeCaseData(caseId);
 
-        // if the podrate is > 100%, set bt based on soil demand:
+        // if the podrate is > 100% and deltaB is negative, set bt based on soil demand:
         if (bs.podRate.value > 1e18) {
-            if (caseId % 3 == 0) {
-                // decreasing
-                cd.bT = 0.5e6;
-            } else if (caseId % 3 == 1) {
-                // steady
-                cd.bT = 0;
-            } else if (caseId % 3 == 2) {
-                // increasing
-                cd.bT = -1e6;   
+            if (bs.twaDeltaB < 0) {
+                if (caseId % 3 == 0) {
+                    // decreasing
+                    cd.bT = 0.5e6;
+                } else if (caseId % 3 == 1) {
+                    // steady
+                    cd.bT = 0;
+                } else if (caseId % 3 == 2) {
+                    // increasing
+                    cd.bT = -1e6;
+                }
             }
             // append 1000 to the caseId to indicate that the podrate is > 100%
             caseId = caseId + 1000;

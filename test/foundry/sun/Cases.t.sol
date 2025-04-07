@@ -197,14 +197,16 @@ contract CasesTest is TestHelper {
 
         // verify temperature changed based on soil demand.
         // decreasing
-        if (changeInSoilDemand == 0) {
-            assertEq(bs.maxTemperature(), 100.5e6, "Temp did not dec by 0.5%");
-        } else if (changeInSoilDemand == 1) {
-            // steady
-            assertEq(bs.maxTemperature(), 100e6, "Temp did not stay at 100%");
-        } else if (changeInSoilDemand == 2) {
-            // increasing
-            assertEq(bs.maxTemperature(), 99e6, "Temp did not dec by 1%");
+        if (deltaB < 0) {
+            if (changeInSoilDemand == 0) {
+                assertEq(bs.maxTemperature(), 100.5e6, "Temp did not dec by 0.5%");
+            } else if (changeInSoilDemand == 1) {
+                // steady
+                assertEq(bs.maxTemperature(), 100e6, "Temp did not stay at 100%");
+            } else if (changeInSoilDemand == 2) {
+                // increasing
+                assertEq(bs.maxTemperature(), 99e6, "Temp did not dec by 1%");
+            }
         }
     }
 
