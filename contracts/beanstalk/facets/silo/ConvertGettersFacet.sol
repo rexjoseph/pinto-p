@@ -165,7 +165,7 @@ contract ConvertGettersFacet {
      */
     function getConvertBonusBdvCapacity() external view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        (, , , uint256 convertBonusBdvCapacityLeft, ) = abi.decode(
+        (, , , , uint256 convertBonusBdvCapacityLeft) = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
             (uint256, uint256, uint256, uint256, uint256)
         );

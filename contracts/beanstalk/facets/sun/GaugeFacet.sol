@@ -57,10 +57,6 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     using LibGaugeHelpers for LibGaugeHelpers.ConvertBonusGaugeData;
 
     uint256 internal constant PRICE_PRECISION = 1e6;
-    uint256 internal constant DELTA_C_PRECISION = 1e18;
-    uint256 internal constant DELTA_B_PRECISION = 1e6;
-    uint256 internal constant STALK_PRECISION = 1e16;
-    uint256 internal constant CONVERT_BONUS_RATIO_PRECISION = 1e18;
 
     /**
      * @notice cultivationFactor is a gauge implementation that returns the adjusted cultivationFactor based on the podRate and the price of Pinto.
@@ -197,13 +193,6 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      *     - maxCapacityFactor - the maximum value of the convert bonus bdv capacity factor.
      *     - lastSeasonBdvConverted - amount of bdv converted last season.
      *     - thisSeasonBdvConverted - amount of bdv converted this season.
-     * ----------------------------------------------------------------
-     * PRECISIONS:
-     *     - l2sr precision is 1e18
-     *     - price precision is 1e6
-     *     - deltaC precision is 1e18
-     *     - stalk precision is 1e16
-     *     - convertBonusFactor precision is 1e18
      */
     function convertUpBonusGauge(
         bytes memory value,
