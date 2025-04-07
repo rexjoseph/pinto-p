@@ -714,6 +714,9 @@ library LibConvert {
         // Then calculate the bonus stalk based on the limited BDV
         grownStalkGained = (bdvWithBonus * stalkPerBdv) / 1e6;
 
+        console.log("bdvWithBonus: ", bdvWithBonus);
+        console.log("grownStalkGained: ", grownStalkGained);
+
         return (bdvWithBonus, grownStalkGained);
     }
 

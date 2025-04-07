@@ -101,22 +101,24 @@ contract InitalizeDiamond {
     uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_RATE = 1;
 
     // Convert Up Bonus Gauge
-    // Value
-    uint256 internal constant INIT_CONVERT_UP_BONUS_RATIO = 0;
+    // Gauge values
     uint256 internal constant INIT_SEASONS_BELOW_PEG = 0;
+    uint256 internal constant INIT_CONVERT_BONUS_FACTOR = 0;
+    uint256 internal constant INIT_CONVERT_CAPACITY_FACTOR = 0;
     uint256 internal constant INIT_BONUS_STALK_PER_BDV = 0;
-    // Gauge Data
-    uint256 internal constant INIT_DELTA_C = 2e18;
+    uint256 internal constant INIT_CONVERT_CAPACITY = 0;
+    // Gauge data
+    uint256 internal constant INIT_DELTA_C = 0.01e18;
+    uint256 internal constant INIT_DELTA_T = 0.004e18;
     uint256 internal constant INIT_MIN_CONVERT_BONUS_FACTOR = 0;
     uint256 internal constant INIT_MAX_CONVERT_BONUS_FACTOR = 1e18;
-    uint256 internal constant INIT_PREVIOUS_SEASON_BVD_CONVERTED = 0;
-    uint256 internal constant INIT_PREVIOUS_SEASON_BVD_CAPACITY = 0;
+    uint256 internal constant INIT_MIN_CAPACITY_FACTOR = 0.1e18; // 10% of deltab
+    uint256 internal constant INIT_MAX_CAPACITY_FACTOR = 0.5e18; // 50% of deltab
+    uint256 internal constant INIT_LAST_SEASON_BVD_CONVERTED = 0;
+    uint256 internal constant INIT_THIS_SEASON_BVD_CONVERTED = 0;
 
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
-
-    // Convert Bonus Stalk Scalar
-    uint256 internal constant CONVERT_BONUS_STALK_SCALAR = 0.0001e18; // 0.01% of total stalk
 
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
@@ -338,9 +340,6 @@ contract InitalizeDiamond {
 
         // Initialize soilDistributionPeriod to 24 hours (in seconds)
         s.sys.extEvaluationParameters.soilDistributionPeriod = SOIL_DISTRIBUTION_PERIOD;
-
-        // Initialize convertBonusStalkScalar to 0.01% of total stalk
-        s.sys.extEvaluationParameters.convertBonusStalkScalar = CONVERT_BONUS_STALK_SCALAR;
     }
 
     function initalizeFarmAndTractor() internal {
@@ -372,18 +371,27 @@ contract InitalizeDiamond {
         );
         LibGaugeHelpers.addGauge(GaugeId.CONVERT_DOWN_PENALTY, convertDownPenaltyGauge);
 
-        Gauge memory convertUpBonusGauge = Gauge(
-            abi.encode(INIT_SEASONS_BELOW_PEG, INIT_CONVERT_UP_BONUS_RATIO, INIT_BONUS_STALK_PER_BDV),
+        Gauge memory convertBonusGauge = Gauge(
+            abi.encode(
+                INIT_SEASONS_BELOW_PEG,
+                INIT_CONVERT_BONUS_FACTOR,
+                INIT_CONVERT_CAPACITY_FACTOR,
+                INIT_BONUS_STALK_PER_BDV,
+                INIT_CONVERT_CAPACITY
+            ),
             address(this),
             IGaugeFacet.convertUpBonusGauge.selector,
             abi.encode(
                 INIT_DELTA_C,
+                INIT_DELTA_T,
                 INIT_MIN_CONVERT_BONUS_FACTOR,
                 INIT_MAX_CONVERT_BONUS_FACTOR,
-                INIT_PREVIOUS_SEASON_BVD_CONVERTED,
-                INIT_PREVIOUS_SEASON_BVD_CAPACITY
+                INIT_MIN_CAPACITY_FACTOR,
+                INIT_MAX_CAPACITY_FACTOR,
+                INIT_LAST_SEASON_BVD_CONVERTED,
+                INIT_THIS_SEASON_BVD_CONVERTED
             )
         );
-        LibGaugeHelpers.addGauge(GaugeId.CONVERT_UP_BONUS, convertUpBonusGauge);
+        LibGaugeHelpers.addGauge(GaugeId.CONVERT_UP_BONUS, convertBonusGauge);
     }
 }

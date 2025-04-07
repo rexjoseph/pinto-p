@@ -188,7 +188,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      *     - convertCapacityFactor - the convert bonus bdv capacity factor.
      *     - bonusStalkPerBdv - the bonus stalk per bdv to issue for converts.
      * @return gaugeData
-     *  The gaugeData are ecoded as (uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256):
+     *  The gaugeData are ecoded as a struct of type LibGaugeHelpers.ConvertBonusGaugeData:
      *     - deltaC - the delta used in adjusting convertBonusFactor.
      *     - deltaT - the delta used in adjusting the convert bonus bdv capacity factor.
      *     - minConvertBonusFactor - the minimum value of the conversion factor (0).
@@ -307,7 +307,8 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             )
         );
 
-        console.log("convertBonusFactor: ", convertBonusFactor);
+        console.log("new convertBonusFactor: ", convertBonusFactor);
+        console.log("new convertCapacityFactor: ", convertCapacityFactor);
 
         return (
             abi.encode(

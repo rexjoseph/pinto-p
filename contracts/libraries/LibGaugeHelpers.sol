@@ -9,7 +9,7 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
  * @notice Helper Library for Gauges.
  */
 library LibGaugeHelpers {
-    // Gauge events
+    // Gauge data structs
 
     /**
      * @notice Struct for Convert Bonus Gauge Data
@@ -24,6 +24,8 @@ library LibGaugeHelpers {
         uint256 lastSeasonBdvConverted; // amount of bdv converted last season
         uint256 thisSeasonBdvConverted; // amount of bdv converted this season
     }
+
+    // Gauge events
 
     /**
      * @notice Emitted when a Gauge is engaged (i.e. its value is updated).

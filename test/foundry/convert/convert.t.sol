@@ -650,9 +650,9 @@ contract ConvertTest is TestHelper {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
             bs.sunrise();
-            (uint256 seasonsBelowPeg, ) = abi.decode(
+            (uint256 seasonsBelowPeg, , , , ) = abi.decode(
                 bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
-                (uint256, uint256)
+                (uint256, uint256, uint256, uint256, uint256)
             );
             console.log("seasonsBelowPeg", seasonsBelowPeg);
             assertEq(seasonsBelowPeg, i + 1, "seasonsBelowPeg should be increasing");
@@ -661,8 +661,6 @@ contract ConvertTest is TestHelper {
         // bonus season
         warpToNextSeasonAndUpdateOracles();
         vm.roll(block.number + 1800);
-        // set total stalk to 1m
-        bs.setTotalStalkE(1_000_000e16);
         bs.sunrise();
 
         // create encoding for a bean -> well convert.
