@@ -670,6 +670,133 @@ task("PI-7", "Deploys Pinto improvment set 7, Convert Down Penalty").setAction(a
   });
 });
 
+task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setAction(
+  async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+
+    //////////////// External Contracts ////////////////
+
+    // Deploy contracts in correct order
+
+    // Updated Price contract
+    const beanstalkPrice = await ethers.getContractFactory("BeanstalkPrice");
+    const beanstalkPriceContract = await beanstalkPrice.deploy(L2_PINTO);
+    await beanstalkPriceContract.deployed();
+    console.log("\nBeanstalkPrice deployed to:", beanstalkPriceContract.address);
+
+    // Price Manipulation
+    const priceManipulation = await ethers.getContractFactory("PriceManipulation");
+    const priceManipulationContract = await priceManipulation.deploy(L2_PINTO);
+    await priceManipulationContract.deployed();
+    console.log("\nPriceManipulation deployed to:", priceManipulationContract.address);
+
+    // Deploy OperatorWhitelist
+    const operatorWhitelist = await ethers.getContractFactory("OperatorWhitelist");
+    const operatorWhitelistContract = await operatorWhitelist.deploy(L2_PCM);
+    await operatorWhitelistContract.deployed();
+    console.log("\nOperatorWhitelist deployed to:", operatorWhitelistContract.address);
+
+    // Deploy LibTractorHelpers first
+    const LibTractorHelpers = await ethers.getContractFactory("LibTractorHelpers");
+    const libTractorHelpers = await LibTractorHelpers.deploy();
+    await libTractorHelpers.deployed();
+    console.log("\nLibTractorHelpers deployed to:", libTractorHelpers.address);
+
+    // Deploy TractorHelpers with library linking
+    const TractorHelpers = await ethers.getContractFactory("TractorHelpers", {
+      libraries: {
+        LibTractorHelpers: libTractorHelpers.address
+      }
+    });
+    const tractorHelpersContract = await TractorHelpers.deploy(
+      L2_PINTO, // diamond address
+      beanstalkPriceContract.address, // price contract
+      L2_PCM, // owner address
+      priceManipulationContract.address // price manipulation contract address
+    );
+    await tractorHelpersContract.deployed();
+    console.log("\nTractorHelpers deployed to:", tractorHelpersContract.address);
+
+    // Deploy SowBlueprintv0 and connect it to the existing TractorHelpers
+    const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
+    const sowBlueprintContract = await sowBlueprint.deploy(
+      L2_PINTO, // diamond address
+      beanstalkPriceContract.address, // price contract
+      L2_PCM, // owner address
+      tractorHelpersContract.address // tractorHelpers contract address
+    );
+
+    await sowBlueprintContract.deployed();
+    console.log("\nSowBlueprintv0 deployed to:", sowBlueprintContract.address);
+
+    console.log("\nExternal contracts deployed!");
+
+    console.log("\nStarting diamond upgrade...");
+
+    /////////////////////// Diamond Upgrade ///////////////////////
+    
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: [
+        "SiloFacet",
+        "SiloGettersFacet",
+        "TractorFacet",
+        "FieldFacet",
+        "TokenFacet",
+        "TokenSupportFacet",
+        "MarketplaceFacet",
+        "ApprovalFacet",
+        "ClaimFacet",
+        "ConvertFacet",
+        "PipelineConvertFacet",
+        "SeasonFacet",
+        "WhitelistFacet",
+        "GaugeGettersFacet",
+        "SeasonGettersFacet"
+      ],
+      libraryNames: [
+        "LibSilo",
+        "LibTokenSilo",
+        "LibConvert",
+        "LibPipelineConvert",
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate"
+      ],
+      facetLibraries: {
+        SiloFacet: ["LibSilo", "LibTokenSilo"],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"],
+        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        SeasonFacet: [
+          "LibEvaluate",
+          "LibGauge",
+          "LibIncentive",
+          "LibShipping",
+          "LibWellMinting",
+          "LibFlood",
+          "LibGerminate"
+        ],
+        SeasonGettersFacet: ["LibWellMinting"]
+      },
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  }
+);
+
 task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
   const mock = true;
   let owner;
