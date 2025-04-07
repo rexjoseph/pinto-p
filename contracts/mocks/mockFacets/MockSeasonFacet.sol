@@ -629,9 +629,12 @@ contract MockSeasonFacet is SeasonFacet {
         } else if (podRate == 2) {
             // < 25%
             s.sys.fields[s.sys.activeField].pods = beanSupply.mul(249).div(1000);
-        } else {
+        } else if (podRate == 3) {
             // > 25%
             s.sys.fields[s.sys.activeField].pods = beanSupply.mul(251).div(1000);
+        } else {
+            // > 100%
+            s.sys.fields[s.sys.activeField].pods = beanSupply.mul(1001).div(1000);
         }
     }
 

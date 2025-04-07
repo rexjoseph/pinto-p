@@ -115,8 +115,10 @@ abstract contract Weather is Sun {
                 cd.bT = 0;
             } else if (caseId % 3 == 2) {
                 // increasing
-                cd.bT = -1e6;
+                cd.bT = -1e6;   
             }
+            // append 1000 to the caseId to indicate that the podrate is > 100%
+            caseId = caseId + 1000;
         }
 
         updateTemperature(cd.bT, caseId);

@@ -174,6 +174,40 @@ contract CasesTest is TestHelper {
         }
     }
 
+    function test_extremely_high_podrate(uint256 caseId) public {
+        caseId = bound(caseId, 1000, 1143);
+        console.log("caseId", caseId);
+        // set temperature to 100%, for better testing.
+        console.log("setting max temp to 100%");
+        bs.setMaxTemp(100e6);
+
+        uint256 initialTemperature = bs.maxTemperature();
+        uint256 initialBeanToMaxLpGpPerBdvRatio = bs.getBeanToMaxLpGpPerBdvRatio();
+
+        (podRate, price, changeInSoilDemand, l2SR) = extractNormalizedCaseComponents(caseId);
+        console.log("podRate", podRate);
+        console.log("price", price);
+        console.log("changeInSoilDemand", changeInSoilDemand);
+        console.log("l2SR", l2SR);
+
+        // set beanstalk state based on parameters.
+        deltaB = season.setBeanstalkState(price, podRate, changeInSoilDemand, l2SR, well);
+
+        season.mockcalcCaseIdAndHandleRain(deltaB);
+
+        // verify temperature changed based on soil demand.
+        // decreasing
+        if (changeInSoilDemand == 0) {
+            assertEq(bs.maxTemperature(), 100.5e6, "Temp did not dec by 0.5%");
+        } else if (changeInSoilDemand == 1) {
+            // steady
+            assertEq(bs.maxTemperature(), 100e6, "Temp did not stay at 100%");
+        } else if (changeInSoilDemand == 2) {
+            // increasing
+            assertEq(bs.maxTemperature(), 99e6, "Temp did not dec by 1%");
+        }
+    }
+
     //////// SOWING //////
 
     /**
@@ -527,6 +561,10 @@ contract CasesTest is TestHelper {
 
         // Soil Demand: simple modulo
         deltaPodDemandCase = caseId % 3;
+
+        if (caseId >= 1000) {
+            podRateCase = 4;
+        }
     }
 
     /**
