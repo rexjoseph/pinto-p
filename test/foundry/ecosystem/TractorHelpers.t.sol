@@ -849,6 +849,12 @@ contract TractorHelpersTest is TractorHelper {
                 bs.getWhitelistedTokens().length,
                 "Seed ordered tokens should match whitelisted token count before dewhitelisting"
             );
+
+            // Require that the order of both is 2, 0, 1, 3
+            assertEq(priceOrderedTokensBefore[0], 2);
+            assertEq(priceOrderedTokensBefore[1], 0);
+            assertEq(priceOrderedTokensBefore[2], 1);
+            assertEq(priceOrderedTokensBefore[3], 3);
         }
 
         // Dewhitelist the token
@@ -917,6 +923,11 @@ contract TractorHelpersTest is TractorHelper {
                 }
                 assertTrue(found, "Token in seed array not found in whitelisted tokens");
             }
+
+            // Require that the order after is 2, 0, 3 (1 got removed)
+            assertEq(priceOrderedTokensAfter[0], 2);
+            assertEq(priceOrderedTokensAfter[1], 0);
+            assertEq(priceOrderedTokensAfter[2], 3);
         }
 
         // Restore the state to before any dewhitelisting occurred
@@ -934,9 +945,9 @@ contract TractorHelpersTest is TractorHelper {
         bytes4 bdvSelector = IMockFBeanstalk.wellBdv.selector;
         IMockFBeanstalk.Implementation memory oracleImplementation = IMockFBeanstalk.Implementation(
             chainlinkOracle,
-            bytes4(0),
+            bytes4(0x00),
             bytes1(0x01),
-            new bytes(0)
+            abi.encode(uint256(1234))
         );
 
         IMockFBeanstalk.Implementation memory gpImplementation = IMockFBeanstalk.Implementation(
