@@ -44,7 +44,7 @@ contract InitPI6 {
             )
         );
 
-        // LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
+        LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
 
         // Update cases, which updates the Bean2maxLpGpPerBdv decreased by 2 cases
         LibCases.setCasesV2();
