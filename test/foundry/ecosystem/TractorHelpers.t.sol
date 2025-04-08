@@ -799,6 +799,175 @@ contract TractorHelpersTest is TractorHelper {
         }
     }
 
+    function test_getAscendingPriceSeedsWithDewhitelistedTokens() public {
+        // Deploy and set up a BEAN-USDC well to ensure more diversity in prices
+        // Use the existing constant from Utils.sol
+        deployExtraWells(true, true);
+
+        addLiquidityToWell(
+            BEAN_USDC_WELL,
+            10_000e6, // 10,000 Beans
+            10_000e6 // 10,000 USDC
+        );
+
+        whitelistLPWell(BEAN_USDC_WELL, USDC_USD_CHAINLINK_PRICE_AGGREGATOR);
+
+        address beanstalkOwner = bs.owner();
+
+        // Create a snapshot before any state changes
+        // Create a snapshot before any state changes
+        uint256 snapshot = vm.snapshot();
+
+        // Verify we have at least 3 whitelisted wells before dewhitelisting
+        address[] memory whitelistedWellsBefore = bs.getWhitelistedWellLpTokens();
+        assertGe(
+            whitelistedWellsBefore.length,
+            3,
+            "Need at least 3 whitelisted wells for this test"
+        );
+
+        // Use BEAN_ETH_WELL as the token to dewhitelist
+        address tokenToDewhitelist = BEAN_ETH_WELL;
+
+        {
+            // Before dewhitelisting, get price and seed ordered tokens
+            (uint8[] memory priceOrderedTokensBefore, ) = tractorHelpers.getTokensAscendingPrice();
+            (uint8[] memory seedOrderedTokensBefore, ) = tractorHelpers.getTokensAscendingSeeds();
+
+            // Get the token addresses for easier debugging
+            address[] memory tokenAddresses = tractorHelpers.getWhitelistStatusAddresses();
+
+            // Verify the arrays have the expected length
+            assertEq(
+                priceOrderedTokensBefore.length,
+                bs.getWhitelistedTokens().length,
+                "Price ordered tokens should match whitelisted token count before dewhitelisting"
+            );
+
+            assertEq(
+                seedOrderedTokensBefore.length,
+                bs.getWhitelistedTokens().length,
+                "Seed ordered tokens should match whitelisted token count before dewhitelisting"
+            );
+        }
+
+        // Dewhitelist the token
+        vm.stopPrank();
+        vm.prank(beanstalkOwner);
+        bs.dewhitelistToken(tokenToDewhitelist);
+        vm.startPrank(address(this));
+
+        {
+            // After dewhitelisting, get price and seed ordered tokens
+            (uint8[] memory priceOrderedTokensAfter, ) = tractorHelpers.getTokensAscendingPrice();
+            (uint8[] memory seedOrderedTokensAfter, ) = tractorHelpers.getTokensAscendingSeeds();
+
+            // Get only the whitelisted token addresses (excluding dewhitelisted tokens)
+            address[] memory whitelistedTokenAddresses = bs.getWhitelistedTokens();
+            address[] memory allTokenAddresses = tractorHelpers.getWhitelistStatusAddresses();
+
+            // Check lengths match
+            assertEq(
+                priceOrderedTokensAfter.length,
+                whitelistedTokenAddresses.length,
+                "Price ordered tokens should match whitelisted token count"
+            );
+
+            assertEq(
+                seedOrderedTokensAfter.length,
+                whitelistedTokenAddresses.length,
+                "Seed ordered tokens should match whitelisted token count"
+            );
+
+            // Verify the dewhitelisted token is not in the whitelisted addresses
+            for (uint256 i = 0; i < whitelistedTokenAddresses.length; i++) {
+                assertNotEq(
+                    whitelistedTokenAddresses[i],
+                    tokenToDewhitelist,
+                    "Dewhitelisted token should not be in whitelisted tokens list"
+                );
+            }
+
+            // Verify all tokens in the price array are in the whitelisted addresses
+            for (uint256 i = 0; i < priceOrderedTokensAfter.length; i++) {
+                uint8 index = priceOrderedTokensAfter[i];
+                address token = allTokenAddresses[index];
+
+                bool found = false;
+                for (uint256 j = 0; j < whitelistedTokenAddresses.length; j++) {
+                    if (whitelistedTokenAddresses[j] == token) {
+                        found = true;
+                        break;
+                    }
+                }
+                assertTrue(found, "Token in price array not found in whitelisted tokens");
+            }
+
+            // Verify all tokens in the seed array are in the whitelisted addresses
+            for (uint256 i = 0; i < seedOrderedTokensAfter.length; i++) {
+                uint8 index = seedOrderedTokensAfter[i];
+                address token = allTokenAddresses[index];
+
+                bool found = false;
+                for (uint256 j = 0; j < whitelistedTokenAddresses.length; j++) {
+                    if (whitelistedTokenAddresses[j] == token) {
+                        found = true;
+                        break;
+                    }
+                }
+                assertTrue(found, "Token in seed array not found in whitelisted tokens");
+            }
+        }
+
+        // Restore the state to before any dewhitelisting occurred
+        vm.revertTo(snapshot);
+    }
+
+    function whitelistLPWell(address well, address chainlinkOracle) internal {
+        address beanstalkOwner = bs.owner();
+
+        uint40 stalkIssuedPerBdv = 1e6;
+        uint40 stalkEarnedPerSeason = 1e6;
+        uint128 gaugePoints = 1e18;
+        uint64 optimalPercentDepositedBdv = 1e18;
+
+        bytes4 bdvSelector = IMockFBeanstalk.wellBdv.selector;
+        IMockFBeanstalk.Implementation memory oracleImplementation = IMockFBeanstalk.Implementation(
+            chainlinkOracle,
+            bytes4(0),
+            bytes1(0x01),
+            new bytes(0)
+        );
+
+        IMockFBeanstalk.Implementation memory gpImplementation = IMockFBeanstalk.Implementation(
+            address(0),
+            IMockFBeanstalk.defaultGaugePoints.selector,
+            bytes1(0x01),
+            new bytes(0)
+        );
+
+        IMockFBeanstalk.Implementation memory lwImplementation = IMockFBeanstalk.Implementation(
+            address(0),
+            IMockFBeanstalk.maxWeight.selector,
+            bytes1(0x01),
+            new bytes(0)
+        );
+
+        vm.prank(beanstalkOwner);
+        bs.whitelistToken(
+            well,
+            bdvSelector,
+            stalkIssuedPerBdv,
+            stalkEarnedPerSeason,
+            bytes1(0),
+            gaugePoints,
+            optimalPercentDepositedBdv,
+            oracleImplementation,
+            gpImplementation,
+            lwImplementation
+        );
+    }
+
     /**
      * @notice Helper function to setup Bean and LP token deposits for a user
      * @param user The address to setup deposits for
