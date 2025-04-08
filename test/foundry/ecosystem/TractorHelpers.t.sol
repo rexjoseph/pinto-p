@@ -57,12 +57,7 @@ contract TractorHelpersTest is TractorHelper {
         vm.label(address(tractorHelpers), "TractorHelpers");
 
         // Deploy SowBlueprintv0 with TractorHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(
-            address(bs),
-            address(beanstalkPrice),
-            address(this),
-            address(tractorHelpers)
-        );
+        sowBlueprintv0 = new SowBlueprintv0(address(bs), address(this), address(tractorHelpers));
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setTractorHelpers(address(tractorHelpers));
@@ -212,12 +207,7 @@ contract TractorHelpersTest is TractorHelper {
         vm.label(address(tractorHelpers), "TractorHelpers");
 
         // Deploy SowBlueprintv0 with TractorHelpers address
-        sowBlueprintv0 = new SowBlueprintv0(
-            PINTO_DIAMOND,
-            BEANSTALK_PRICE,
-            address(this),
-            address(tractorHelpers)
-        );
+        sowBlueprintv0 = new SowBlueprintv0(PINTO_DIAMOND, address(this), address(tractorHelpers));
         vm.label(address(sowBlueprintv0), "SowBlueprintv0");
 
         setTractorHelpers(address(tractorHelpers));

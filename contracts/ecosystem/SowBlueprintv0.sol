@@ -131,7 +131,6 @@ contract SowBlueprintv0 is PerFunctionPausable {
 
     constructor(
         address _beanstalk,
-        address _beanstalkPrice,
         address _owner,
         address _tractorHelpers
     ) PerFunctionPausable(_owner) {
