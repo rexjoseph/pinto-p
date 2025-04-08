@@ -580,4 +580,15 @@ contract FieldTest is TestHelper {
         assertEq(plotIndexes.length, plots.length, "plotIndexes length != plots length");
         assertEq(plotIndexes.length, expectedLength, "plotIndexes length unexpected");
     }
+
+    function verifyPlotIndexAndPlotLengths(
+        address farmer,
+        uint256 fieldId,
+        uint256 expectedLength
+    ) public view {
+        uint256[] memory plotIndexes = field.getPlotIndexesFromAccount(farmer, fieldId);
+        MockFieldFacet.Plot[] memory plots = field.getPlotsFromAccount(farmer, fieldId);
+        assertEq(plotIndexes.length, plots.length, "plotIndexes length != plots length");
+        assertEq(plotIndexes.length, expectedLength, "plotIndexes length unexpected");
+    }
 }
