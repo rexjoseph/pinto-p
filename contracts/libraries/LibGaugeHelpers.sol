@@ -209,7 +209,7 @@ library LibGaugeHelpers {
         uint256 minValue,
         uint256 maxValue
     ) internal pure returns (uint256) {
-    return
+        return
             uint256(
                 linear(int256(currentValue), increase, amount, int256(minValue), int256(maxValue))
             );
