@@ -13,17 +13,10 @@ import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
  * @dev Initializes parameters for pinto improvement 7.
  **/
 contract InitPI7 {
-    // Convert Up Bonus Gauge
-    // Value
-    uint256 internal constant INIT_SEASONS_BELOW_PEG = 0;
-    uint256 internal constant INIT_CONVERT_UP_BONUS_RATIO = 0;
-    uint256 internal constant INIT_BONUS_STALK_PER_BDV = 0;
-    // Gauge Data
-    uint256 internal constant INIT_DELTA_C = 2e18;
-    uint256 internal constant INIT_MIN_DELTA_C = 1e18;
-    uint256 internal constant INIT_MAX_DELTA_C = 0;
-    uint256 internal constant INIT_PREVIOUS_SEASON_BVD_CONVERTED = 0;
-    uint256 internal constant INIT_PREVIOUS_SEASON_BVD_CAPACITY = 0;
+    uint256 internal constant INIT_CONVERT_DOWN_PENALTY_RATIO = 0;
+    uint256 internal constant INIT_ROLLING_SEASONS_ABOVE_PEG = 0;
+    uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_CAP = 12;
+    uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_RATE = 1;
 
     // Excessive price threshold constant
     uint256 internal constant EXCESSIVE_PRICE_THRESHOLD = 1.025e6;
@@ -34,19 +27,13 @@ contract InitPI7 {
         // Update Q.
         s.sys.evaluationParameters.excessivePriceThreshold = EXCESSIVE_PRICE_THRESHOLD;
 
-        // Initialize and add convertUpBonusGauge.
-        Gauge memory convertUpBonusGauge = Gauge(
-            abi.encode(INIT_SEASONS_BELOW_PEG, INIT_CONVERT_UP_BONUS_RATIO, INIT_BONUS_STALK_PER_BDV),
+        // Initialize and add convertDownPenaltyGauge.
+        Gauge memory convertDownPenaltyGauge = Gauge(
+            abi.encode(INIT_CONVERT_DOWN_PENALTY_RATIO, INIT_ROLLING_SEASONS_ABOVE_PEG),
             address(this),
-            IGaugeFacet.convertUpBonusGauge.selector,
-            abi.encode(
-                INIT_DELTA_C,
-                INIT_MIN_DELTA_C,
-                INIT_MAX_DELTA_C,
-                INIT_PREVIOUS_SEASON_BVD_CONVERTED,
-                INIT_PREVIOUS_SEASON_BVD_CAPACITY
-            )
+            IGaugeFacet.convertDownPenaltyGauge.selector,
+            abi.encode(ROLLING_SEASONS_ABOVE_PEG_RATE, ROLLING_SEASONS_ABOVE_PEG_CAP)
         );
-        LibGaugeHelpers.addGauge(GaugeId.CONVERT_UP_BONUS, convertUpBonusGauge);
+        LibGaugeHelpers.addGauge(GaugeId.CONVERT_DOWN_PENALTY, convertDownPenaltyGauge);
     }
 }
