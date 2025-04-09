@@ -10,6 +10,7 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {BeanstalkPrice} from "contracts/ecosystem/price/BeanstalkPrice.sol";
 import {MockToken} from "contracts/mocks/MockToken.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import "forge-std/console.sol";
 
 /**
@@ -624,11 +625,11 @@ contract ConvertTest is TestHelper {
     ////////////////////// Convert Up Bonus //////////////////////
 
     /**
-     * @notice simple convert up bonus test.
+     * @notice verifies convert factor does not change < 12 seasons below peg.
      */
-    function test_convertUpBonus() public {
+    function test_convertUpBonus_unchanged_below_peg_12() public {
         bean.mint(farmers[0], 20_000e6);
-        bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
+        bean.mint(address(1), 200_000e6);
         vm.prank(farmers[0]);
         bs.deposit(BEAN, 10_000e6, 0);
         sowAmountForFarmer(farmers[0], 100_000e6); // Prevent flood.
@@ -646,29 +647,22 @@ contract ConvertTest is TestHelper {
         setDeltaBforWell(int256(-100e6), BEAN_ETH_WELL, WETH);
 
         // wait 13 seasons to allow convert up bonus to be applied.
-        for (uint256 i; i < 12; i++) {
+        for (uint256 i = 1; i < 12; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
             bs.sunrise();
-            (uint256 seasonsBelowPeg, , , , ) = abi.decode(
-                bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
-                (uint256, uint256, uint256, uint256, uint256)
+            LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+                bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeData)
             );
-            console.log("seasonsBelowPeg", seasonsBelowPeg);
-            assertEq(seasonsBelowPeg, i + 1, "seasonsBelowPeg should be increasing");
+            console.log("seasonsBelowPeg", gd.seasonsBelowPeg);
+            assertEq(gd.seasonsBelowPeg, i + 1, "seasonsBelowPeg should be increasing");
         }
 
         // bonus season
         warpToNextSeasonAndUpdateOracles();
         vm.roll(block.number + 1800);
         bs.sunrise();
-
-        // create encoding for a bean -> well convert.
-        // (
-        //     bytes memory convertData,
-        //     int96[] memory stems,
-        //     uint256[] memory amounts
-        // ) = getConvertUpData(well, 10_000e6);
     }
 
     /**

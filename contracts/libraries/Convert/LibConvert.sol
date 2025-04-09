@@ -607,6 +607,9 @@ library LibConvert {
             // update the grown stalk by the amount of grown stalk gained
             newGrownStalk = grownStalk + grownStalkGained;
             emit ConvertUpBonus(account, grownStalkGained);
+        } else {
+            // no penalty/bonus
+            newGrownStalk = grownStalk;
         }
         return newGrownStalk;
     }
