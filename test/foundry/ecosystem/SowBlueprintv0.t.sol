@@ -132,11 +132,12 @@ contract SowBlueprintv0Test is TractorHelper {
             );
 
             // Expect the TractorExecutionBegan event to be emitted
-            vm.expectEmit(true, true, true, true);
+            vm.expectEmit(true, true, true, false);
             emit IMockFBeanstalk.TractorExecutionBegan(
                 state.operator,
                 state.user,
-                req.blueprintHash
+                req.blueprintHash,
+                gasleft()
             );
 
             // Expect the SowOrderComplete event to be emitted for complete order

@@ -30,13 +30,15 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     event Tractor(
         address indexed operator,
         address indexed publisher,
-        bytes32 indexed blueprintHash
+        bytes32 indexed blueprintHash,
+        uint256 gasleft
     );
 
     event TractorExecutionBegan(
         address indexed operator,
         address indexed publisher,
-        bytes32 indexed blueprintHash
+        bytes32 indexed blueprintHash,
+        uint256 gasleft
     );
 
     /**
@@ -134,7 +136,8 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         emit TractorExecutionBegan(
             msg.sender,
             requisition.blueprint.publisher,
-            requisition.blueprintHash
+            requisition.blueprintHash,
+            gasleft()
         );
 
         // Set current blueprint hash
@@ -175,7 +178,12 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         // Clear operator
         LibTractor._resetOperator();
 
-        emit Tractor(msg.sender, requisition.blueprint.publisher, requisition.blueprintHash);
+        emit Tractor(
+            msg.sender,
+            requisition.blueprint.publisher,
+            requisition.blueprintHash,
+            gasleft()
+        );
     }
 
     /**
