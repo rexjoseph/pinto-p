@@ -9,7 +9,15 @@ import {AppStorage} from "contracts/beanstalk/storage/AppStorage.sol";
  * @notice Helper Library for Gauges.
  */
 library LibGaugeHelpers {
-    // Gauge data structs
+    // Gauge structs
+
+    //// Convert Bonus Gauge ////
+    struct ConvertBonusGaugeValue {
+        uint256 convertBonusFactor;
+        uint256 convertCapacityFactor;
+        uint256 bonusStalkPerBdv;
+        uint256 convertCapacity;
+    }
 
     /**
      * @notice Struct for Convert Bonus Gauge Data
@@ -23,6 +31,9 @@ library LibGaugeHelpers {
         uint256 maxCapacityFactor; // maximum value of the convert bonus bdv capacity factor
         uint256 lastSeasonBdvConverted; // amount of bdv converted last season
         uint256 thisSeasonBdvConverted; // amount of bdv converted this season
+        uint256 deltaBdvConvertedDemandUpperBound; // the percentage of bdv converted such that above this value, demand for converting is increasing
+        uint256 deltaBdvConvertedDemandLowerBound; // the percentage of bdv converted such that below this value, demand for converting is decreasing
+        uint256 seasonsBelowPeg; // the number of seasons with a twap below peg
     }
 
     // Gauge events
@@ -187,6 +198,22 @@ library LibGaugeHelpers {
         }
 
         return currentValue;
+    }
+
+    /**
+     * @notice linear256 is uint256 version of linear.
+     */
+    function linear256(
+        uint256 currentValue,
+        bool increase,
+        uint256 amount,
+        uint256 minValue,
+        uint256 maxValue
+    ) internal pure returns (uint256) {
+        return
+            uint256(
+                linear(int256(currentValue), increase, amount, int256(minValue), int256(maxValue))
+            );
     }
 
     /**

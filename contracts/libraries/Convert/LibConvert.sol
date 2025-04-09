@@ -703,16 +703,16 @@ library LibConvert {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // get gauge value: how much bonus stalk to issue per BDV
-        (, , , uint256 stalkPerBdv, uint256 convertCapacity) = abi.decode(
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
-            (uint256, uint256, uint256, uint256, uint256)
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
 
         // limit the bdv that can get the bonus
-        uint256 bdvWithBonus = min(toBdv, convertCapacity);
+        uint256 bdvWithBonus = min(toBdv, gv.convertCapacity);
 
         // Then calculate the bonus stalk based on the limited BDV
-        grownStalkGained = (bdvWithBonus * stalkPerBdv) / 1e6;
+        grownStalkGained = (bdvWithBonus * gv.bonusStalkPerBdv) / 1e6;
 
         console.log("bdvWithBonus: ", bdvWithBonus);
         console.log("grownStalkGained: ", grownStalkGained);
