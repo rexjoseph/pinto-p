@@ -164,7 +164,7 @@ contract ConvertGettersFacet {
      * @notice Returns the bonus stalk per bdv and the convert capacity left to receive the convert up bonus.
      * @dev The convert up bonus kicks in after 12 seasons below peg.
      */
-    function getConvertBonusBdvCapacity() external view returns (uint256, uint256) {
+    function getConvertBonusBdvAmountAndCapacity() external view returns (uint256, uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,

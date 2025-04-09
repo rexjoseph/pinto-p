@@ -33,7 +33,6 @@ library LibGaugeHelpers {
         uint256 thisSeasonBdvConverted; // amount of bdv converted this season
         uint256 deltaBdvConvertedDemandUpperBound; // the percentage of bdv converted such that above this value, demand for converting is increasing
         uint256 deltaBdvConvertedDemandLowerBound; // the percentage of bdv converted such that below this value, demand for converting is decreasing
-        uint256 seasonsBelowPeg; // the number of seasons with a twap below peg
     }
 
     // Gauge events
@@ -210,7 +209,7 @@ library LibGaugeHelpers {
         uint256 minValue,
         uint256 maxValue
     ) internal pure returns (uint256) {
-        return
+    return
             uint256(
                 linear(int256(currentValue), increase, amount, int256(minValue), int256(maxValue))
             );

@@ -625,29 +625,30 @@ contract ConvertTest is TestHelper {
     ////////////////////// Convert Up Bonus //////////////////////
 
     /**
-     * @notice verifies convert factor does not change < 12 seasons below peg.
+     * @notice verifies convert factors change properly
      */
-    function test_convertUpBonus_unchanged_below_peg_12() public {
-        bean.mint(farmers[0], 20_000e6);
-        bean.mint(address(1), 200_000e6);
-        vm.prank(farmers[0]);
-        bs.deposit(BEAN, 10_000e6, 0);
-        sowAmountForFarmer(farmers[0], 100_000e6); // Prevent flood.
-        passGermination();
+    function test_convertUpBonus_change() public {
+        // bean.mint(farmers[0], 20_000e6);
+        // bean.mint(address(1), 200_000e6);
+        // vm.prank(farmers[0]);
+        // bs.deposit(BEAN, 10_000e6, 0);
+        // sowAmountForFarmer(farmers[0], 100_000e6); // Prevent flood.
+        // passGermination();
 
-        // Wait some seasons to allow stem tip to advance. More grown stalk in the system.
-        setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
-        for (uint256 i; i < 580; i++) {
-            warpToNextSeasonAndUpdateOracles();
-            vm.roll(block.number + 1800);
-            bs.sunrise();
-        }
+        // // Wait some seasons to allow stem tip to advance. More grown stalk in the system.
+        // setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
+        // for (uint256 i; i < 580; i++) {
+        //     warpToNextSeasonAndUpdateOracles();
+        //     vm.roll(block.number + 1800);
+        //     bs.sunrise();
+        // }
 
         // set deltaB negative
         setDeltaBforWell(int256(-100e6), BEAN_ETH_WELL, WETH);
 
-        // wait 13 seasons to allow convert up bonus to be applied.
-        for (uint256 i = 1; i < 12; i++) {
+        // verify convert factor does not change < 12 seasons below peg.
+        // verify convert factor increases after.
+        for (uint256 i = 0; i < 100; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
             bs.sunrise();
@@ -655,14 +656,26 @@ contract ConvertTest is TestHelper {
                 bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
                 (LibGaugeHelpers.ConvertBonusGaugeData)
             );
-            console.log("seasonsBelowPeg", gd.seasonsBelowPeg);
-            assertEq(gd.seasonsBelowPeg, i + 1, "seasonsBelowPeg should be increasing");
+            LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+                bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeValue)
+            );
+            if (i < 12) {
+                // verify values are unchanged and 0:
+                assertEq(gv.convertCapacityFactor, 0, "convertCapacityFactor should be 0");
+                assertEq(gv.convertBonusFactor, 0, "convertBonusFactor should be 0");
+                assertEq(gv.convertCapacity, 0, "convertCapacity should be 0");
+                assertEq(gv.bonusStalkPerBdv, 0, "bonusStalkPerBdv should be 0");
+            } else if (i < 24) {
+                assertEq(gv.convertCapacityFactor, 0, "convertCapacityFactor wrong value");
+                assertGt(gv.convertBonusFactor, 0, "convertBonusFactor should be greater than 0");
+                assertGt(gv.convertCapacity, 0, "convertCapacity should be greater than 0");
+                assertGt(gv.bonusStalkPerBdv, 0, "bonusStalkPerBdv should be greater than 0");
+            } else {
+                assertEq(gv.convertCapacityFactor, 0, "convertCapacityFactor should be 0");
+                assertEq(gv.convertBonusFactor, 0, "convertBonusFactor should be 0");
+            }
         }
-
-        // bonus season
-        warpToNextSeasonAndUpdateOracles();
-        vm.roll(block.number + 1800);
-        bs.sunrise();
     }
 
     /**

@@ -1859,4 +1859,6 @@ interface IMockFBeanstalk {
         uint256 bdvToConvert,
         uint256 grownStalkToConvert
     ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
+
+    function getConvertBonusBdvAmountAndCapacity() external view returns (uint256, uint256);
 }

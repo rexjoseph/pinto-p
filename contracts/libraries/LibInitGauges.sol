@@ -46,7 +46,6 @@ library LibInitGauges {
     uint256 internal constant DELTA_BDV_CONVERTED_DEMAND_LOWER_BOUND = 0.95e18; // the % change in bdv converted between seasons such that demand for converting is decreasing when below this value
     uint256 internal constant LAST_SEASON_BDV_CONVERTED = 0; // the bdv converted in the last season
     uint256 internal constant THIS_SEASON_BDV_CONVERTED = 0; // the bdv converted in the current season
-    uint256 internal constant INIT_SEASONS_BELOW_PEG = 0; // the number of seasons with a twap below peg
 
     //////////// Cultivation Factor Gauge ////////////
 
@@ -97,8 +96,7 @@ library LibInitGauges {
             LAST_SEASON_BDV_CONVERTED,
             THIS_SEASON_BDV_CONVERTED,
             DELTA_BDV_CONVERTED_DEMAND_UPPER_BOUND,
-            DELTA_BDV_CONVERTED_DEMAND_LOWER_BOUND,
-            INIT_SEASONS_BELOW_PEG
+            DELTA_BDV_CONVERTED_DEMAND_LOWER_BOUND
         );
         Gauge memory convertBonusGauge = Gauge(
             abi.encode(gv),

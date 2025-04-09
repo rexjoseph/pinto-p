@@ -215,10 +215,14 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
-        // reset the gaugeData
+        // cache amounts converted last season and this season
+        uint256 lastSeasonBdvConverted = gd.lastSeasonBdvConverted;
+        uint256 thisSeasonBdvConverted = gd.thisSeasonBdvConverted;
+
+        // set the amount converted last season to the amount converted this season and set the amount converted this season to 0
         // (i.e. set the amount converted last season to the amount converted this
         // season and set the amount converted this season to 0)
-        gd.lastSeasonBdvConverted = gd.thisSeasonBdvConverted;
+        gd.lastSeasonBdvConverted = thisSeasonBdvConverted;
         gd.thisSeasonBdvConverted = 0;
         bytes memory newGaugeData = abi.encode(gd);
 
@@ -228,16 +232,14 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             gv.convertCapacityFactor = 0;
             gv.bonusStalkPerBdv = 0;
             gv.convertCapacity = 0;
-            return (abi.encode(gv), abi.encode(gd));
+            return (abi.encode(gv), newGaugeData);
         }
 
-        // increase seasonsBelowPeg by 1 when twaDeltaB <= 0.
-        gd.seasonsBelowPeg = gd.seasonsBelowPeg + 1;
+        // twaDeltaB is negative (below peg) at this point.
 
-        // If seasonsBelowPeg <12, do not modify the convertBonusFactor or convertCapacityFactor. (the values should remain at 0).
-        // note: conditional is <= because seasonsBelowPeg is increased by 1 previously.
-        if (gd.seasonsBelowPeg <= 12) {
-            return (abi.encode(gv), abi.encode(gd));
+        // if less than 12 seasons have elapsed since the last peg cross, do not modify the gauge values.
+        if (s.sys.season.current - s.sys.season.seasonTargetCross < 12) {
+            return (value, newGaugeData);
         }
 
         // determine whether demand for converting is increasing or decreasing.
@@ -248,17 +250,17 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // evaluate the demand for converting based on the amount converted this season and last season.
         // if the bdv converted this season is less than MIN_BDV_CONVERTED, it is as if no bdv was converted this season.
-        if (gd.thisSeasonBdvConverted < MIN_BDV_CONVERTED) {
+        if (thisSeasonBdvConverted < MIN_BDV_CONVERTED) {
             // if no bdv converted this season, demand for converting is always decreasing.
             // regardless of the amount converted last season.
             convertDemand = 0;
-        } else if (gd.lastSeasonBdvConverted == 0) {
+        } else if (lastSeasonBdvConverted == 0) {
             // if no bdv was converted in the previous season but a non-zero amount was converted this season,
             // demand for converting is always increasing.
             convertDemand = INCREASING_CONVERT_DEMAND;
         } else {
             // else, calculate the demand for converting as the ratio of bdv converted this season to bdv converted last season.
-            convertDemand = (gd.thisSeasonBdvConverted * C.PRECISION) / gd.lastSeasonBdvConverted;
+            convertDemand = (thisSeasonBdvConverted * C.PRECISION) / lastSeasonBdvConverted;
         }
 
         // if the convertDemand is increasing or decreasing, update the convertBonusFactor and convertCapacityFactor.
