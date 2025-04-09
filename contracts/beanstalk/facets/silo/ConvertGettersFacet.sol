@@ -10,6 +10,7 @@ import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 
 /**
  * @title ConvertGettersFacet contains view functions related to converting Deposited assets.
@@ -160,16 +161,16 @@ contract ConvertGettersFacet {
     }
 
     /**
-     * @notice Returns the bdv capacity left to receive the convert up bonus.
+     * @notice Returns the bonus stalk per bdv and the convert capacity left to receive the convert up bonus.
      * @dev The convert up bonus kicks in after 12 seasons below peg.
      */
-    function getConvertBonusBdvCapacity() external view returns (uint256) {
+    function getConvertBonusBdvCapacity() external view returns (uint256, uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        (, , , , uint256 convertBonusBdvCapacityLeft) = abi.decode(
-            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
-            (uint256, uint256, uint256, uint256, uint256)
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
-        return convertBonusBdvCapacityLeft;
+        return (gv.bonusStalkPerBdv, gv.convertCapacity);
     }
 
     /**
