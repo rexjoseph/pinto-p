@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
+import {IOperatorWhitelist} from "contracts/ecosystem/OperatorWhitelist.sol";
 
 /**
  * @title LibTractorHelpers
@@ -177,6 +178,53 @@ library LibTractorHelpers {
         }
 
         return combinedPlan;
+    }
+
+    /**
+     * @notice Checks if the current operator is whitelisted
+     * @param whitelistedOperators Array of whitelisted operator addresses
+     * @param beanstalk The Beanstalk contract instance
+     * @return isWhitelisted Whether the current operator is whitelisted
+     */
+    function isOperatorWhitelisted(
+        address[] calldata whitelistedOperators,
+        IBeanstalk beanstalk
+    ) external view returns (bool) {
+        // If there are no whitelisted operators, pass in, accept any operator
+        if (whitelistedOperators.length == 0) {
+            return true;
+        }
+
+        address currentOperator = beanstalk.operator();
+        for (uint256 i = 0; i < whitelistedOperators.length; i++) {
+            address checkAddress = whitelistedOperators[i];
+            if (checkAddress == currentOperator) {
+                return true;
+            } else {
+                // Skip if address is a precompiled contract (address < 0x20)
+                if (uint160(checkAddress) <= 0x20) continue;
+
+                // Check if the address is a contract before attempting staticcall
+                uint256 size;
+                assembly {
+                    size := extcodesize(checkAddress)
+                }
+
+                if (size > 0) {
+                    try
+                        IOperatorWhitelist(checkAddress).checkOperatorWhitelist(currentOperator)
+                    returns (bool success) {
+                        if (success) {
+                            return true;
+                        }
+                    } catch {
+                        // If the call fails, continue to the next address
+                        continue;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     function sortTokens(

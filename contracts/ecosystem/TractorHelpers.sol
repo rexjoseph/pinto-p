@@ -931,41 +931,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
     function isOperatorWhitelisted(
         address[] calldata whitelistedOperators
     ) external view returns (bool) {
-        // If there are no whitelisted operators, pass in, accept any operator
-        if (whitelistedOperators.length == 0) {
-            return true;
-        }
-
-        address currentOperator = beanstalk.operator();
-        for (uint256 i = 0; i < whitelistedOperators.length; i++) {
-            address checkAddress = whitelistedOperators[i];
-            if (checkAddress == currentOperator) {
-                return true;
-            } else {
-                // Skip if address is a precompiled contract (address < 0x20)
-                if (uint160(checkAddress) <= 0x20) continue;
-
-                // Check if the address is a contract before attempting staticcall
-                uint256 size;
-                assembly {
-                    size := extcodesize(checkAddress)
-                }
-
-                if (size > 0) {
-                    try
-                        IOperatorWhitelist(checkAddress).checkOperatorWhitelist(currentOperator)
-                    returns (bool success) {
-                        if (success) {
-                            return true;
-                        }
-                    } catch {
-                        // If the call fails, continue to the next address
-                        continue;
-                    }
-                }
-            }
-        }
-        return false;
+        return LibTractorHelpers.isOperatorWhitelisted(whitelistedOperators, beanstalk);
     }
 
     /**
