@@ -883,38 +883,14 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         address[] memory tokens,
         uint256[] memory index
     ) internal pure returns (address[] memory, uint256[] memory) {
-        for (uint256 i = 0; i < tokens.length - 1; i++) {
-            for (uint256 j = 0; j < tokens.length - i - 1; j++) {
-                uint256 j1 = j + 1;
-                if (index[j] < index[j1]) {
-                    // Swap index
-                    (index[j], index[j1]) = (index[j1], index[j]);
-
-                    // Swap corresponding tokens
-                    (tokens[j], tokens[j1]) = (tokens[j1], tokens[j]);
-                }
-            }
-        }
-        return (tokens, index);
+        return LibTractorHelpers.sortTokens(tokens, index);
     }
 
     function sortTokenIndices(
         uint8[] memory tokenIndices,
         uint256[] memory index
     ) internal pure returns (uint8[] memory, uint256[] memory) {
-        for (uint256 i = 0; i < tokenIndices.length - 1; i++) {
-            for (uint256 j = 0; j < tokenIndices.length - i - 1; j++) {
-                uint256 j1 = j + 1;
-                if (index[j] > index[j1]) {
-                    // Swap index
-                    (index[j], index[j1]) = (index[j1], index[j]);
-
-                    // Swap token indices
-                    (tokenIndices[j], tokenIndices[j1]) = (tokenIndices[j1], tokenIndices[j]);
-                }
-            }
-        }
-        return (tokenIndices, index);
+        return LibTractorHelpers.sortTokenIndices(tokenIndices, index);
     }
 
     /**
