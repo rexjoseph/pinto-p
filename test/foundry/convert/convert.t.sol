@@ -625,7 +625,7 @@ contract ConvertTest is TestHelper {
     ////////////////////// Convert Up Bonus //////////////////////
 
     /**
-     * @notice verifies convert factors change properly with no demand for converting.
+     * @notice verifies convert factors change properly with  increasing/decreasingdemand for converting.
      */
     function test_convertUpBonus_change() public {
         // set deltaB to positive
@@ -716,46 +716,85 @@ contract ConvertTest is TestHelper {
             }
         }
 
-        // increasing demand for convert behaviour.
         uint256 baseBdvConverted = 100e6;
-        for (uint256 i = 1; i < 101; i++) {
+        for (uint256 i = 1; i < 111; i++) {
             // simulate converting 100 bdv.
-            baseBdvConverted = (baseBdvConverted * 106) / 100;
-            warpToNextSeasonAndUpdateOracles();
-            bs.mockUpdateBonusBdvConverted(baseBdvConverted);
-            vm.roll(block.number + 1800);
-            bs.sunrise();
-            LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
-                bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
-                (LibGaugeHelpers.ConvertBonusGaugeData)
-            );
-            LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
-                bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
-                (LibGaugeHelpers.ConvertBonusGaugeValue)
-            );
+            if (i < 101) {
+                // increasing demand for convert behaviour.
+                baseBdvConverted = (baseBdvConverted * 106) / 100;
+                warpToNextSeasonAndUpdateOracles();
+                bs.mockUpdateBonusBdvConverted(baseBdvConverted);
+                vm.roll(block.number + 1800);
+                bs.sunrise();
+                LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+                    bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+                    (LibGaugeHelpers.ConvertBonusGaugeData)
+                );
+                LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+                    bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                    (LibGaugeHelpers.ConvertBonusGaugeValue)
+                );
 
-            // verify behaviour:
-            assertEq(
-                gv.convertCapacityFactor,
-                gd.minCapacityFactor + (0.004e18 * i),
-                "convertCapacityFactor should be less than or equal to minCapacityFactor"
-            );
-            assertEq(
-                gv.convertBonusFactor,
-                gd.maxConvertBonusFactor - (0.01e18 * i),
-                "convertBonusFactor should be greater than or equal to maxConvertBonusFactor"
-            );
-            assertEq(
-                gv.convertCapacity,
-                (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
-                "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
-            );
+                // verify behaviour:
+                assertEq(
+                    gv.convertCapacityFactor,
+                    gd.minCapacityFactor + (0.004e18 * i),
+                    "convertCapacityFactor should be less than or equal to minCapacityFactor"
+                );
+                assertEq(
+                    gv.convertBonusFactor,
+                    gd.maxConvertBonusFactor - (0.01e18 * i),
+                    "convertBonusFactor should be greater than or equal to maxConvertBonusFactor"
+                );
+                assertEq(
+                    gv.convertCapacity,
+                    (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
+                    "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
+                );
 
-            assertEq(
-                gv.baseBonusStalkPerBdv,
-                bs.getCalculatedBaseBonusStalkPerBdv(),
-                "baseBonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
-            );
+                assertEq(
+                    gv.baseBonusStalkPerBdv,
+                    bs.getCalculatedBaseBonusStalkPerBdv(),
+                    "baseBonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
+                );
+            } else {
+                // steady demand for convert behaviour.
+                warpToNextSeasonAndUpdateOracles();
+                bs.mockUpdateBonusBdvConverted(baseBdvConverted);
+                vm.roll(block.number + 1800);
+                bs.sunrise();
+                LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+                    bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+                    (LibGaugeHelpers.ConvertBonusGaugeData)
+                );
+                LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+                    bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                    (LibGaugeHelpers.ConvertBonusGaugeValue)
+                );
+
+                // verify behaviour:
+                assertEq(
+                    gv.convertCapacityFactor,
+                    gd.maxCapacityFactor,
+                    "convertCapacityFactor should be equal to maxCapacityFactor"
+                );
+                assertEq(
+                    gv.convertBonusFactor,
+                    gd.minConvertBonusFactor,
+                    "convertBonusFactor should be equal to minConvertBonusFactor"
+                );
+                assertEq(
+                    gv.convertCapacity,
+                    (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
+                    "convertCapacity should be 10_000e6 * convertBonusFactor / PRECISION"
+                );
+
+                assertEq(
+                    gv.baseBonusStalkPerBdv,
+                    bs.getCalculatedBaseBonusStalkPerBdv(),
+                    "baseBonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
+                );
+            }
         }
     }
 
