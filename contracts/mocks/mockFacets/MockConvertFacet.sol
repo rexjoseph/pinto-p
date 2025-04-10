@@ -78,7 +78,7 @@ contract MockConvertFacet is ConvertFacet {
         IERC20(toToken).safeTransfer(msg.sender, toAmount);
     }
 
-    function mockupdateBdvConverted(uint256 bdvConverted) external {
+    function mockUpdateBdvConverted(uint256 bdvConverted) external {
         LibConvert.updateBdvConverted(bdvConverted);
     }
 
@@ -90,7 +90,7 @@ contract MockConvertFacet is ConvertFacet {
         );
 
         // Update this season's converted amount
-        gv.convertCapacity = newBdvCapacity;
+        gv.maxConvertCapacity = newBdvCapacity;
 
         // Encode and store updated gauge data
         s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);

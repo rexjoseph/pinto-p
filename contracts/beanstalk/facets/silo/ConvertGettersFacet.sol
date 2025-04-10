@@ -173,7 +173,7 @@ contract ConvertGettersFacet {
 
         uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
             C.PRECISION;
-        return (bonusStalkPerBdv, gv.convertCapacity);
+        return (bonusStalkPerBdv, gv.maxConvertCapacity);
     }
 
     /**

@@ -32,7 +32,7 @@ library LibInitGauges {
     //////////// Convert Up Bonus Gauge ////////////
     // Gauge values
     uint256 internal constant INIT_BONUS_STALK_PER_BDV = 0; // the initial bonus stalk per bdv
-    uint256 internal constant INIT_CONVERT_CAPACITY = 0; // the initial convert capacity
+    uint256 internal constant INIT_MAX_CONVERT_CAPACITY = 0; // the initial convert capacity
     // Gauge data
     uint256 internal constant DELTA_C = 0.01e18; // the value that the convert bonus factor can be adjusted by
     uint256 internal constant DELTA_T = 0.004e18; // the value that the convert bdv capacity factor can be adjusted by
@@ -77,11 +77,12 @@ library LibInitGauges {
     //////////// Convert Up Bonus Gauge ////////////
 
     function initConvertUpBonusGauge() internal {
+        // initialize the gauge as if the system has just started issuing a bonus.
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = LibGaugeHelpers.ConvertBonusGaugeValue(
-            MAX_CONVERT_BONUS_FACTOR,
-            MIN_CAPACITY_FACTOR,
+            MIN_CONVERT_BONUS_FACTOR,
+            MAX_CAPACITY_FACTOR,
             INIT_BONUS_STALK_PER_BDV,
-            INIT_CONVERT_CAPACITY
+            INIT_MAX_CONVERT_CAPACITY
         );
 
         LibGaugeHelpers.ConvertBonusGaugeData memory gd = LibGaugeHelpers.ConvertBonusGaugeData(

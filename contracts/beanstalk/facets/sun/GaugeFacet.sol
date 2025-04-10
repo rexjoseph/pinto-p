@@ -231,7 +231,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
                 gv.convertBonusFactor = 0;
                 gv.convertCapacityFactor = 0;
                 gv.baseBonusStalkPerBdv = 0;
-                gv.convertCapacity = 0;
+                gv.maxConvertCapacity = 0;
             }
 
             // return the gauge values.
@@ -247,7 +247,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
                 gv.convertBonusFactor = gd.minConvertBonusFactor;
                 gv.convertCapacityFactor = gd.maxCapacityFactor;
                 gv.baseBonusStalkPerBdv = LibConvert.getCurrentBaseBonusStalkPerBdv();
-                gv.convertCapacity = ((uint256(-bs.twaDeltaB) * gd.maxCapacityFactor) /
+                gv.maxConvertCapacity = ((uint256(-bs.twaDeltaB) * gd.maxCapacityFactor) /
                     C.PRECISION);
                 // return the gauge values.
                 return (abi.encode(gv), abi.encode(gd));
@@ -303,7 +303,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
 
         // update the baseBonusStalkPerBdv and convertCapacity.
         gv.baseBonusStalkPerBdv = LibConvert.getCurrentBaseBonusStalkPerBdv();
-        gv.convertCapacity = ((uint256(-bs.twaDeltaB) * gv.convertCapacityFactor) / C.PRECISION);
+        gv.maxConvertCapacity = ((uint256(-bs.twaDeltaB) * gv.convertCapacityFactor) / C.PRECISION);
 
         return (abi.encode(gv), abi.encode(gd));
     }

@@ -43,8 +43,6 @@ library LibConvert {
     event ConvertDownPenalty(address account, uint256 grownStalkLost);
     event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
 
-    uint256 internal constant BDV_PRECISION = 1e6;
-
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
         uint256[] bdvsRemoved;
@@ -603,10 +601,12 @@ library LibConvert {
             emit ConvertDownPenalty(account, grownStalkLost);
         } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
             console.log("WELL -> BEAN");
-            // update how much bdv was converted this season.
-            updateBdvConverted(toBdv);
+
             // bonus up for WELL -> BEAN
             (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
+
+            // update how much bdv was converted this season.
+            updateBdvConverted(toBdv);
             if (bdvCapacityUsed > 0) {
                 // update the grown stalk by the amount of grown stalk gained
                 newGrownStalk = grownStalk + grownStalkGained;
@@ -718,13 +718,27 @@ library LibConvert {
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
 
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
+        // if the max convert capacity has been reached, return 0
+        if (gd.thisSeasonBdvConverted >= gv.maxConvertCapacity) {
+            return (0, 0);
+        }
+
         // limit the bdv that can get the bonus
-        uint256 bdvWithBonus = min(toBdv, gv.convertCapacity);
+        uint256 remainingCapacity = gv.maxConvertCapacity - gd.thisSeasonBdvConverted;
+        uint256 bdvWithBonus = min(toBdv, remainingCapacity);
 
         // Then calculate the bonus stalk based on the limited BDV
-        uint256 baseBonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
-            C.PRECISION;
-        grownStalkGained = (bdvWithBonus * baseBonusStalkPerBdv) / BDV_PRECISION;
+        console.log("here");
+        console.log("gv.baseBonusStalkPerBdv: ", gv.baseBonusStalkPerBdv);
+        console.log("gv.convertBonusFactor: ", gv.convertBonusFactor);
+        uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertBonusFactor) / C.PRECISION;
+        console.log("bonusStalkPerBdv: ", bonusStalkPerBdv);
+        grownStalkGained = (bdvWithBonus * bonusStalkPerBdv);
 
         console.log("bdvWithBonus: ", bdvWithBonus);
         console.log("grownStalkGained: ", grownStalkGained);
@@ -763,19 +777,16 @@ library LibConvert {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // Get current gauge data using the new struct
-        LibGaugeHelpers.ConvertBonusGaugeData memory convertBonusGaugeData = abi.decode(
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
         // Update this season's converted amount
-        convertBonusGaugeData.thisSeasonBdvConverted += bdvConverted;
+        gd.thisSeasonBdvConverted += bdvConverted;
 
         // Encode and store updated gauge data
-        LibGaugeHelpers.updateGaugeData(
-            GaugeId.CONVERT_UP_BONUS,
-            abi.encode(convertBonusGaugeData)
-        );
+        LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_UP_BONUS, abi.encode(gd));
     }
 
     function abs(int256 a) internal pure returns (uint256) {
