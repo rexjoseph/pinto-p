@@ -26,7 +26,6 @@ import {Decimal} from "contracts/libraries/Decimal.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
-import "forge-std/console.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 
@@ -600,8 +599,6 @@ library LibConvert {
             );
             emit ConvertDownPenalty(account, grownStalkLost);
         } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
-            console.log("WELL -> BEAN");
-
             // bonus up for WELL -> BEAN
             (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
 
@@ -733,15 +730,8 @@ library LibConvert {
         uint256 bdvWithBonus = min(toBdv, remainingCapacity);
 
         // Then calculate the bonus stalk based on the limited BDV
-        console.log("here");
-        console.log("gv.baseBonusStalkPerBdv: ", gv.baseBonusStalkPerBdv);
-        console.log("gv.convertBonusFactor: ", gv.convertBonusFactor);
         uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertBonusFactor) / C.PRECISION;
-        console.log("bonusStalkPerBdv: ", bonusStalkPerBdv);
         grownStalkGained = (bdvWithBonus * bonusStalkPerBdv);
-
-        console.log("bdvWithBonus: ", bdvWithBonus);
-        console.log("grownStalkGained: ", grownStalkGained);
 
         return (bdvWithBonus, grownStalkGained);
     }
