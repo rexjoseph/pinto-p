@@ -728,7 +728,6 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
     const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
     const sowBlueprintContract = await sowBlueprint.deploy(
       L2_PINTO, // diamond address
-      beanstalkPriceContract.address, // price contract
       L2_PCM, // owner address
       tractorHelpersContract.address // tractorHelpers contract address
     );
@@ -741,7 +740,7 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
     console.log("\nStarting diamond upgrade...");
 
     /////////////////////// Diamond Upgrade ///////////////////////
-    
+
     await upgradeWithNewFacets({
       diamondAddress: L2_PINTO,
       facetNames: [
@@ -839,7 +838,6 @@ task("TractorHelpers", "Deploys TractorHelpers").setAction(async function () {
   const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
   const sowBlueprintContract = await sowBlueprint.deploy(
     L2_PINTO,
-    "0xD0fd333F7B30c7925DEBD81B7b7a4DFE106c3a5E", // price contract
     await owner.getAddress(), // owner address
     tractorHelpersContract.address // tractorHelpers contract address
   );
