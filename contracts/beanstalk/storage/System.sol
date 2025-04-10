@@ -30,7 +30,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @param convertCapacity A mapping from block number to the amount of Beans that can be converted towards peg in this block before stalk penalty becomes applied.
  * @param oracleImplementation A mapping from token to its oracle implementation.
  * @param shipmentRoutes Define the distribution of newly minted Beans.
- * @param belowPegCrossStems A mapping from token to the stemTip at the time of the last below peg cross.
  * @param _buffer_1 Reserved storage for future additions.
  * @param casesV2 Stores the 144 Weather and seedGauge cases.
  * @param silo See {Silo}.
@@ -65,8 +64,7 @@ struct System {
     mapping(uint256 => ConvertCapacity) convertCapacity;
     mapping(address => Implementation) oracleImplementation;
     ShipmentRoute[] shipmentRoutes;
-    mapping(address => int96) belowPegCrossStems;
-    bytes32[15] _buffer_1;
+    bytes32[16] _buffer_1;
     bytes32[144] casesV2;
     Silo silo;
     Season season;
@@ -82,7 +80,7 @@ struct System {
 
 /**
  * @notice System-level Silo state variables.
- * @param stalk The total amount of active Stalk (including Earned Stalk, excluding unmown Grown Stalk).
+ * @param stalk The total amount of active Stalk (including Earned Stalk, excluding Grown Stalk).
  * @param roots The total amount of Roots.
  * @param earnedBeans The number of Beans distributed to the Silo that have not yet been Deposited as a result of the Earn function being called.
  * @param balances A mapping from Token address to Silo Balance storage (amount deposited and withdrawn).
@@ -127,7 +125,6 @@ struct Field {
  * @param raining True if it is Raining (P > 1, Pod Rate Excessively Low).
  * @param sunriseBlock The block of the start of the current Season.
  * @param abovePeg Boolean indicating whether the previous Season was above or below peg.
- * @param pegCrossSeason The last season in which the target was crossed.
  * @param start The timestamp of the Beanstalk deployment rounded down to the nearest hour.
  * @param period The length of each season in Beanstalk in seconds.
  * @param timestamp The timestamp of the start of the current Season.
@@ -142,7 +139,6 @@ struct Season {
     bool raining;
     uint64 sunriseBlock;
     bool abovePeg;
-    uint32 pegCrossSeason;
     uint256 start;
     uint256 period;
     uint256 timestamp;
@@ -346,7 +342,6 @@ struct Implementation {
 struct GaugeData {
     GaugeId[] gaugeIds;
     mapping(GaugeId => Gauge) gauges;
-    bytes32[16] _buffer;
 }
 
 /**
@@ -458,7 +453,7 @@ struct ExtEvaluationParameters {
     uint256 abovePegDeltaBSoilScalar;
     uint256 soilDistributionPeriod;
     uint256 minSoilIssuance;
-    bytes32[60] buffer;
+    bytes32[61] buffer;
 }
 
 /**
@@ -497,6 +492,5 @@ enum ShipmentRecipient {
  */
 enum GaugeId {
     CULTIVATION_FACTOR,
-    CONVERT_DOWN_PENALTY,
-    CONVERT_UP_BONUS
+    CONVERT_DOWN_PENALTY
 }

@@ -34,9 +34,7 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         address fromToken,
         address toToken,
         uint256 fromAmount,
-        uint256 toAmount,
-        uint256 fromBdv,
-        uint256 toBdv
+        uint256 toAmount
     );
 
     /**
@@ -128,14 +126,15 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
             );
         }
 
-        // apply convert penalty/bonus on grown stalk
-        pipeData.grownStalk = LibConvert.applyStalkModifiers(
-            cp.fromToken,
-            cp.toToken,
-            cp.account,
-            toBdv,
-            pipeData.grownStalk
-        );
+        if (cp.toToken != s.sys.bean && cp.fromToken == s.sys.bean) {
+            uint256 grownStalkLost;
+            (pipeData.grownStalk, grownStalkLost) = LibConvert.downPenalizedGrownStalk(
+                cp.toToken,
+                toBdv,
+                pipeData.grownStalk
+            );
+            emit LibConvert.ConvertDownPenalty(grownStalkLost);
+        }
 
         toStem = LibConvert._depositTokensForConvert(
             cp.toToken,
@@ -149,14 +148,6 @@ contract ConvertFacet is Invariable, ReentrancyGuard {
         fromAmount = cp.fromAmount;
         toAmount = cp.toAmount;
 
-        emit Convert(
-            cp.account,
-            cp.fromToken,
-            cp.toToken,
-            cp.fromAmount,
-            cp.toAmount,
-            fromBdv,
-            toBdv
-        );
+        emit Convert(cp.account, cp.fromToken, cp.toToken, cp.fromAmount, cp.toAmount);
     }
 }
