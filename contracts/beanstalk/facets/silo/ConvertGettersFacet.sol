@@ -11,7 +11,7 @@ import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
-
+import {C} from "contracts/C.sol";
 /**
  * @title ConvertGettersFacet contains view functions related to converting Deposited assets.
  **/
@@ -170,7 +170,26 @@ contract ConvertGettersFacet {
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
             (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
-        return (gv.bonusStalkPerBdv, gv.convertCapacity);
+
+        uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
+            C.PRECISION;
+        return (bonusStalkPerBdv, gv.convertCapacity);
+    }
+
+    /**
+     * @notice Returns the peg cross stem for a given token.
+     * @dev The peg cross stem is the stem of a token when bean crossed below peg.
+     */
+    function getPegCrossStem(address token) external view returns (int96) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return s.sys.belowPegCrossStems[token];
+    }
+
+    /**
+     * @notice Returns the base bonus stalk per bdv for the current season.
+     */
+    function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256) {
+        return LibConvert.getCurrentBaseBonusStalkPerBdv();
     }
 
     /**

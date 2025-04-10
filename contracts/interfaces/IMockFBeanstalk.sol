@@ -1861,4 +1861,10 @@ interface IMockFBeanstalk {
     ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
 
     function getConvertBonusBdvAmountAndCapacity() external view returns (uint256, uint256);
+
+    function getPegCrossStem(address token) external view returns (int96);
+
+    function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256);
+
+    function mockUpdateBonusBdvConverted(uint256 bdvConverted) external;
 }

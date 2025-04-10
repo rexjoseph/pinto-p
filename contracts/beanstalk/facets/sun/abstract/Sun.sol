@@ -38,20 +38,6 @@ abstract contract Sun is Oracle, Distribution {
     uint256 internal constant CULTIVATION_FACTOR_PRECISION = 1e6;
 
     /**
-     * @notice Emitted when the below peg cross stemTip is updated.
-     * @param token The token that was updated.
-     * @param stem The new stemTip.
-     */
-    event UpdatedBelowPegCrossStem(address indexed token, int96 stem);
-
-    /**
-     * @notice Emitted when the peg state is updated.
-     * @param season The season in which the peg state was updated.
-     * @param abovePeg Whether the peg is above or below.
-     */
-    event PegStateUpdated(uint32 season, bool abovePeg);
-
-    /**
      * @notice Emitted during Sunrise when Beanstalk adjusts the amount of available Soil.
      * @param season The Season in which Soil was adjusted.
      * @param soil The new amount of Soil available.
@@ -86,7 +72,6 @@ abstract contract Sun is Oracle, Distribution {
     function stepSun(uint256 caseId, LibEvaluate.BeanstalkState memory bs) internal {
         int256 twaDeltaB = bs.twaDeltaB;
         // Above peg
-        bool lastSeasonPeg = s.sys.season.abovePeg;
         if (twaDeltaB > 0) {
             uint256 priorHarvestable = s.sys.fields[s.sys.activeField].harvestable;
 
@@ -97,7 +82,6 @@ abstract contract Sun is Oracle, Distribution {
                 priorHarvestable +
                 s.sys.rain.floodHarvestablePods;
             setSoilAbovePeg(newHarvestable, caseId);
-            s.sys.season.abovePeg = true;
         } else {
             // Below peg
             int256 instDeltaB = LibWellMinting.getTotalInstantaneousDeltaB();
@@ -113,22 +97,7 @@ abstract contract Sun is Oracle, Distribution {
                 soil = Math.min(uint256(-twaDeltaB), uint256(-instDeltaB));
                 setSoil(scaleSoilBelowPeg(soil, bs.lpToSupplyRatio));
             }
-            s.sys.season.abovePeg = false;
         }
-
-        // if the target was crossed, set the seasonTargetCross
-        if (lastSeasonPeg != s.sys.season.abovePeg) {
-            s.sys.season.seasonTargetCross = s.sys.season.current;
-            // if the target was crossed and the season is below peg, cache the stems for
-            // each currently whitelisted token.
-            address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
-            for (uint256 i = 0; i < lpTokens.length; i++) {
-                s.sys.belowPegCrossStems[lpTokens[i]] = LibTokenSilo.stemTipForToken(lpTokens[i]);
-                emit UpdatedBelowPegCrossStem(lpTokens[i], s.sys.belowPegCrossStems[lpTokens[i]]);
-            }
-        }
-
-        emit PegStateUpdated(s.sys.season.current, s.sys.season.abovePeg);
     }
 
     //////////////////// SET SOIL ////////////////////

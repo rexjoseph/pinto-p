@@ -14,13 +14,12 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
-import {ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
-import {GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {GerminationSide, GaugeId, ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
@@ -29,6 +28,7 @@ import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
 import "forge-std/console.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 
 /**
  * @title LibConvert
@@ -42,6 +42,8 @@ library LibConvert {
 
     event ConvertDownPenalty(address account, uint256 grownStalkLost);
     event ConvertUpBonus(address account, uint256 grownStalkGained);
+
+    uint256 internal constant BDV_PRECISION = 1e6;
 
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
@@ -715,12 +717,36 @@ library LibConvert {
         uint256 bdvWithBonus = min(toBdv, gv.convertCapacity);
 
         // Then calculate the bonus stalk based on the limited BDV
-        grownStalkGained = (bdvWithBonus * gv.bonusStalkPerBdv) / 1e6;
+        uint256 baseBonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertCapacityFactor) /
+            C.PRECISION;
+        grownStalkGained = (bdvWithBonus * baseBonusStalkPerBdv) / BDV_PRECISION;
 
         console.log("bdvWithBonus: ", bdvWithBonus);
         console.log("grownStalkGained: ", grownStalkGained);
 
         return (bdvWithBonus, grownStalkGained);
+    }
+
+    /**
+     * @notice Gets the bonus stalk per bdv for the current season.
+     * @dev The stalkPerPDV is determined by taking the difference between the current stem tip
+     * and the stemTip at a peg cross, and choosing the smallest amongst all whitelisted lp tokens.
+     * This way the bonus cannot be gamed since someone could withdraw, deposit and convert without losing stalk.
+     * @return stalkPerBdv The bonus stalk per bdv for the current season.
+     */
+    function getCurrentBaseBonusStalkPerBdv() internal view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // get stem tips for all whitelisted lp tokens and get the min
+        address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
+        uint96 stalkPerBdv = type(uint96).max;
+        for (uint256 i = 0; i < lpTokens.length; i++) {
+            int96 currentStemTip = LibTokenSilo.stemTipForToken(lpTokens[i]);
+            uint96 tokenStalkPerBdv = uint96(
+                currentStemTip - s.sys.belowPegCrossStems[lpTokens[i]]
+            );
+            if (tokenStalkPerBdv < stalkPerBdv) stalkPerBdv = tokenStalkPerBdv;
+        }
+        return uint256(stalkPerBdv);
     }
 
     /**

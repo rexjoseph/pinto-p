@@ -15,7 +15,7 @@ library LibGaugeHelpers {
     struct ConvertBonusGaugeValue {
         uint256 convertBonusFactor;
         uint256 convertCapacityFactor;
-        uint256 bonusStalkPerBdv;
+        uint256 baseBonusStalkPerBdv;
         uint256 convertCapacity;
     }
 
@@ -42,27 +42,34 @@ library LibGaugeHelpers {
      * @param gaugeId The id of the Gauge that was engaged.
      * @param value The value of the Gauge after it was engaged.
      */
-    event Engaged(GaugeId gaugeId, bytes value);
+    event Engaged(GaugeId indexed gaugeId, bytes value);
+
+    /**
+     * @notice Emitted when a Gauge is engaged (i.e. its value is updated).
+     * @param gaugeId The id of the Gauge that was engaged.
+     * @param data The data of the Gauge after it was engaged.
+     */
+    event EngagedData(GaugeId indexed gaugeId, bytes data);
 
     /**
      * @notice Emitted when a Gauge is added.
      * @param gaugeId The id of the Gauge that was added.
      * @param gauge The Gauge that was added.
      */
-    event AddedGauge(GaugeId gaugeId, Gauge gauge);
+    event AddedGauge(GaugeId indexed gaugeId, Gauge gauge);
 
     /**
      * @notice Emitted when a Gauge is removed.
      * @param gaugeId The id of the Gauge that was removed.
      */
-    event RemovedGauge(GaugeId gaugeId);
+    event RemovedGauge(GaugeId indexed gaugeId);
 
     /**
      * @notice Emitted when a Gauge is updated.
      * @param gaugeId The id of the Gauge that was updated.
      * @param gauge The Gauge that was updated.
      */
-    event UpdatedGauge(GaugeId gaugeId, Gauge gauge);
+    event UpdatedGauge(GaugeId indexed gaugeId, Gauge gauge);
 
     /**
      * @notice Calls all generalized Gauges, and updates their values.
@@ -87,8 +94,9 @@ library LibGaugeHelpers {
             s.sys.gaugeData.gauges[gaugeId].data
         ) = getGaugeResult(g, systemData);
 
-        // emit change in gauge value
+        // emit change in gauge value and data
         emit Engaged(gaugeId, s.sys.gaugeData.gauges[gaugeId].value);
+        emit EngagedData(gaugeId, s.sys.gaugeData.gauges[gaugeId].data);
     }
 
     /**

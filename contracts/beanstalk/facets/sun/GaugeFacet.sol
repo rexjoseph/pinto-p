@@ -17,6 +17,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {console} from "forge-std/console.sol";
+import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 
 /**
  * @title GaugeFacet
@@ -54,8 +55,6 @@ interface IGaugeFacet {
  * as well as adding, replacing, and removing Gauges.
  */
 contract GaugeFacet is GaugeDefault, ReentrancyGuard {
-    using LibGaugeHelpers for LibGaugeHelpers.ConvertBonusGaugeData;
-
     uint256 internal constant PRICE_PRECISION = 1e6;
     uint256 internal constant INCREASING_CONVERT_DEMAND = 1e36;
     uint256 internal constant MIN_BDV_CONVERTED = 50e6;
@@ -184,9 +183,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
      *     - seasonsBelowPeg - the rolling count of seasons below peg.
      *     - convertBonusFactor - the convert bonus ratio.
      *     - convertCapacityFactor - the convert bonus bdv capacity factor.
-     *     - bonusStalkPerBdv - the bonus stalk per bdv to issue for converts.
+     *     - baseBonusStalkPerBdv - the bonus stalk per bdv to issue for converts.
      * @return gaugeData
-     *  The gaugeData are ecoded as a struct of type LibGaugeHelpers.ConvertBonusGaugeData:
+     *  The gaugeData are encoded as a struct of type LibGaugeHelpers.ConvertBonusGaugeData:
      *     - deltaC - the delta used in adjusting convertBonusFactor.
      *     - deltaT - the delta used in adjusting the convert bonus bdv capacity factor.
      *     - minConvertBonusFactor - the minimum value of the conversion factor (0).
@@ -224,22 +223,35 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // season and set the amount converted this season to 0)
         gd.lastSeasonBdvConverted = thisSeasonBdvConverted;
         gd.thisSeasonBdvConverted = 0;
-        bytes memory newGaugeData = abi.encode(gd);
 
-        // If twaDeltaB > 0 (above peg), reset values to 0
+        // If twaDeltaB > 0 (above peg)
         if (bs.twaDeltaB > 0) {
-            gv.convertBonusFactor = 0;
-            gv.convertCapacityFactor = 0;
-            gv.bonusStalkPerBdv = 0;
-            gv.convertCapacity = 0;
-            return (abi.encode(gv), newGaugeData);
-        }
+            // if the peg was crossed, set values to 0 to signal that the bonus is not active.
+            if (s.sys.season.pegCrossSeason == s.sys.season.current) {
+                gv.convertBonusFactor = 0;
+                gv.convertCapacityFactor = 0;
+                gv.baseBonusStalkPerBdv = 0;
+                gv.convertCapacity = 0;
+            }
 
-        // twaDeltaB is negative (below peg) at this point.
+            // return the gauge values.
+            return (abi.encode(gv), abi.encode(gd));
+        } else {
+            // If twaDeltaB < 0 (below peg)
 
-        // if less than 12 seasons have elapsed since the last peg cross, do not modify the gauge values.
-        if (s.sys.season.current - s.sys.season.seasonTargetCross < 12) {
-            return (value, newGaugeData);
+            // if less than 12 seasons have elapsed since the last peg cross, do not modify the gauge values.
+            if (s.sys.season.current - s.sys.season.pegCrossSeason < 12) {
+                return (abi.encode(gv), abi.encode(gd));
+            } else if (s.sys.season.current - s.sys.season.pegCrossSeason == 12) {
+                // if 12 seasons have elapsed since the last peg cross, set the bonus to the minimum and the capacity to the maximum.
+                gv.convertBonusFactor = gd.minConvertBonusFactor;
+                gv.convertCapacityFactor = gd.maxCapacityFactor;
+                gv.baseBonusStalkPerBdv = LibConvert.getCurrentBaseBonusStalkPerBdv();
+                gv.convertCapacity = ((uint256(-bs.twaDeltaB) * gd.maxCapacityFactor) /
+                    C.PRECISION);
+                // return the gauge values.
+                return (abi.encode(gv), abi.encode(gd));
+            }
         }
 
         // determine whether demand for converting is increasing or decreasing.
@@ -289,32 +301,11 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             );
         }
 
-        // update the bonusStalkPerBdv and convertCapacity.
-        gv.bonusStalkPerBdv = getCurrentBonusStalkPerBdv();
+        // update the baseBonusStalkPerBdv and convertCapacity.
+        gv.baseBonusStalkPerBdv = LibConvert.getCurrentBaseBonusStalkPerBdv();
         gv.convertCapacity = ((uint256(-bs.twaDeltaB) * gv.convertCapacityFactor) / C.PRECISION);
 
-        return (abi.encode(gv), newGaugeData);
-    }
-
-    /**
-     * @notice Gets the bonus stalk per bdv for the current season.
-     * @dev The stalkPerPDV is determined by taking the difference between the current stem tip
-     * and the stemTip at a peg cross, and choosing the smallest amongst all whitelisted lp tokens.
-     * This way the bonus cannot be gamed since someone could withdraw, deposit and convert without losing stalk.
-     * @return stalkPerBdv The bonus stalk per bdv for the current season.
-     */
-    function getCurrentBonusStalkPerBdv() internal view returns (uint256) {
-        // get stem tips for all whitelisted lp tokens and get the min
-        address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
-        uint96 stalkPerBdv = type(uint96).max;
-        for (uint256 i = 0; i < lpTokens.length; i++) {
-            int96 currentStemTip = LibTokenSilo.stemTipForToken(lpTokens[i]);
-            uint96 tokenStalkPerBdv = uint96(
-                currentStemTip - s.sys.belowPegCrossStems[lpTokens[i]]
-            );
-            if (tokenStalkPerBdv < stalkPerBdv) stalkPerBdv = tokenStalkPerBdv;
-        }
-        return uint256(stalkPerBdv);
+        return (abi.encode(gv), abi.encode(gd));
     }
 
     /// GAUGE ADD/REMOVE/UPDATE ///

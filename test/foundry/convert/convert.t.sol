@@ -625,30 +625,32 @@ contract ConvertTest is TestHelper {
     ////////////////////// Convert Up Bonus //////////////////////
 
     /**
-     * @notice verifies convert factors change properly
+     * @notice verifies convert factors change properly with no demand for converting.
      */
     function test_convertUpBonus_change() public {
-        // bean.mint(farmers[0], 20_000e6);
-        // bean.mint(address(1), 200_000e6);
-        // vm.prank(farmers[0]);
-        // bs.deposit(BEAN, 10_000e6, 0);
-        // sowAmountForFarmer(farmers[0], 100_000e6); // Prevent flood.
-        // passGermination();
+        // set deltaB to positive
+        setDeltaBforWell(int256(-100e6), BEAN_ETH_WELL, WETH);
 
-        // // Wait some seasons to allow stem tip to advance. More grown stalk in the system.
-        // setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
-        // for (uint256 i; i < 580; i++) {
-        //     warpToNextSeasonAndUpdateOracles();
-        //     vm.roll(block.number + 1800);
-        //     bs.sunrise();
-        // }
+        // sunrise
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        bs.sunrise();
+
+        setDeltaBforWell(int256(100e6), BEAN_ETH_WELL, WETH);
+
+        // sunrise
+        warpToNextSeasonAndUpdateOracles();
+        vm.roll(block.number + 1800);
+        bs.sunrise();
 
         // set deltaB negative
-        setDeltaBforWell(int256(-100e6), BEAN_ETH_WELL, WETH);
+        setDeltaBforWell(int256(-10000e6), BEAN_ETH_WELL, WETH);
+
+        // decreasing demand for convert behaviour.
 
         // verify convert factor does not change < 12 seasons below peg.
         // verify convert factor increases after.
-        for (uint256 i = 0; i < 100; i++) {
+        for (uint256 i = 0; i < 150; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
             bs.sunrise();
@@ -665,16 +667,95 @@ contract ConvertTest is TestHelper {
                 assertEq(gv.convertCapacityFactor, 0, "convertCapacityFactor should be 0");
                 assertEq(gv.convertBonusFactor, 0, "convertBonusFactor should be 0");
                 assertEq(gv.convertCapacity, 0, "convertCapacity should be 0");
-                assertEq(gv.bonusStalkPerBdv, 0, "bonusStalkPerBdv should be 0");
-            } else if (i < 24) {
-                assertEq(gv.convertCapacityFactor, 0, "convertCapacityFactor wrong value");
-                assertGt(gv.convertBonusFactor, 0, "convertBonusFactor should be greater than 0");
-                assertGt(gv.convertCapacity, 0, "convertCapacity should be greater than 0");
-                assertGt(gv.bonusStalkPerBdv, 0, "bonusStalkPerBdv should be greater than 0");
+            } else if (i < 112) {
+                // verify values changes correctly:
+                assertEq(
+                    gv.convertCapacityFactor,
+                    gd.maxCapacityFactor - (0.004e18 * (i - 12)),
+                    "convertCapacityFactor should be less than or equal to maxCapacityFactor"
+                );
+                assertEq(
+                    gv.convertBonusFactor,
+                    gd.minConvertBonusFactor + (0.01e18 * (i - 12)),
+                    "convertBonusFactor should be greater than or equal to minConvertBonusFactor"
+                );
+                assertEq(
+                    gv.convertCapacity,
+                    (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
+                    "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
+                );
+
+                assertEq(
+                    gv.baseBonusStalkPerBdv,
+                    bs.getCalculatedBaseBonusStalkPerBdv(),
+                    "baseBonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
+                );
             } else {
-                assertEq(gv.convertCapacityFactor, 0, "convertCapacityFactor should be 0");
-                assertEq(gv.convertBonusFactor, 0, "convertBonusFactor should be 0");
+                // verify values are unchanged
+                assertEq(
+                    gv.convertCapacityFactor,
+                    gd.minCapacityFactor,
+                    "convertCapacityFactor should be minCapacityFactor"
+                );
+                assertEq(
+                    gv.convertBonusFactor,
+                    gd.maxConvertBonusFactor,
+                    "convertBonusFactor should be maxConvertBonusFactor"
+                );
+                assertEq(
+                    gv.convertCapacity,
+                    (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
+                    "convertCapacity should be 10_000e6 * convertBonusFactor / PRECISION"
+                );
+
+                assertEq(
+                    gv.baseBonusStalkPerBdv,
+                    bs.getCalculatedBaseBonusStalkPerBdv(),
+                    "baseBonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
+                );
             }
+        }
+
+        // increasing demand for convert behaviour.
+        uint256 baseBdvConverted = 100e6;
+        for (uint256 i = 1; i < 101; i++) {
+            // simulate converting 100 bdv.
+            baseBdvConverted = (baseBdvConverted * 106) / 100;
+            warpToNextSeasonAndUpdateOracles();
+            bs.mockUpdateBonusBdvConverted(baseBdvConverted);
+            vm.roll(block.number + 1800);
+            bs.sunrise();
+            LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+                bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeData)
+            );
+            LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+                bs.getGaugeValue(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeValue)
+            );
+
+            // verify behaviour:
+            assertEq(
+                gv.convertCapacityFactor,
+                gd.minCapacityFactor + (0.004e18 * i),
+                "convertCapacityFactor should be less than or equal to minCapacityFactor"
+            );
+            assertEq(
+                gv.convertBonusFactor,
+                gd.maxConvertBonusFactor - (0.01e18 * i),
+                "convertBonusFactor should be greater than or equal to maxConvertBonusFactor"
+            );
+            assertEq(
+                gv.convertCapacity,
+                (10_000e6 * gv.convertCapacityFactor) / C.PRECISION,
+                "convertCapacity should be 100e6 * convertBonusFactor / PRECISION"
+            );
+
+            assertEq(
+                gv.baseBonusStalkPerBdv,
+                bs.getCalculatedBaseBonusStalkPerBdv(),
+                "baseBonusStalkPerBdv should be equal to the current base bonus stalk per bdv"
+            );
         }
     }
 

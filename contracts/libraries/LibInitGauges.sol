@@ -31,17 +31,15 @@ library LibInitGauges {
 
     //////////// Convert Up Bonus Gauge ////////////
     // Gauge values
-    uint256 internal constant INIT_CONVERT_BONUS_FACTOR = 0; // the initial convert bonus factor
-    uint256 internal constant INIT_CONVERT_CAPACITY_FACTOR = 0; // the initial convert capacity factor
     uint256 internal constant INIT_BONUS_STALK_PER_BDV = 0; // the initial bonus stalk per bdv
     uint256 internal constant INIT_CONVERT_CAPACITY = 0; // the initial convert capacity
     // Gauge data
     uint256 internal constant DELTA_C = 0.01e18; // the value that the convert bonus factor can be adjusted by
     uint256 internal constant DELTA_T = 0.004e18; // the value that the convert bdv capacity factor can be adjusted by
-    uint256 internal constant MIN_CONVERT_BONUS_FACTOR = 0; // the minimum value the convert bonus factor can be adjusted to
-    uint256 internal constant MAX_CONVERT_BONUS_FACTOR = 1e18; // the maximum value the convert bonus factor can be adjusted to
-    uint256 internal constant MIN_CAPACITY_FACTOR = 0.1e18; // the minimum value the convert bdv capacity factor can be adjusted to
-    uint256 internal constant MAX_CAPACITY_FACTOR = 0.5e18; // the maximum value the convert bdv capacity factor can be adjusted to
+    uint256 internal constant MIN_CONVERT_BONUS_FACTOR = 0; // the minimum value the convert bonus factor can be adjusted to (0%)
+    uint256 internal constant MAX_CONVERT_BONUS_FACTOR = 1e18; // the maximum value the convert bonus factor can be adjusted to (100%)
+    uint256 internal constant MIN_CAPACITY_FACTOR = 0.1e18; // the minimum value the convert bdv capacity factor can be adjusted to (10%)
+    uint256 internal constant MAX_CAPACITY_FACTOR = 0.5e18; // the maximum value the convert bdv capacity factor can be adjusted to (50%)
     uint256 internal constant DELTA_BDV_CONVERTED_DEMAND_UPPER_BOUND = 1.05e18; // the % change in bdv converted between seasons such that demand for converting is increasing when above this value
     uint256 internal constant DELTA_BDV_CONVERTED_DEMAND_LOWER_BOUND = 0.95e18; // the % change in bdv converted between seasons such that demand for converting is decreasing when below this value
     uint256 internal constant LAST_SEASON_BDV_CONVERTED = 0; // the bdv converted in the last season
@@ -80,8 +78,8 @@ library LibInitGauges {
 
     function initConvertUpBonusGauge() internal {
         LibGaugeHelpers.ConvertBonusGaugeValue memory gv = LibGaugeHelpers.ConvertBonusGaugeValue(
-            INIT_CONVERT_BONUS_FACTOR,
-            INIT_CONVERT_CAPACITY_FACTOR,
+            MAX_CONVERT_BONUS_FACTOR,
+            MIN_CAPACITY_FACTOR,
             INIT_BONUS_STALK_PER_BDV,
             INIT_CONVERT_CAPACITY
         );

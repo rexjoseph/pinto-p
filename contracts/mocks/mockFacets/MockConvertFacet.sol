@@ -76,4 +76,8 @@ contract MockConvertFacet is ConvertFacet {
         decreaseBDV = cp.decreaseBDV;
         IERC20(toToken).safeTransfer(msg.sender, toAmount);
     }
+
+    function mockUpdateBonusBdvConverted(uint256 bdvConverted) external {
+        LibConvert.updateBonusBdvConverted(bdvConverted);
+    }
 }
