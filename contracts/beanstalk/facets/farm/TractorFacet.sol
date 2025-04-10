@@ -25,9 +25,21 @@ contract TractorFacet is Invariable, ReentrancyGuard {
 
     event PublishRequisition(LibTractor.Requisition requisition);
 
-    event CancelBlueprint(bytes32 blueprintHash);
+    event CancelBlueprint(bytes32 indexed blueprintHash);
 
-    event Tractor(address indexed operator, address indexed publisher, bytes32 blueprintHash);
+    event Tractor(
+        address indexed operator,
+        address indexed publisher,
+        bytes32 indexed blueprintHash,
+        uint256 gasleft
+    );
+
+    event TractorExecutionBegan(
+        address indexed operator,
+        address indexed publisher,
+        bytes32 indexed blueprintHash,
+        uint256 gasleft
+    );
 
     /**
      * @notice Ensure requisition hash matches blueprint data and signer is publisher.
@@ -121,6 +133,13 @@ contract TractorFacet is Invariable, ReentrancyGuard {
     {
         require(requisition.blueprint.data.length > 0, "Tractor: data empty");
 
+        emit TractorExecutionBegan(
+            msg.sender,
+            requisition.blueprint.publisher,
+            requisition.blueprintHash,
+            gasleft()
+        );
+
         // Set current blueprint hash
         LibTractor._setCurrentBlueprintHash(requisition.blueprintHash);
 
@@ -159,7 +178,12 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         // Clear operator
         LibTractor._resetOperator();
 
-        emit Tractor(msg.sender, requisition.blueprint.publisher, requisition.blueprintHash);
+        emit Tractor(
+            msg.sender,
+            requisition.blueprint.publisher,
+            requisition.blueprintHash,
+            gasleft()
+        );
     }
 
     /**

@@ -464,7 +464,6 @@ contract OracleTest is TestHelper {
             BeanstalkPrice.Prices memory price = BeanstalkPrice(beanstalkPrice).priceForWells(
                 wells
             );
-            console.log("priceForWells");
             console.log(price.price);
             console.log(price.liquidity);
             console.logInt(price.deltaB);

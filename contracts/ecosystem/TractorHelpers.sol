@@ -5,6 +5,7 @@ import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {Call, IWell, IERC20} from "../interfaces/basin/IWell.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {BeanstalkPrice, P} from "./price/BeanstalkPrice.sol";
+import {ReservesType} from "./price/WellPrice.sol";
 import {IBeanstalk} from "contracts/interfaces/IBeanstalk.sol";
 import {Junction} from "./junction/Junction.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
@@ -34,7 +35,7 @@ contract TractorHelpers is Junction, PerFunctionPausable {
 
     event OperatorReward(
         RewardType rewardType,
-        address publisher,
+        address indexed publisher,
         address indexed operator,
         address token,
         int256 amount
@@ -663,18 +664,35 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         view
         returns (uint8[] memory tokenIndices, uint256[] memory seeds)
     {
-        // Get whitelisted tokens
-        address[] memory tokens = getWhitelistStatusAddresses();
-        require(tokens.length > 0, "No whitelisted tokens");
+        // Get whitelisted tokens with their status
+        IBeanstalk.WhitelistStatus[] memory whitelistStatuses = beanstalk.getWhitelistStatuses();
+        require(whitelistStatuses.length > 0, "No whitelisted tokens");
 
-        // Initialize arrays
-        tokenIndices = new uint8[](tokens.length);
-        seeds = new uint256[](tokens.length);
+        // Count active whitelisted tokens (not dewhitelisted)
+        uint256 whitelistedCount = 0;
+        for (uint256 i = 0; i < whitelistStatuses.length; i++) {
+            if (whitelistStatuses[i].isWhitelisted) {
+                whitelistedCount++;
+            }
+        }
 
-        // Get seed values for each token
-        for (uint256 i = 0; i < tokens.length; i++) {
-            tokenIndices[i] = uint8(i);
-            seeds[i] = beanstalk.tokenSettings(tokens[i]).stalkEarnedPerSeason;
+        require(whitelistedCount > 0, "No active whitelisted tokens");
+
+        // Initialize arrays with the count of active whitelisted tokens
+        tokenIndices = new uint8[](whitelistedCount);
+        seeds = new uint256[](whitelistedCount);
+
+        // Populate arrays with only active whitelisted tokens
+        uint256 activeIndex = 0;
+        for (uint256 i = 0; i < whitelistStatuses.length; i++) {
+            if (whitelistStatuses[i].isWhitelisted) {
+                // Keep the original index from whitelistStatuses for tokenIndices
+                tokenIndices[activeIndex] = uint8(i);
+                seeds[activeIndex] = beanstalk
+                    .tokenSettings(whitelistStatuses[i].token)
+                    .stalkEarnedPerSeason;
+                activeIndex++;
+            }
         }
 
         // Sort arrays by seed value (ascending)
@@ -693,21 +711,36 @@ contract TractorHelpers is Junction, PerFunctionPausable {
         view
         returns (uint8[] memory tokenIndices, uint256[] memory prices)
     {
-        // Get whitelisted tokens
-        address[] memory tokens = getWhitelistStatusAddresses();
-        require(tokens.length > 0, "No whitelisted tokens");
+        // Get whitelisted tokens with their status
+        IBeanstalk.WhitelistStatus[] memory whitelistStatuses = beanstalk.getWhitelistStatuses();
+        require(whitelistStatuses.length > 0, "No whitelisted tokens");
 
-        // Initialize arrays
-        tokenIndices = new uint8[](tokens.length);
-        prices = new uint256[](tokens.length);
+        // Count active whitelisted tokens (not dewhitelisted)
+        uint256 whitelistedCount = 0;
+        for (uint256 i = 0; i < whitelistStatuses.length; i++) {
+            if (whitelistStatuses[i].isWhitelisted) {
+                whitelistedCount++;
+            }
+        }
+
+        require(whitelistedCount > 0, "No active whitelisted tokens");
+
+        // Initialize arrays with the count of active whitelisted tokens
+        tokenIndices = new uint8[](whitelistedCount);
+        prices = new uint256[](whitelistedCount);
 
         // Get price from BeanstalkPrice for both Bean and LP tokens
-        BeanstalkPrice.Prices memory p = beanstalkPrice.price();
+        BeanstalkPrice.Prices memory p = beanstalkPrice.price(ReservesType.INSTANTANEOUS_RESERVES);
 
-        // Get prices for each token
-        for (uint256 i = 0; i < tokens.length; i++) {
-            tokenIndices[i] = uint8(i);
-            prices[i] = getTokenPrice(tokens[i], p);
+        // Populate arrays with only active whitelisted tokens
+        uint256 activeIndex = 0;
+        for (uint256 i = 0; i < whitelistStatuses.length; i++) {
+            if (whitelistStatuses[i].isWhitelisted) {
+                // Keep the original index from whitelistStatuses for tokenIndices
+                tokenIndices[activeIndex] = uint8(i);
+                prices[activeIndex] = getTokenPrice(whitelistStatuses[i].token, p);
+                activeIndex++;
+            }
         }
 
         // Sort arrays by price (ascending)

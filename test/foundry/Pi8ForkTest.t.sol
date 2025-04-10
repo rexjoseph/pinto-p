@@ -39,19 +39,19 @@ contract Pi8ForkTest is TestHelper {
         uint256[] memory depositIds = new uint256[](5);
 
         depositIds[
-            0
+            4
         ] = 80257261365260160448180297953543637015013860948612032607643216503657925303411;
         depositIds[
-            1
+            3
         ] = 80257261365260160448180297953543637015013860948612032607643216503657354165390;
         depositIds[
             2
         ] = 80257261365260160448180297953543637015013860948612032607643216503657330206036;
         depositIds[
-            3
+            1
         ] = 80257261365260160448180297953543637015013860948612032607643216503657241688664;
         depositIds[
-            4
+            0
         ] = 80257261365260160448180297953543637015013860948612032607643216503656210056716;
 
         // get an account and verify that the deposit ids can be sorted
@@ -68,9 +68,8 @@ contract Pi8ForkTest is TestHelper {
             address(0xb170000aeeFa790fa61D6e837d1035906839a3c8)
         );
 
-        // NOTE: THIS IS INCORRECT, THIS SHOULD BE ASCENDING
         for (uint256 i = 1; i < sortedDepositIds.length; i++) {
-            assertLt(sortedDepositIds[i], sortedDepositIds[i - 1]);
+            assertGt(sortedDepositIds[i], sortedDepositIds[i - 1]);
         }
 
         // verify you can transfer tokens to an internal balance.

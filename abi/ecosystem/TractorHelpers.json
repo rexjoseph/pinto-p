@@ -76,7 +76,7 @@
         "type": "uint8"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
         "name": "publisher",
         "type": "address"
