@@ -127,7 +127,7 @@ struct Field {
  * @param raining True if it is Raining (P > 1, Pod Rate Excessively Low).
  * @param sunriseBlock The block of the start of the current Season.
  * @param abovePeg Boolean indicating whether the previous Season was above or below peg.
- * @param seasonTargetCross The last season in which the target was crossed.
+ * @param pegCrossSeason The last season in which the target was crossed.
  * @param start The timestamp of the Beanstalk deployment rounded down to the nearest hour.
  * @param period The length of each season in Beanstalk in seconds.
  * @param timestamp The timestamp of the start of the current Season.
@@ -142,7 +142,7 @@ struct Season {
     bool raining;
     uint64 sunriseBlock;
     bool abovePeg;
-    uint32 seasonTargetCross;
+    uint32 pegCrossSeason;
     uint256 start;
     uint256 period;
     uint256 timestamp;
@@ -458,7 +458,7 @@ struct ExtEvaluationParameters {
     uint256 abovePegDeltaBSoilScalar;
     uint256 soilDistributionPeriod;
     uint256 minSoilIssuance;
-    bytes32[60] buffer; // change to original
+    bytes32[60] buffer;
 }
 
 /**

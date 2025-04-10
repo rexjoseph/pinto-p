@@ -127,6 +127,14 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
             LibTractor._user()
         );
 
-        emit Convert(LibTractor._user(), inputToken, outputToken, fromAmount, toAmount, fromBdv, toBdv);
+        emit Convert(
+            LibTractor._user(),
+            inputToken,
+            outputToken,
+            fromAmount,
+            toAmount,
+            fromBdv,
+            toBdv
+        );
     }
 }

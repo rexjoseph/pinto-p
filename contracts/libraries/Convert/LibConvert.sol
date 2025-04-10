@@ -14,21 +14,20 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
-import {ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
-import {GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {GerminationSide, GaugeId, ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
-import "forge-std/console.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 
 /**
  * @title LibConvert
@@ -41,7 +40,7 @@ library LibConvert {
     using SafeCast for uint256;
 
     event ConvertDownPenalty(address account, uint256 grownStalkLost);
-    event ConvertUpBonus(address account, uint256 grownStalkGained);
+    event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
 
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
@@ -591,7 +590,7 @@ library LibConvert {
     ) internal returns (uint256 newGrownStalk) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // penalty down for BEAN -> WELL
-        if (inputToken == s.sys.bean && outputToken != s.sys.bean) {
+        if (inputToken == s.sys.bean && LibWell.isWell(outputToken)) {
             uint256 grownStalkLost;
             (newGrownStalk, grownStalkLost) = downPenalizedGrownStalk(
                 outputToken,
@@ -599,14 +598,22 @@ library LibConvert {
                 grownStalk
             );
             emit ConvertDownPenalty(account, grownStalkLost);
-        } else if (inputToken != s.sys.bean && outputToken == s.sys.bean) {
+        } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
             // bonus up for WELL -> BEAN
             (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
-            // reduce the bdv capacity by the amount of bdv that got the bonus
-            if (bdvCapacityUsed > 0) updateBonusBdvConverted(bdvCapacityUsed);
-            // update the grown stalk by the amount of grown stalk gained
-            newGrownStalk = grownStalk + grownStalkGained;
-            emit ConvertUpBonus(account, grownStalkGained);
+
+            // update how much bdv was converted this season.
+            updateBdvConverted(toBdv);
+            if (bdvCapacityUsed > 0) {
+                // update the grown stalk by the amount of grown stalk gained
+                newGrownStalk = grownStalk + grownStalkGained;
+                emit ConvertUpBonus(account, grownStalkGained, bdvCapacityUsed);
+            } else {
+                newGrownStalk = grownStalk;
+            }
+        } else {
+            // no penalty/bonus
+            newGrownStalk = grownStalk;
         }
         return newGrownStalk;
     }
@@ -703,21 +710,52 @@ library LibConvert {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // get gauge value: how much bonus stalk to issue per BDV
-        (, , , uint256 stalkPerBdv, uint256 convertCapacity) = abi.decode(
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
-            (uint256, uint256, uint256, uint256, uint256)
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
         );
 
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
+        // if the max convert capacity has been reached, return 0
+        if (gd.thisSeasonBdvConverted >= gv.maxConvertCapacity) {
+            return (0, 0);
+        }
+
         // limit the bdv that can get the bonus
-        uint256 bdvWithBonus = min(toBdv, convertCapacity);
+        uint256 remainingCapacity = gv.maxConvertCapacity - gd.thisSeasonBdvConverted;
+        uint256 bdvWithBonus = min(toBdv, remainingCapacity);
 
         // Then calculate the bonus stalk based on the limited BDV
-        grownStalkGained = (bdvWithBonus * stalkPerBdv) / 1e6;
-
-        console.log("bdvWithBonus: ", bdvWithBonus);
-        console.log("grownStalkGained: ", grownStalkGained);
+        uint256 bonusStalkPerBdv = (gv.baseBonusStalkPerBdv * gv.convertBonusFactor) / C.PRECISION;
+        grownStalkGained = (bdvWithBonus * bonusStalkPerBdv);
 
         return (bdvWithBonus, grownStalkGained);
+    }
+
+    /**
+     * @notice Gets the bonus stalk per bdv for the current season.
+     * @dev The stalkPerPDV is determined by taking the difference between the current stem tip
+     * and the stemTip at a peg cross, and choosing the smallest amongst all whitelisted lp tokens.
+     * This way the bonus cannot be gamed since someone could withdraw, deposit and convert without losing stalk.
+     * @return stalkPerBdv The bonus stalk per bdv for the current season.
+     */
+    function getCurrentBaseBonusStalkPerBdv() internal view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        // get stem tips for all whitelisted lp tokens and get the min
+        address[] memory lpTokens = LibWhitelistedTokens.getWhitelistedLpTokens();
+        uint96 stalkPerBdv = type(uint96).max;
+        for (uint256 i = 0; i < lpTokens.length; i++) {
+            int96 currentStemTip = LibTokenSilo.stemTipForToken(lpTokens[i]);
+            uint96 tokenStalkPerBdv = uint96(
+                currentStemTip - s.sys.belowPegCrossStems[lpTokens[i]]
+            );
+            if (tokenStalkPerBdv < stalkPerBdv) stalkPerBdv = tokenStalkPerBdv;
+        }
+        return uint256(stalkPerBdv);
     }
 
     /**
@@ -725,20 +763,20 @@ library LibConvert {
      * @dev Separated here to allow `stalkBonus` to be called as a getter without touching state.
      * @param bdvConverted The amount of bdv that got the bonus.
      */
-    function updateBonusBdvConverted(uint256 bdvConverted) internal {
+    function updateBdvConverted(uint256 bdvConverted) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // Get current gauge data using the new struct
-        LibGaugeHelpers.ConvertBonusGaugeData memory convertBonusGaugeData = abi.decode(
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
             (LibGaugeHelpers.ConvertBonusGaugeData)
         );
 
         // Update this season's converted amount
-        convertBonusGaugeData.thisSeasonBdvConverted += bdvConverted;
+        gd.thisSeasonBdvConverted += bdvConverted;
 
         // Encode and store updated gauge data
-        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data = abi.encode(convertBonusGaugeData);
+        LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_UP_BONUS, abi.encode(gd));
     }
 
     function abs(int256 a) internal pure returns (uint256) {
