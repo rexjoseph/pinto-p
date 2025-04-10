@@ -125,7 +125,7 @@ interface IMockFBeanstalk {
         uint256 abovePegDeltaBSoilScalar;
         uint256 soilDistributionPeriod;
         uint256 minSoilIssuance;
-        bytes32[61] buffer;
+        bytes32[60] buffer;
     }
 
     struct Facet {
@@ -1567,6 +1567,8 @@ interface IMockFBeanstalk {
 
     function setBpf(uint128 bpf) external;
 
+    function setTotalStalkE(uint256 amount) external;
+
     function setChangeInSoilDemand(uint256 changeInSoilDemand) external;
 
     function setCurrentSeasonE(uint32 _season) external;
@@ -1857,4 +1859,14 @@ interface IMockFBeanstalk {
         uint256 bdvToConvert,
         uint256 grownStalkToConvert
     ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
+
+    function getConvertBonusBdvAmountAndCapacity() external view returns (uint256, uint256);
+
+    function getPegCrossStem(address token) external view returns (int96);
+
+    function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256);
+
+    function mockUpdateBdvConverted(uint256 bdvConverted) external;
+
+    function mockUpdateBonusBdvCapacity(uint256 newBdvCapacity) external;
 }
