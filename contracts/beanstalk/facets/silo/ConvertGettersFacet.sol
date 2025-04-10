@@ -176,6 +176,25 @@ contract ConvertGettersFacet {
         return (bonusStalkPerBdv, gv.maxConvertCapacity);
     }
 
+    function getConvertBonusRemainingCapacity() external view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data,
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
+        if (gd.thisSeasonBdvConverted >= gv.maxConvertCapacity) {
+            return 0;
+        }
+
+        return gv.maxConvertCapacity - gd.thisSeasonBdvConverted;
+    }
+
     /**
      * @notice Returns the peg cross stem for a given token.
      * @dev The peg cross stem is the stem of a token when bean crossed below peg.
