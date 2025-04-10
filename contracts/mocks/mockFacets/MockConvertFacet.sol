@@ -8,7 +8,8 @@ import "../../beanstalk/facets/silo/ConvertFacet.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
-
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 /**
  * @title Mock Convert Facet
  **/
@@ -77,7 +78,21 @@ contract MockConvertFacet is ConvertFacet {
         IERC20(toToken).safeTransfer(msg.sender, toAmount);
     }
 
-    function mockUpdateBonusBdvConverted(uint256 bdvConverted) external {
-        LibConvert.updateBonusBdvConverted(bdvConverted);
+    function mockupdateBdvConverted(uint256 bdvConverted) external {
+        LibConvert.updateBdvConverted(bdvConverted);
+    }
+
+    function mockUpdateBonusBdvCapacity(uint256 newBdvCapacity) external {
+        // Get current gauge data using the new struct
+        LibGaugeHelpers.ConvertBonusGaugeValue memory gv = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value,
+            (LibGaugeHelpers.ConvertBonusGaugeValue)
+        );
+
+        // Update this season's converted amount
+        gv.convertCapacity = newBdvCapacity;
+
+        // Encode and store updated gauge data
+        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].value = abi.encode(gv);
     }
 }

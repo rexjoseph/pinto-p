@@ -72,6 +72,12 @@ library LibGaugeHelpers {
     event UpdatedGauge(GaugeId indexed gaugeId, Gauge gauge);
 
     /**
+     * @notice Emitted when a Gauge's data is updated.
+     * @param gaugeId The id of the Gauge that was updated.
+     * @param data The data of the Gauge that was updated.
+     */
+    event UpdatedGaugeData(GaugeId indexed gaugeId, bytes data);
+    /**
      * @notice Calls all generalized Gauges, and updates their values.
      * @param systemData The system data to pass to the Gauges.
      */
@@ -146,6 +152,13 @@ library LibGaugeHelpers {
         s.sys.gaugeData.gauges[gaugeId] = g;
 
         emit UpdatedGauge(gaugeId, g);
+    }
+
+    function updateGaugeData(GaugeId gaugeId, bytes memory data) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.sys.gaugeData.gauges[gaugeId].data = data;
+
+        emit UpdatedGaugeData(gaugeId, data);
     }
 
     function removeGauge(GaugeId gaugeId) internal {

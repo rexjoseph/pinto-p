@@ -41,7 +41,7 @@ library LibConvert {
     using SafeCast for uint256;
 
     event ConvertDownPenalty(address account, uint256 grownStalkLost);
-    event ConvertUpBonus(address account, uint256 grownStalkGained);
+    event ConvertUpBonus(address account, uint256 grownStalkGained, uint256 bdvCapacityUsed);
 
     uint256 internal constant BDV_PRECISION = 1e6;
 
@@ -593,7 +593,7 @@ library LibConvert {
     ) internal returns (uint256 newGrownStalk) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         // penalty down for BEAN -> WELL
-        if (inputToken == s.sys.bean && outputToken != s.sys.bean) {
+        if (inputToken == s.sys.bean && LibWell.isWell(outputToken)) {
             uint256 grownStalkLost;
             (newGrownStalk, grownStalkLost) = downPenalizedGrownStalk(
                 outputToken,
@@ -601,14 +601,19 @@ library LibConvert {
                 grownStalk
             );
             emit ConvertDownPenalty(account, grownStalkLost);
-        } else if (inputToken != s.sys.bean && outputToken == s.sys.bean) {
+        } else if (LibWell.isWell(inputToken) && outputToken == s.sys.bean) {
+            console.log("WELL -> BEAN");
+            // update how much bdv was converted this season.
+            updateBdvConverted(toBdv);
             // bonus up for WELL -> BEAN
             (uint256 bdvCapacityUsed, uint256 grownStalkGained) = stalkBonus(toBdv);
-            // reduce the bdv capacity by the amount of bdv that got the bonus
-            if (bdvCapacityUsed > 0) updateBonusBdvConverted(bdvCapacityUsed);
-            // update the grown stalk by the amount of grown stalk gained
-            newGrownStalk = grownStalk + grownStalkGained;
-            emit ConvertUpBonus(account, grownStalkGained);
+            if (bdvCapacityUsed > 0) {
+                // update the grown stalk by the amount of grown stalk gained
+                newGrownStalk = grownStalk + grownStalkGained;
+                emit ConvertUpBonus(account, grownStalkGained, bdvCapacityUsed);
+            } else {
+                newGrownStalk = grownStalk;
+            }
         } else {
             // no penalty/bonus
             newGrownStalk = grownStalk;
@@ -754,7 +759,7 @@ library LibConvert {
      * @dev Separated here to allow `stalkBonus` to be called as a getter without touching state.
      * @param bdvConverted The amount of bdv that got the bonus.
      */
-    function updateBonusBdvConverted(uint256 bdvConverted) internal {
+    function updateBdvConverted(uint256 bdvConverted) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         // Get current gauge data using the new struct
@@ -767,7 +772,10 @@ library LibConvert {
         convertBonusGaugeData.thisSeasonBdvConverted += bdvConverted;
 
         // Encode and store updated gauge data
-        s.sys.gaugeData.gauges[GaugeId.CONVERT_UP_BONUS].data = abi.encode(convertBonusGaugeData);
+        LibGaugeHelpers.updateGaugeData(
+            GaugeId.CONVERT_UP_BONUS,
+            abi.encode(convertBonusGaugeData)
+        );
     }
 
     function abs(int256 a) internal pure returns (uint256) {

@@ -1866,5 +1866,7 @@ interface IMockFBeanstalk {
 
     function getCalculatedBaseBonusStalkPerBdv() external view returns (uint256);
 
-    function mockUpdateBonusBdvConverted(uint256 bdvConverted) external;
+    function mockupdateBdvConverted(uint256 bdvConverted) external;
+
+    function mockUpdateBonusBdvCapacity(uint256 newBdvCapacity) external;
 }

@@ -22,6 +22,12 @@ import "forge-std/console.sol";
  * peg maintainence. See {LibConvert} for more infomation on specific convert types.
  */
 contract ConvertTest is TestHelper {
+    struct ConvertData {
+        uint256 initalWellBeanBalance;
+        uint256 initalLPbalance;
+        uint256 initalBeanBalance;
+    }
+
     event Convert(
         address indexed account,
         address fromToken,
@@ -723,7 +729,7 @@ contract ConvertTest is TestHelper {
                 // increasing demand for convert behaviour.
                 baseBdvConverted = (baseBdvConverted * 106) / 100;
                 warpToNextSeasonAndUpdateOracles();
-                bs.mockUpdateBonusBdvConverted(baseBdvConverted);
+                bs.mockupdateBdvConverted(baseBdvConverted);
                 vm.roll(block.number + 1800);
                 bs.sunrise();
                 LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
@@ -760,7 +766,7 @@ contract ConvertTest is TestHelper {
             } else {
                 // steady demand for convert behaviour.
                 warpToNextSeasonAndUpdateOracles();
-                bs.mockUpdateBonusBdvConverted(baseBdvConverted);
+                bs.mockupdateBdvConverted(baseBdvConverted);
                 vm.roll(block.number + 1800);
                 bs.sunrise();
                 LibGaugeHelpers.ConvertBonusGaugeData memory gd = abi.decode(
@@ -999,29 +1005,33 @@ contract ConvertTest is TestHelper {
         uint256 minLp = getMinLPin();
         uint256 lpMinted = multipleWellDepositSetup();
 
+        // stalk bonus gauge data
+
+        // update bdv capacity to allow for more bdv to get the bonus
+        bs.mockUpdateBonusBdvCapacity(type(uint256).max);
+
+        LibGaugeHelpers.ConvertBonusGaugeData memory gdBefore = abi.decode(
+            bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+            (LibGaugeHelpers.ConvertBonusGaugeData)
+        );
+
         deltaB = bound(deltaB, 1e6, 1000 ether);
         setReserves(well, bean.balanceOf(well) + deltaB, weth.balanceOf(well));
-        uint256 initalWellBeanBalance = bean.balanceOf(well);
-        uint256 initalLPbalance = MockToken(well).totalSupply();
-        uint256 initalBeanBalance = bean.balanceOf(BEANSTALK);
+        ConvertData memory convertData = ConvertData(
+            bean.balanceOf(well),
+            MockToken(well).totalSupply(),
+            bean.balanceOf(BEANSTALK)
+        );
 
-        uint256 maxLpIn = bs.getMaxAmountIn(well, BEAN);
         lpConverted = bound(lpConverted, minLp, lpMinted);
 
         // if the maximum LP that can be used is less than
         // the amount that the user wants to convert,
         // cap the amount to the maximum LP that can be used.
-        if (lpConverted > maxLpIn) lpConverted = maxLpIn;
+        if (lpConverted > bs.getMaxAmountIn(well, BEAN))
+            lpConverted = bs.getMaxAmountIn(well, BEAN);
 
         uint256 expectedAmtOut = bs.getAmountOut(well, BEAN, lpConverted);
-
-        // create encoding for a well -> bean convert.
-        bytes memory convertData = convertEncoder(
-            LibConvertData.ConvertKind.WELL_LP_TO_BEANS,
-            well, // well
-            lpConverted, // amountIn
-            0 // minOut
-        );
 
         int96[] memory stems = new int96[](2);
         stems[0] = int96(0);
@@ -1037,7 +1047,16 @@ contract ConvertTest is TestHelper {
         // vm.expectEmit();
         // emit Convert(farmers[0], well, BEAN, lpConverted, expectedAmtOut, bdv, bdv);
         vm.prank(farmers[0]);
-        (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
+        (int96 toStem, , , , ) = convert.convert(
+            convertEncoder(
+                LibConvertData.ConvertKind.WELL_LP_TO_BEANS,
+                well, // well
+                lpConverted, // amountIn
+                0 // minOut
+            ),
+            stems,
+            amounts
+        );
 
         // the new maximum amount out should be the difference between the deltaB and the expected amount out.
         assertEq(
@@ -1047,23 +1066,38 @@ contract ConvertTest is TestHelper {
         );
         assertEq(
             bean.balanceOf(well),
-            initalWellBeanBalance - expectedAmtOut,
+            convertData.initalWellBeanBalance - expectedAmtOut,
             "well bean balance does not equal initalWellBeanBalance - expectedAmtOut"
         );
         assertEq(
             MockToken(well).totalSupply(),
-            initalLPbalance - lpConverted,
+            convertData.initalLPbalance - lpConverted,
             "well LP balance does not equal initalLPbalance - lpConverted"
         );
         assertEq(
             bean.balanceOf(BEANSTALK),
-            initalBeanBalance + expectedAmtOut,
+            convertData.initalBeanBalance + expectedAmtOut,
             "bean balance does not equal initalBeanBalance + expectedAmtOut"
         );
         // stack too deep.
         {
             int96 germinatingStem = bs.getGerminatingStem(address(bean));
             assertLt(toStem, germinatingStem, "toStem should be less than germinatingStem");
+            // verify bdvConverted is incremented.
+            LibGaugeHelpers.ConvertBonusGaugeData memory gdAfter = abi.decode(
+                bs.getGaugeData(GaugeId.CONVERT_UP_BONUS),
+                (LibGaugeHelpers.ConvertBonusGaugeData)
+            );
+            assertGt(
+                gdAfter.thisSeasonBdvConverted,
+                gdBefore.thisSeasonBdvConverted,
+                "bdvConverted should be incremented"
+            );
+            // assertEq(
+            //     gdAfter.lastSeasonBdvConverted - gdBefore.thisSeasonBdvConverted,
+            //     bs.bdv(well, lpConverted),
+            //     "lastSeasonBdvConverted should be equal to thisSeasonBdvConverted"
+            // );
         }
     }
 
