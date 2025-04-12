@@ -29,7 +29,7 @@ contract ConvertTest is TestHelper {
         uint256 toAmount
     );
 
-    event ConvertDownPenalty(uint256 stalkLost);
+    event ConvertDownPenalty(address account, uint256 grownStalkLost, uint256 grownStalkKept);
 
     // Interfaces.
     MockConvertFacet convert = MockConvertFacet(BEANSTALK);
@@ -305,7 +305,11 @@ contract ConvertTest is TestHelper {
             assertGt(grownStalkLost, 0, "grownStalkLost should be greater than 0");
 
             vm.expectEmit();
-            emit ConvertDownPenalty(grownStalkLost);
+            emit ConvertDownPenalty(
+                farmers[0],
+                grownStalkLost,
+                grownStalkConverting - grownStalkLost
+            );
 
             vm.prank(farmers[0]);
             (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
@@ -355,7 +359,11 @@ contract ConvertTest is TestHelper {
             assertGt(grownStalkLost, 0, "grownStalkLost should be greater than 0");
 
             vm.expectEmit();
-            emit ConvertDownPenalty(grownStalkLost);
+            emit ConvertDownPenalty(
+                farmers[0],
+                grownStalkLost,
+                grownStalkConverting - grownStalkLost
+            );
 
             vm.prank(farmers[0]);
             (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
@@ -403,7 +411,7 @@ contract ConvertTest is TestHelper {
 
         // Convert. Bean done germinating, but LP still germinating. No penalty.
         vm.expectEmit();
-        emit ConvertDownPenalty(0);
+        emit ConvertDownPenalty(farmers[0], 0, 40000010000000);
         vm.prank(farmers[0]);
         convert.convert(convertData, stems, amounts);
 
@@ -427,7 +435,7 @@ contract ConvertTest is TestHelper {
         );
         assertGt(maxGrownStalkLost, 0, "grownStalkLost should be greater than 0");
         vm.expectEmit(false, false, false, false);
-        emit ConvertDownPenalty(1); // Do not check value match.
+        emit ConvertDownPenalty(farmers[0], 0, 40000010000000); // Do not check value match.
         vm.prank(farmers[0]);
         (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
 
@@ -471,7 +479,7 @@ contract ConvertTest is TestHelper {
             bs.grownStalkForDeposit(farmers[0], BEAN, int96(0))) / amount;
 
         vm.expectEmit();
-        emit ConvertDownPenalty(0); // No penalty when Q < P.
+        emit ConvertDownPenalty(farmers[0], 0, 58200000000000000); // No penalty when Q < P.
 
         vm.prank(farmers[0]);
         (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
