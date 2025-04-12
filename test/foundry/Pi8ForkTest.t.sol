@@ -22,10 +22,13 @@ contract Pi8ForkTest is TestHelper {
         uint256 forkBlock = 28596600;
         vm.createSelectFork(vm.envString("BASE_RPC"), forkBlock - 1);
 
+        console.log("crop scalar:", bs.getBeanToMaxLpGpPerBdvRatio());
+        console.log("crop ratio:", bs.getBeanToMaxLpGpPerBdvRatioScaled());
+
         // upgrade to PI8
         forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI8");
 
-        // verify that the crop scalar is 66%
+        // verify that the crop ratio is the same
         console.log("crop scalar:", bs.getBeanToMaxLpGpPerBdvRatio());
         console.log("crop ratio:", bs.getBeanToMaxLpGpPerBdvRatioScaled());
 
