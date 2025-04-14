@@ -746,19 +746,21 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
       facetNames: [
         "SiloFacet",
         "SiloGettersFacet",
+        "ConvertFacet",
+        "PipelineConvertFacet",
         "TractorFacet",
         "FieldFacet",
+        "ApprovalFacet",
+        "ConvertGettersFacet",
+        "GaugeFacet",
+        "GaugeGettersFacet",
+        "SeasonFacet",
+        "SeasonGettersFacet",
         "TokenFacet",
         "TokenSupportFacet",
         "MarketplaceFacet",
-        "ApprovalFacet",
         "ClaimFacet",
-        "ConvertFacet",
-        "PipelineConvertFacet",
-        "SeasonFacet",
-        "WhitelistFacet",
-        "GaugeGettersFacet",
-        "SeasonGettersFacet"
+        "WhitelistFacet"
       ],
       libraryNames: [
         "LibSilo",
@@ -775,7 +777,6 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
       ],
       facetLibraries: {
         SiloFacet: ["LibSilo", "LibTokenSilo"],
-        ClaimFacet: ["LibSilo", "LibTokenSilo"],
         ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
         PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
         SeasonFacet: [
@@ -787,8 +788,11 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
           "LibFlood",
           "LibGerminate"
         ],
-        SeasonGettersFacet: ["LibWellMinting"]
+        SeasonGettersFacet: ["LibWellMinting"],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"]
       },
+      initArgs: [],
+      initFacetName: "InitPI8",
       object: !mock,
       verbose: true,
       account: owner
