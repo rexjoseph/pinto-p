@@ -367,7 +367,7 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "bytes32",
         "name": "blueprintHash",
         "type": "bytes32"
@@ -522,13 +522,62 @@
         "type": "address"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "bytes32",
         "name": "blueprintHash",
         "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "gasleft",
+        "type": "uint256"
       }
     ],
     "name": "Tractor",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "publisher",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "blueprintHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "gasleft",
+        "type": "uint256"
+      }
+    ],
+    "name": "TractorExecutionBegan",
     "type": "event"
   },
   {
@@ -6454,8 +6503,20 @@
     "inputs": [
       {
         "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
         "internalType": "uint256",
-        "name": "stalkLost",
+        "name": "grownStalkLost",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "grownStalkKept",
         "type": "uint256"
       }
     ],
