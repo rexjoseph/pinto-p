@@ -13,7 +13,7 @@ import {LibGauge} from "../../libraries/LibGauge.sol";
  **/
 contract InitPI8 {
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
-    uint256 internal constant MIN_SOIL_SOWN_DEMAND = 5e6; // 5
+    uint256 internal constant MIN_SOIL_SOWN_DEMAND = 25e6; // 25
 
     function init() external {
         AppStorage storage s = LibAppStorage.diamondStorage();
