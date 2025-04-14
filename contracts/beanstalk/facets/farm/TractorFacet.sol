@@ -68,6 +68,15 @@ contract TractorFacet is Invariable, ReentrancyGuard {
                 block.timestamp <= requisition.blueprint.endTime,
             "TractorFacet: blueprint is not active"
         );
+
+        emit TractorExecutionBegan(
+            msg.sender,
+            requisition.blueprint.publisher,
+            requisition.blueprintHash,
+            LibTractor._getBlueprintNonce(requisition.blueprintHash),
+            gasleft()
+        );
+
         LibTractor._incrementBlueprintNonce(requisition.blueprintHash);
         LibTractor._setPublisher(payable(requisition.blueprint.publisher));
         _;
@@ -134,14 +143,6 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         returns (bytes[] memory results)
     {
         require(requisition.blueprint.data.length > 0, "Tractor: data empty");
-
-        emit TractorExecutionBegan(
-            msg.sender,
-            requisition.blueprint.publisher,
-            requisition.blueprintHash,
-            LibTractor._getBlueprintNonce(requisition.blueprintHash),
-            gasleft()
-        );
 
         // Set current blueprint hash
         LibTractor._setCurrentBlueprintHash(requisition.blueprintHash);
