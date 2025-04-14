@@ -186,7 +186,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
             msg.sender,
             requisition.blueprint.publisher,
             requisition.blueprintHash,
-            LibTractor._getBlueprintNonce(requisition.blueprintHash),
+            LibTractor._getBlueprintNonce(requisition.blueprintHash) - 1,
             gasleft()
         );
     }
