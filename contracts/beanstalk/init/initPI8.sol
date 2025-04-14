@@ -11,7 +11,7 @@ import {Weather} from "../facets/sun/abstract/Weather.sol";
  * @dev Updates parameters for pinto improvement 8.
  **/
 contract InitPI8 {
-    uint256 internal constant MIN_SOIL_SOWN_DEMAND = 5e6; // 5
+    uint256 internal constant MIN_SOIL_SOWN_DEMAND = 25e6; // 25
 
     function init() external {
         AppStorage storage s = LibAppStorage.diamondStorage();
