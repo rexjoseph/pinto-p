@@ -31,6 +31,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         address indexed operator,
         address indexed publisher,
         bytes32 indexed blueprintHash,
+        uint256 nonce,
         uint256 gasleft
     );
 
@@ -38,6 +39,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         address indexed operator,
         address indexed publisher,
         bytes32 indexed blueprintHash,
+        uint256 nonce,
         uint256 gasleft
     );
 
@@ -137,6 +139,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
             msg.sender,
             requisition.blueprint.publisher,
             requisition.blueprintHash,
+            LibTractor._getBlueprintNonce(requisition.blueprintHash),
             gasleft()
         );
 
@@ -182,6 +185,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
             msg.sender,
             requisition.blueprint.publisher,
             requisition.blueprintHash,
+            LibTractor._getBlueprintNonce(requisition.blueprintHash),
             gasleft()
         );
     }

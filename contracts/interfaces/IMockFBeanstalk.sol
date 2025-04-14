@@ -466,12 +466,14 @@ interface IMockFBeanstalk {
         address indexed operator,
         address indexed publisher,
         bytes32 indexed blueprintHash,
+        uint256 nonce,
         uint256 gasleft
     );
     event TractorExecutionBegan(
         address indexed operator,
         address indexed publisher,
         bytes32 indexed blueprintHash,
+        uint256 nonce,
         uint256 gasleft
     );
     event TractorVersionSet(string version);
