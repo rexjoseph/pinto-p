@@ -81,6 +81,13 @@ contract TractorFacet is Invariable, ReentrancyGuard {
         LibTractor._setPublisher(payable(requisition.blueprint.publisher));
         _;
         LibTractor._resetPublisher();
+        emit Tractor(
+            msg.sender,
+            requisition.blueprint.publisher,
+            requisition.blueprintHash,
+            LibTractor._getBlueprintNonce(requisition.blueprintHash) - 1,
+            gasleft()
+        );
     }
 
     /**
@@ -181,14 +188,6 @@ contract TractorFacet is Invariable, ReentrancyGuard {
 
         // Clear operator
         LibTractor._resetOperator();
-
-        emit Tractor(
-            msg.sender,
-            requisition.blueprint.publisher,
-            requisition.blueprintHash,
-            LibTractor._getBlueprintNonce(requisition.blueprintHash) - 1,
-            gasleft()
-        );
     }
 
     /**
