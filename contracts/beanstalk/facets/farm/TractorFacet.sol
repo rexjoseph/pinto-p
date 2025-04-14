@@ -58,11 +58,8 @@ contract TractorFacet is Invariable, ReentrancyGuard {
      * @notice Verify nonce and time are acceptable, increment nonce, set publisher, clear publisher.
      */
     modifier runBlueprint(LibTractor.Requisition calldata requisition) {
-        require(
-            LibTractor._getBlueprintNonce(requisition.blueprintHash) <
-                requisition.blueprint.maxNonce,
-            "TractorFacet: maxNonce reached"
-        );
+        uint256 nonce = LibTractor._getBlueprintNonce(requisition.blueprintHash);
+        require(nonce < requisition.blueprint.maxNonce, "TractorFacet: maxNonce reached");
         require(
             requisition.blueprint.startTime <= block.timestamp &&
                 block.timestamp <= requisition.blueprint.endTime,
@@ -73,7 +70,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
             msg.sender,
             requisition.blueprint.publisher,
             requisition.blueprintHash,
-            LibTractor._getBlueprintNonce(requisition.blueprintHash),
+            nonce,
             gasleft()
         );
 
@@ -85,7 +82,7 @@ contract TractorFacet is Invariable, ReentrancyGuard {
             msg.sender,
             requisition.blueprint.publisher,
             requisition.blueprintHash,
-            LibTractor._getBlueprintNonce(requisition.blueprintHash) - 1,
+            nonce,
             gasleft()
         );
     }
