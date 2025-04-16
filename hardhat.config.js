@@ -792,6 +792,7 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
         ClaimFacet: ["LibSilo", "LibTokenSilo"]
       },
       initArgs: [],
+      selectorsToRemove: ["0x2444561c"],
       initFacetName: "InitPI8",
       object: !mock,
       verbose: true,
