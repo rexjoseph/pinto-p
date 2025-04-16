@@ -1664,6 +1664,17 @@ task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(as
       JSON.stringify(sowBlueprintArtifact.abi, null, 2)
     );
 
+    // Generate BeanstalkPrice ABI
+    const beanstalkPriceArtifact = await hre.artifacts.readArtifact("BeanstalkPrice");
+    fs.writeFileSync(
+      `${outputDir}/BeanstalkPrice.json`,
+      JSON.stringify(beanstalkPriceArtifact.abi, null, 2)
+    );
+
+    // Generate WellPrice ABI (parent contract of BeanstalkPrice)
+    const wellPriceArtifact = await hre.artifacts.readArtifact("WellPrice");
+    fs.writeFileSync(`${outputDir}/WellPrice.json`, JSON.stringify(wellPriceArtifact.abi, null, 2));
+
     console.log("ABIs generated successfully in", outputDir);
   } catch (error) {
     console.error("Error generating ABIs:", error);
