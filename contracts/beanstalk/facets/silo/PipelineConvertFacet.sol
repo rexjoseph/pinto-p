@@ -114,7 +114,7 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
                 toBdv,
                 grownStalk
             );
-            emit LibConvert.ConvertDownPenalty(grownStalkLost);
+            emit LibConvert.ConvertDownPenalty(LibTractor._user(), grownStalkLost, grownStalk);
         }
 
         toStem = LibConvert._depositTokensForConvert(

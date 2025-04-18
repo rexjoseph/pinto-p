@@ -142,8 +142,8 @@ task("mintUsdc", "Mints usdc to specified account")
   });
 
 task("skipMorningAuction", "Skips the morning auction, accounts for block time", async function () {
-  const duration = 300; // 5 minutes
-  // skip 5 minutes in blocks --> 150 blocks for base
+  const duration = 600; // 10 minutes
+  // skip 10 minutes in blocks --> 300 blocks for base
   const blocksToSkip = duration / BASE_BLOCK_TIME;
   for (let i = 0; i < blocksToSkip; i++) {
     await network.provider.send("evm_mine");
@@ -670,6 +670,137 @@ task("PI-7", "Deploys Pinto improvment set 7, Convert Down Penalty").setAction(a
   });
 });
 
+task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setAction(
+  async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+    }
+
+    //////////////// External Contracts ////////////////
+
+    // Deploy contracts in correct order
+
+    // Updated Price contract
+    const beanstalkPrice = await ethers.getContractFactory("BeanstalkPrice");
+    const beanstalkPriceContract = await beanstalkPrice.deploy(L2_PINTO);
+    await beanstalkPriceContract.deployed();
+    console.log("\nBeanstalkPrice deployed to:", beanstalkPriceContract.address);
+
+    // Price Manipulation
+    const priceManipulation = await ethers.getContractFactory("PriceManipulation");
+    const priceManipulationContract = await priceManipulation.deploy(L2_PINTO);
+    await priceManipulationContract.deployed();
+    console.log("\nPriceManipulation deployed to:", priceManipulationContract.address);
+
+    // Deploy OperatorWhitelist
+    const operatorWhitelist = await ethers.getContractFactory("OperatorWhitelist");
+    const operatorWhitelistContract = await operatorWhitelist.deploy(L2_PCM);
+    await operatorWhitelistContract.deployed();
+    console.log("\nOperatorWhitelist deployed to:", operatorWhitelistContract.address);
+
+    // Deploy LibTractorHelpers first
+    const LibTractorHelpers = await ethers.getContractFactory("LibTractorHelpers");
+    const libTractorHelpers = await LibTractorHelpers.deploy();
+    await libTractorHelpers.deployed();
+    console.log("\nLibTractorHelpers deployed to:", libTractorHelpers.address);
+
+    // Deploy TractorHelpers with library linking
+    const TractorHelpers = await ethers.getContractFactory("TractorHelpers", {
+      libraries: {
+        LibTractorHelpers: libTractorHelpers.address
+      }
+    });
+    const tractorHelpersContract = await TractorHelpers.deploy(
+      L2_PINTO, // diamond address
+      beanstalkPriceContract.address, // price contract
+      L2_PCM, // owner address
+      priceManipulationContract.address // price manipulation contract address
+    );
+    await tractorHelpersContract.deployed();
+    console.log("\nTractorHelpers deployed to:", tractorHelpersContract.address);
+
+    // Deploy SowBlueprintv0 and connect it to the existing TractorHelpers
+    const sowBlueprint = await ethers.getContractFactory("SowBlueprintv0");
+    const sowBlueprintContract = await sowBlueprint.deploy(
+      L2_PINTO, // diamond address
+      L2_PCM, // owner address
+      tractorHelpersContract.address // tractorHelpers contract address
+    );
+
+    await sowBlueprintContract.deployed();
+    console.log("\nSowBlueprintv0 deployed to:", sowBlueprintContract.address);
+
+    console.log("\nExternal contracts deployed!");
+
+    console.log("\nStarting diamond upgrade...");
+
+    /////////////////////// Diamond Upgrade ///////////////////////
+
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: [
+        "SiloFacet",
+        "SiloGettersFacet",
+        "ConvertFacet",
+        "PipelineConvertFacet",
+        "TractorFacet",
+        "FieldFacet",
+        "ApprovalFacet",
+        "ConvertGettersFacet",
+        "GaugeFacet",
+        "GaugeGettersFacet",
+        "SeasonFacet",
+        "SeasonGettersFacet",
+        "TokenFacet",
+        "TokenSupportFacet",
+        "MarketplaceFacet",
+        "ClaimFacet",
+        "WhitelistFacet"
+      ],
+      libraryNames: [
+        "LibSilo",
+        "LibTokenSilo",
+        "LibConvert",
+        "LibPipelineConvert",
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate"
+      ],
+      facetLibraries: {
+        SiloFacet: ["LibSilo", "LibTokenSilo"],
+        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        SeasonFacet: [
+          "LibEvaluate",
+          "LibGauge",
+          "LibIncentive",
+          "LibShipping",
+          "LibWellMinting",
+          "LibFlood",
+          "LibGerminate"
+        ],
+        SeasonGettersFacet: ["LibWellMinting"],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"]
+      },
+      initArgs: [],
+      selectorsToRemove: ["0x2444561c"],
+      initFacetName: "InitPI8",
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  }
+);
+
 task("getWhitelistedWells", "Lists all whitelisted wells and their non-pinto tokens").setAction(
   async () => {
     console.log("-----------------------------------");
@@ -950,6 +1081,8 @@ task("mintPinto", "Mints Pintos to an address")
   });
 
 task("diamondABI", "Generates ABI file for diamond, includes all ABIs of facets", async () => {
+  console.log("Compiling contracts to get updated artifacts...");
+  await hre.run("compile");
   // The path (relative to the root of `protocol` directory) where all modules sit.
   const modulesDir = path.join("contracts", "beanstalk", "facets");
 
@@ -988,6 +1121,7 @@ task("diamondABI", "Generates ABI file for diamond, includes all ABIs of facets"
       files.push("contracts/libraries/Token/LibTransfer.sol");
       files.push("contracts/libraries/LibEvaluate.sol");
       files.push("contracts/libraries/Silo/LibFlood.sol");
+      files.push("contracts/libraries/LibGaugeHelpers.sol");
     }
     files.forEach((file) => {
       const facetName = getFacetName(file);
@@ -1072,9 +1206,17 @@ task("mockDiamondABI", "Generates ABI file for mock contracts", async () => {
     if (module == "silo") {
       // Manually add in libraries that emit events
       files.push("contracts/libraries/LibIncentive.sol");
-      files.push("contracts/libraries/Silo/LibWhitelist.sol");
-      files.push("contracts/libraries/LibGauge.sol");
       files.push("contracts/libraries/Silo/LibGerminate.sol");
+      files.push("contracts/libraries/Minting/LibWellMinting.sol");
+      files.push("contracts/libraries/Silo/LibWhitelistedTokens.sol");
+      files.push("contracts/libraries/Silo/LibWhitelist.sol");
+      files.push("contracts/libraries/Silo/LibTokenSilo.sol");
+      files.push("contracts/libraries/LibGauge.sol");
+      files.push("contracts/libraries/LibShipping.sol");
+      files.push("contracts/libraries/Token/LibTransfer.sol");
+      files.push("contracts/libraries/LibEvaluate.sol");
+      files.push("contracts/libraries/Silo/LibFlood.sol");
+      files.push("contracts/libraries/LibGaugeHelpers.sol");
     }
     files.forEach((file) => {
       const facetName = getFacetName(file);
@@ -1494,6 +1636,51 @@ task("updateOracleTimeouts", "Updates oracle timeouts for all whitelisted LP tok
     console.log("Finished oracle updates");
   }
 );
+
+task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(async () => {
+  try {
+    console.log("Compiling contracts to get updated artifacts...");
+    await hre.run("compile");
+
+    console.log("Generating ABIs for ecosystem contracts...");
+
+    // Create output directory if it doesn't exist
+    const outputDir = "./abi/ecosystem";
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Generate TractorHelpers ABI
+    const tractorHelpersArtifact = await hre.artifacts.readArtifact("TractorHelpers");
+    fs.writeFileSync(
+      `${outputDir}/TractorHelpers.json`,
+      JSON.stringify(tractorHelpersArtifact.abi, null, 2)
+    );
+
+    // Generate SowBlueprintv0 ABI
+    const sowBlueprintArtifact = await hre.artifacts.readArtifact("SowBlueprintv0");
+    fs.writeFileSync(
+      `${outputDir}/SowBlueprintv0.json`,
+      JSON.stringify(sowBlueprintArtifact.abi, null, 2)
+    );
+
+    // Generate BeanstalkPrice ABI
+    const beanstalkPriceArtifact = await hre.artifacts.readArtifact("BeanstalkPrice");
+    fs.writeFileSync(
+      `${outputDir}/BeanstalkPrice.json`,
+      JSON.stringify(beanstalkPriceArtifact.abi, null, 2)
+    );
+
+    // Generate WellPrice ABI (parent contract of BeanstalkPrice)
+    const wellPriceArtifact = await hre.artifacts.readArtifact("WellPrice");
+    fs.writeFileSync(`${outputDir}/WellPrice.json`, JSON.stringify(wellPriceArtifact.abi, null, 2));
+
+    console.log("ABIs generated successfully in", outputDir);
+  } catch (error) {
+    console.error("Error generating ABIs:", error);
+    process.exit(1);
+  }
+});
 
 //////////////////////// CONFIGURATION ////////////////////////
 

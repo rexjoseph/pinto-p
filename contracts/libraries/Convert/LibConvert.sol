@@ -38,7 +38,7 @@ library LibConvert {
     using LibRedundantMathSigned256 for int256;
     using SafeCast for uint256;
 
-    event ConvertDownPenalty(uint256 stalkLost);
+    event ConvertDownPenalty(address account, uint256 grownStalkLost, uint256 grownStalkKept);
 
     struct AssetsRemovedConvert {
         LibSilo.Removed active;
