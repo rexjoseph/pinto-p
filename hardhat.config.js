@@ -801,10 +801,7 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
   }
 );
 
-task("deploySiloHelpers", "Deploys the SiloHelpers contract").setAction(async function () {
-  console.log("Compiling to make sure artifacts are up to date...");
-  await hre.run("compile");
-
+task("silo-tractor-fix", "Deploys silo tractor fix").setAction(async function () {
   const mock = true;
   let owner;
   if (mock) {
@@ -813,24 +810,28 @@ task("deploySiloHelpers", "Deploys the SiloHelpers contract").setAction(async fu
   } else {
     owner = (await ethers.getSigners())[0];
   }
-
-  console.log("\nDeploying SiloHelpers contract...");
-
-  // Deploy SiloHelpers
-  const siloHelpers = await ethers.getContractFactory("SiloHelpers");
-  const siloHelpersContract = await siloHelpers.deploy(
-    L2_PINTO, // Beanstalk address
-    L2_PCM // Owner address
-  );
-  await siloHelpersContract.deployed();
-
-  console.log("\nSiloHelpers deployed to:", siloHelpersContract.address);
-
-  // To make verification easier later
-  console.log("\nVerification command:");
-  console.log(
-    `npx hardhat verify --network base ${siloHelpersContract.address} ${L2_PINTO} ${L2_PCM}`
-  );
+  // upgrade facets
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [
+      "ApprovalFacet",
+      "ClaimFacet",
+      "ConvertFacet",
+      "PipelineConvertFacet",
+      "SiloFacet",
+      "SiloGettersFacet"
+    ],
+    libraryNames: ["LibSilo", "LibTokenSilo", "LibConvert", "LibPipelineConvert"],
+    facetLibraries: {
+      ClaimFacet: ["LibSilo", "LibTokenSilo"],
+      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+      SiloFacet: ["LibSilo", "LibTokenSilo"]
+    },
+    object: !mock,
+    verbose: true,
+    account: owner
+  });
 });
 
 task("getWhitelistedWells", "Lists all whitelisted wells and their non-pinto tokens").setAction(
