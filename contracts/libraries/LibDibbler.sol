@@ -230,7 +230,7 @@ library LibDibbler {
         if (soil <= soilAlmostSoldOutThreshold && thisSowTime >= type(uint32).max - 1) {
             if (thisSowTime == type(uint32).max) {
                 // this is the first instance soil has almost sold out or sold out.
-                LibGaugeHelpers.updateSoilSellingOutTemperature();
+                LibGaugeHelpers.updateCultivationTemperature();
 
                 // if this is the first time in the season soil almost sold out,
                 // set thisSowTime and emit event.

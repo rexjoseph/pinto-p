@@ -185,7 +185,7 @@ library LibGaugeHelpers {
 
     /// GAUGE SPECIFIC HELPERS ///
 
-    function updateSoilSellingOutTemperature() internal {
+    function updateCultivationTemperature() internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         (
             uint256 minDeltaCf,
