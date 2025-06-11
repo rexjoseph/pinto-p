@@ -13,6 +13,7 @@ import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.
 import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 
 import {console} from "forge-std/console.sol";
 
@@ -760,6 +761,10 @@ contract SunTest is TestHelper {
         // Case 1: Soil sold out and Pod rate below lower bound - cultivationFactor should increase
         testState.podRate = Decimal.ratio(podRateLowerBound - 1e16, 1e18); // 1% below lower bound
         season.setLastSowTimeE(1); // Set lastSowTime to non-max value to indicate soil sold out
+        vm.expectEmit(true, false, false, false);
+        emit LibGaugeHelpers.Engaged(GaugeId.CULTIVATION_FACTOR, abi.encode(0));
+        vm.expectEmit(true, false, false, false);
+        emit LibGaugeHelpers.EngagedData(GaugeId.CULTIVATION_FACTOR, abi.encode(0, 0, 0, 0, 0, 0));
         season.mockStepGauges(testState);
         uint256 cultivationFactorAfterCase1 = abi.decode(
             bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
