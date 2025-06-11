@@ -48,7 +48,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant PRICE_PRECISION = 1e6;
 
     /**
-     * @notice cultivationFactor is a gauge implementation that returns the adjusted cultivationFactor based on the podRate and the price of Pinto.
+     * @notice cultivationFactor is a gauge implementation that is used when issuing soil below peg.
+     * The value increases as soil is sold out (and vice versa), with the amount being a function of
+     * podRate and price. It ranges between 1% to 100% and uses 6 decimal precision.
      */
     function cultivationFactor(
         bytes memory value,
@@ -69,14 +71,35 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         }
 
         (
-            uint256 minDeltaCultivationFactor,
-            uint256 maxDeltaCultivationFactor,
-            uint256 minCultivationFactor,
-            uint256 maxCultivationFactor
-        ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256));
+            uint256 minDeltaCultivationFactor, // min change in cultivation factor
+            uint256 maxDeltaCultivationFactor, // max change in cultivation factor
+            uint256 minCultivationFactor, // min cultivation factor.
+            uint256 maxCultivationFactor, // max cultivation factor.
+            uint256 cultivationTemp, // temperature at which most soil was sown (i.e almost sold out or sold out)
+            uint256 prevSeasonTemp // temperature of the previous season.
+        ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256, uint256));
 
-        // determine increase or decrease based on demand for soil.
-        bool soilSoldOut = s.sys.weather.lastSowTime < type(uint32).max;
+        // determine if soil was sold out or almost sold out.
+        bool soilSoldOut = s.sys.weather.lastSowTime < type(uint32).max - 1;
+        bool soilAlmostSoldOut = s.sys.weather.lastSowTime == type(uint32).max - 1;
+
+        // if soil was almost sold out or sold out, and demand for soil is increasing,
+        //  set cultivationTemp to the previous season temperature.
+        if (
+            (soilAlmostSoldOut || soilSoldOut) &&
+            bs.deltaPodDemand.value > s.sys.evaluationParameters.deltaPodDemandUpperBound
+        ) {
+            cultivationTemp = prevSeasonTemp;
+            gaugeData = abi.encode(
+                minDeltaCultivationFactor,
+                maxDeltaCultivationFactor,
+                minCultivationFactor,
+                maxCultivationFactor,
+                cultivationTemp,
+                prevSeasonTemp
+            );
+        }
+
         // determine amount change as a function of podRate.
         uint256 amountChange = LibGaugeHelpers.linearInterpolation(
             bs.podRate.value,
@@ -89,25 +112,45 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // update the change based on price.
         amountChange = (amountChange * bs.largestLiquidWellTwapBeanPrice) / PRICE_PRECISION;
 
-        // if soil did not sell out, inverse the amountChange.
-        if (!soilSoldOut) {
+        // update the cultivation factor based on
+        // 1) the sell state of soil (not selling out, almost selling out, or sold out)
+        // 2) the demand for soil (steady/increasing, or decreasing)
+        // 3) the previous season temperature (if it was above the cultivation temperature)
+        if (soilSoldOut) {
+            // increase cultivation factor if soil sold out.
+            currentValue = LibGaugeHelpers.linear256(
+                currentValue,
+                true,
+                amountChange,
+                minCultivationFactor,
+                maxCultivationFactor
+            );
+        } else if (soilAlmostSoldOut) {
+            // if soil almost sold out, return unchanged gauge data and value.
+            return (abi.encode(currentValue), gaugeData);
+        } else if (
+            bs.deltaPodDemand.value < s.sys.evaluationParameters.deltaPodDemandLowerBound &&
+            prevSeasonTemp < cultivationTemp
+        ) {
+            // if soil is not selling out, and previous season temperature < cultivation temperature,
+            // return unchanged gauge data and value.
+            return (abi.encode(currentValue), gaugeData);
+        } else {
+            // demand for soil is steady/increasing (but not selling out)
+            // or previous season temperature >= cultivation temperature.
+            // decrease cultivation factor.
             amountChange = 1e12 / amountChange;
+            currentValue = LibGaugeHelpers.linear256(
+                currentValue,
+                false,
+                amountChange,
+                minCultivationFactor,
+                maxCultivationFactor
+            );
         }
 
-        // return the new cultivationFactor.
-        // return unchanged gaugeData.
-        return (
-            abi.encode(
-                LibGaugeHelpers.linear(
-                    int256(currentValue),
-                    soilSoldOut,
-                    amountChange,
-                    int256(minCultivationFactor),
-                    int256(maxCultivationFactor)
-                )
-            ),
-            gaugeData
-        );
+        // update the gauge data.
+        return (abi.encode(currentValue), gaugeData);
     }
 
     /**
@@ -151,14 +194,17 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
         }
 
-        // Scale L2SR by the optimal L2SR.
-        uint256 l2srRatio = (1e18 * bs.lpToSupplyRatio.value) /
-            s.sys.evaluationParameters.lpToSupplyRatioOptimal;
+        // Scale L2SR by the optimal L2SR. Cap the current L2SR at the optimal L2SR.
+        uint256 l2srRatio = (1e18 *
+            Math.min(
+                bs.lpToSupplyRatio.value,
+                s.sys.evaluationParameters.lpToSupplyRatioLowerBound
+            )) / s.sys.evaluationParameters.lpToSupplyRatioOptimal;
 
         uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(rollingSeasonsAbovePeg * 1e18 + 1e18)) /
             PRBMathUD60x18.log2(rollingSeasonsAbovePegCap * 1e18 + 1e18);
 
-        penaltyRatio = Math.min(1e18, l2srRatio * (1e18 - timeRatio) / 1e18);
+        penaltyRatio = Math.min(1e18, (l2srRatio * (1e18 - timeRatio)) / 1e18);
         return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
     }
 
@@ -191,24 +237,24 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         return s.sys.gaugeData.gauges[gaugeId].data;
     }
 
-    // /**
-    //  * @notice returns the result of calling a gauge.
-    //  */
-    // function getGaugeResult(
-    //     Gauge memory gauge,
-    //     bytes memory systemData
-    // ) external returns (bytes memory, bytes memory) {
-    //     return LibGaugeHelpers.getGaugeResult(gauge, systemData);
-    // }
+    /**
+     * @notice returns the result of calling a gauge.
+     */
+    function getGaugeResult(
+        Gauge memory gauge,
+        bytes memory systemData
+    ) external view returns (bytes memory, bytes memory) {
+        return LibGaugeHelpers.getGaugeResult(gauge, systemData);
+    }
 
-    // /**
-    //  * @notice returns the result of calling a gauge by its id.
-    //  */
-    // function getGaugeIdResult(
-    //     GaugeId gaugeId,
-    //     bytes memory systemData
-    // ) external returns (bytes memory, bytes memory) {
-    //     Gauge memory g = s.sys.gaugeData.gauges[gaugeId];
-    //     return LibGaugeHelpers.getGaugeResult(g, systemData);
-    // }
+    /**
+     * @notice returns the result of calling a gauge by its id.
+     */
+    function getGaugeIdResult(
+        GaugeId gaugeId,
+        bytes memory systemData
+    ) external view returns (bytes memory, bytes memory) {
+        Gauge memory g = s.sys.gaugeData.gauges[gaugeId];
+        return LibGaugeHelpers.getGaugeResult(g, systemData);
+    }
 }
