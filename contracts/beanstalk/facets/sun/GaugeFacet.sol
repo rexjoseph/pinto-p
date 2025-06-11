@@ -75,7 +75,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             uint256 maxDeltaCultivationFactor, // max change in cultivation factor
             uint256 minCultivationFactor, // min cultivation factor.
             uint256 maxCultivationFactor, // max cultivation factor.
-            uint256 cultivationTemp, // temperature at which most soil was sown (i.e almost sold out or sold out)
+            uint256 cultivationTemp, // temperature when soil was selling out and demand for soil was increasing.
             uint256 prevSeasonTemp // temperature of the previous season.
         ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256, uint256));
 
