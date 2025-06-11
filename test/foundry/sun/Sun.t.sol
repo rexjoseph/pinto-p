@@ -869,7 +869,7 @@ contract SunTest is TestHelper {
 
         // Case 7: Soil not sold out, sold out temp is higher than prevSeasonTemp,  should not change cultivationFactor
         season.setLastSowTimeE(type(uint32).max); // Set soil as not sold out
-        bs.setPrevSeasonAndSoldOutTemp(100e6, 101e6);
+        bs.setPrevSeasonAndCultivationTemp(100e6, 101e6);
         deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
         assertEq(
             deltaCultivationFactor,
@@ -880,7 +880,7 @@ contract SunTest is TestHelper {
         // Case 8: Soil sold out, sold out temp is higher than prevSeasonTemp,  should change cultivationFactor
         season.setLastSowTimeE(1); // Set soil as sold out
         for (uint256 i = 0; i < 3; i++) {
-            bs.setPrevSeasonAndSoldOutTemp(100e6, 99e6 + (i * 1e6)); // 99e6, 100e6, 101e6
+            bs.setPrevSeasonAndCultivationTemp(100e6, 99e6 + (i * 1e6)); // 99e6, 100e6, 101e6
             deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
             assertEq(
                 deltaCultivationFactor,
@@ -888,6 +888,77 @@ contract SunTest is TestHelper {
                 "deltaCultivationFactor should change when soil is sold out, independent of prevSeasonTemp"
             );
         }
+
+        // Case 9: Soil almost sold out should not change cultivationFactor
+        season.setLastSowTimeE(type(uint32).max - 1); // Set soil as almost sold out
+        deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
+        assertEq(
+            deltaCultivationFactor,
+            0,
+            "deltaCultivationFactor should be 0 when soil is almost sold out "
+        );
+
+        // Case 10: Soil did not sell out, demand is steady, should decrease cultivationFactor
+        uint256 cultivationFactorBeforeCase10 = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        season.setLastSowTimeE(type(uint32).max);
+        testState.deltaPodDemand = Decimal.one();
+        season.mockStepGauges(testState);
+        uint256 cultivationFactorAfterCase10 = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        assertEq(
+            cultivationFactorBeforeCase10,
+            cultivationFactorAfterCase10 + 1.111111e6,
+            "deltaCultivationFactor should decrease when soil did not sell out, demand is steady"
+        );
+
+        // Case 11: Soil did not sell out, demand is increasing, should decrease cultivationFactor
+        season.setLastSowTimeE(type(uint32).max);
+        testState.deltaPodDemand = Decimal.from(1e18); // increasing demand
+        season.mockStepGauges(testState);
+        uint256 cultivationFactorAfterCase11 = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        assertEq(
+            cultivationFactorAfterCase10,
+            cultivationFactorAfterCase11 + 1.111111e6,
+            "deltaCultivationFactor should decrease when soil did not sell out, demand is increasing"
+        );
+
+        // Case 12: Soil did not sell out, demand is decreasing, and cultivation temp > prevSeasonTemp, should decrease cultivationFactor
+        season.setLastSowTimeE(type(uint32).max);
+        testState.deltaPodDemand = Decimal.zero(); //gg decreasing demand
+        bs.setPrevSeasonAndCultivationTemp(100e6, 99e6); // temperature is lower then CTemp
+        season.mockStepGauges(testState);
+        uint256 cultivationFactorAfterCase12 = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        assertEq(
+            cultivationFactorAfterCase11,
+            cultivationFactorAfterCase12 + 1.111111e6,
+            "deltaCultivationFactor should decrease when soil did not sell out, demand is decreasing, and cultivation temp > prevSeasonTemp"
+        );
+
+        // Case 13: Soil did not sell out, demand is decreasing, and cultivation temp <= prevSeasonTemp, should keep cultivationFactor
+        season.setLastSowTimeE(type(uint32).max);
+        testState.deltaPodDemand = Decimal.zero(); // decreasing demand
+        bs.setPrevSeasonAndCultivationTemp(99e6, 100e6); // temperature is lower then CTemp
+        season.mockStepGauges(testState);
+        uint256 cultivationFactorAfterCase13 = abi.decode(
+            bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
+            (uint256)
+        );
+        assertEq(
+            cultivationFactorAfterCase12,
+            cultivationFactorAfterCase13,
+            "CF should not change when soil did not sell out, demand is decreasing and cultivation temp <= prevSeasonTemp"
+        );
     }
 
     function test_calculateCultivationFactorDelta() public {

@@ -218,7 +218,7 @@ contract MockFieldFacet is FieldFacet {
         s.sys.gaugeData.gauges[GaugeId.CULTIVATION_FACTOR].value = abi.encode(cultivationFactor);
     }
 
-    function setPrevSeasonAndSoldOutTemp(uint256 prevSeasonTemp, uint256 soldOutTemp) external {
+    function setPrevSeasonAndCultivationTemp(uint256 prevSeasonTemp, uint256 soldOutTemp) external {
         (uint256 minDeltaCf, uint256 maxDeltaCf, uint256 minCf, uint256 maxCf, , ) = abi.decode(
             s.sys.gaugeData.gauges[GaugeId.CULTIVATION_FACTOR].data,
             (uint256, uint256, uint256, uint256, uint256, uint256)
