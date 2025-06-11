@@ -6,7 +6,6 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {PRBMath} from "@prb/math/contracts/PRBMath.sol";
 import {LibPRBMathRoundable} from "contracts/libraries/Math/LibPRBMathRoundable.sol";
-import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
 import {LibAppStorage, AppStorage} from "./LibAppStorage.sol";
 import {Account, Field} from "contracts/beanstalk/storage/Account.sol";
 import {LibRedundantMath128} from "./Math/LibRedundantMath128.sol";
@@ -15,7 +14,6 @@ import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {IBean} from "contracts/interfaces/IBean.sol";
-import {C} from "contracts/C.sol";
 import {LibGaugeHelpers} from "./LibGaugeHelpers.sol";
 
 /**
