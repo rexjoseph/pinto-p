@@ -50,6 +50,8 @@ library LibDibbler {
     uint256 internal constant L1_BLOCK_TIME = 1200;
     uint256 internal constant L2_BLOCK_TIME = 200;
 
+    uint256 internal constant SOIL_ALMOST_SOLD_OUT_TIME = type(uint32).max - 1;
+
     /**
      * @notice Emitted from {LibDibbler.sow} when an `account` creates a plot.
      * A Plot is a set of Pods created in from a single {sow} or {fund} call.
@@ -218,7 +220,7 @@ library LibDibbler {
             soilSoldOutThreshold
         );
 
-        if (soil <= soilAlmostSoldOutThreshold && thisSowTime >= type(uint32).max - 1) {
+        if (soil <= soilAlmostSoldOutThreshold && thisSowTime >= SOIL_ALMOST_SOLD_OUT_TIME) {
             if (thisSowTime == type(uint32).max) {
                 // this is the first instance soil has almost sold out or sold out.
                 LibGaugeHelpers.updateCultivationTemperature();
@@ -226,7 +228,7 @@ library LibDibbler {
                 // if this is the first time in the season soil almost sold out,
                 // set thisSowTime and emit event.
                 if (soil >= soilSoldOutThreshold) {
-                    s.sys.weather.thisSowTime = type(uint32).max - 1;
+                    s.sys.weather.thisSowTime = SOIL_ALMOST_SOLD_OUT_TIME;
                     emit SoilAlmostSoldOut(block.timestamp.sub(s.sys.season.timestamp));
                     return;
                 }
