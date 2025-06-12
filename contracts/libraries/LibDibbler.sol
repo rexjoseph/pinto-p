@@ -63,7 +63,7 @@ library LibDibbler {
     /**
      * @notice Emitted from {LibDibbler._saveSowTime} when soil is almost sold out.
      */
-    event SoilAlmostSoldOut();
+    event SoilAlmostSoldOut(uint256 secondsSinceStart);
 
     /**
      * @notice Emitted from {LibDibbler._saveSowTime} when soil is sold out.
@@ -236,7 +236,7 @@ library LibDibbler {
                 // set thisSowTime and emit event.
                 if (soil >= soilSoldOutThreshold) {
                     s.sys.weather.thisSowTime = type(uint32).max - 1;
-                    emit SoilAlmostSoldOut();
+                    emit SoilAlmostSoldOut(block.timestamp.sub(s.sys.season.timestamp));
                     return;
                 }
             }
