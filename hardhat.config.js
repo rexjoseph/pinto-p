@@ -1790,6 +1790,73 @@ task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(as
   }
 });
 
+task("facetAddresses", "Displays current addresses of specified facets on Base mainnet")
+  .addParam("facets", "Comma-separated list of facet names to look up")
+  .addFlag("urls", "Show BaseScan URLs for the facets")
+  .setAction(async (taskArgs) => {
+    const BASESCAN_API_KEY = process.env.ETHERSCAN_KEY_BASE;
+    if (!BASESCAN_API_KEY) {
+      console.error("❌ Please set ETHERSCAN_KEY_BASE in your environment variables");
+      return;
+    }
+
+    const diamond = await ethers.getContractAt("IDiamondLoupe", L2_PINTO);
+
+    // Get all facets from the diamond
+    const allFacets = await diamond.facets();
+
+    // Get the requested facet names
+    const requestedFacets = taskArgs.facets.split(",").map((f) => f.trim());
+
+    console.log("\n🔍 Looking up facet addresses on Base mainnet...");
+    console.log("-----------------------------------");
+
+    // Create a map of addresses to their contract names
+    const addressToName = new Map();
+
+    // Fetch contract names from BaseScan for each unique address
+    const uniqueAddresses = [...new Set(allFacets.map((f) => f.facetAddress))];
+
+    for (const address of uniqueAddresses) {
+      try {
+        const response = await fetch(
+          `https://api.basescan.org/api?module=contract&action=getsourcecode&address=${address}&apikey=${BASESCAN_API_KEY}`
+        );
+        const data = await response.json();
+
+        if (data.status === "1" && data.result[0]) {
+          const contractName = data.result[0].ContractName;
+          addressToName.set(address, contractName);
+        }
+      } catch (e) {
+        console.log(`⚠️  Error fetching contract name for ${address}: ${e.message}`);
+      }
+    }
+
+    // For each requested facet, find its address
+    for (const facetName of requestedFacets) {
+      let found = false;
+
+      for (const facet of allFacets) {
+        const contractName = addressToName.get(facet.facetAddress);
+        if (contractName && contractName.toLowerCase() === facetName.toLowerCase()) {
+          console.log(`📦 ${facetName}: ${facet.facetAddress}`);
+          if (taskArgs.urls) {
+            console.log(`   🔗 https://basescan.org/address/${facet.facetAddress}`);
+          }
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        console.log(`❌ ${facetName}: Not found on diamond`);
+      }
+    }
+
+    console.log("-----------------------------------");
+  });
+
 //////////////////////// CONFIGURATION ////////////////////////
 
 module.exports = {
