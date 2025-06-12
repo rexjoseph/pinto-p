@@ -212,20 +212,11 @@ library LibDibbler {
         uint256 soil = s.sys.soil;
         uint256 thisSowTime = s.sys.weather.thisSowTime;
 
-        uint256 soilSoldOutThreshold;
-        uint256 soilAlmostSoldOutThreshold;
-
-        // soil is sold out when there is less than min(MAXIMUM_SOIL_SOLD_OUT_THRESHOLD, 10% of initial soil) left.
-        soilSoldOutThreshold = Math.min(
-            MAXIMUM_SOIL_SOLD_OUT_THRESHOLD,
-            (initialSoil * SOLD_OUT_THRESHOLD_PERCENT) / SOLD_OUT_PRECISION
+        uint256 soilSoldOutThreshold = getSoilSoldOutThreshold(initialSoil);
+        uint256 soilAlmostSoldOutThreshold = getSoilAlmostSoldOutThreshold(
+            initialSoil,
+            soilSoldOutThreshold
         );
-
-        // soil is considered almost sold out if it has less than ALMOST_SOLD_OUT_THRESHOLD_PERCENT% + soilSoldOutThreshold of the initial soil left
-        soilAlmostSoldOutThreshold =
-            ((initialSoil - soilSoldOutThreshold) * ALMOST_SOLD_OUT_THRESHOLD_PERCENT) /
-            SOLD_OUT_PRECISION +
-            soilSoldOutThreshold;
 
         if (soil <= soilAlmostSoldOutThreshold && thisSowTime >= type(uint32).max - 1) {
             if (thisSowTime == type(uint32).max) {
@@ -562,5 +553,38 @@ library LibDibbler {
     ) internal view returns (uint256 i) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         return s.accts[account].fields[fieldId].piIndex[plotIndex];
+    }
+
+    /**
+     * @notice Returns the threshold at which soil is considered sold out.
+     * @dev Soil is considered sold out if it has less than SOLD_OUT_THRESHOLD_PERCENT% of the initial soil left
+     * @param initialSoil The initial soil at the start of the season.
+     * @return soilSoldOutThreshold The threshold at which soil is considered sold out.
+     */
+    function getSoilSoldOutThreshold(uint256 initialSoil) internal view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return
+            Math.min(
+                MAXIMUM_SOIL_SOLD_OUT_THRESHOLD,
+                (initialSoil * SOLD_OUT_THRESHOLD_PERCENT) / SOLD_OUT_PRECISION
+            );
+    }
+
+    /**
+     * @notice Returns the threshold at which soil is considered almost sold out.
+     * @dev Soil is considered almost sold out if it has less than ALMOST_SOLD_OUT_THRESHOLD_PERCENT% + soilSoldOutThreshold of the initial soil left
+     * @param initialSoil The initial soil at the start of the season.
+     * @param soilSoldOutThreshold The threshold at which soil is considered sold out.
+     * @return soilAlmostSoldOutThreshold The threshold at which soil is considered almost sold out.
+     */
+    function getSoilAlmostSoldOutThreshold(
+        uint256 initialSoil,
+        uint256 soilSoldOutThreshold
+    ) internal view returns (uint256) {
+        return
+            ((initialSoil - getSoilSoldOutThreshold(initialSoil)) *
+                ALMOST_SOLD_OUT_THRESHOLD_PERCENT) /
+            SOLD_OUT_PRECISION +
+            soilSoldOutThreshold;
     }
 }
