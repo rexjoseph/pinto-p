@@ -215,9 +215,9 @@ library LibDibbler {
         uint256 soilSoldOutThreshold;
         uint256 soilAlmostSoldOutThreshold;
 
-        // soil is sold out when there is less than min(50e6, 10% of initial soil) left.
+        // soil is sold out when there is less than min(MAXIMUM_SOIL_SOLD_OUT_THRESHOLD, 10% of initial soil) left.
         soilSoldOutThreshold = Math.min(
-            50e6,
+            MAXIMUM_SOIL_SOLD_OUT_THRESHOLD,
             (initialSoil * SOLD_OUT_THRESHOLD_PERCENT) / SOLD_OUT_PRECISION
         );
 
