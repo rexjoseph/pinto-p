@@ -47,6 +47,9 @@ interface IGaugeFacet {
 contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant PRICE_PRECISION = 1e6;
 
+    // Cultivation Factor Gauge Constants //
+    uint256 internal constant SOIL_ALMOST_SOLD_OUT = type(uint32).max - 1;
+
     /**
      * @notice cultivationFactor is a gauge implementation that is used when issuing soil below peg.
      * The value increases as soil is sold out (and vice versa), with the amount being a function of
@@ -80,8 +83,9 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256, uint256));
 
         // determine if soil was sold out or almost sold out.
-        bool soilSoldOut = s.sys.weather.lastSowTime < type(uint32).max - 1;
-        bool soilAlmostSoldOut = s.sys.weather.lastSowTime == type(uint32).max - 1;
+        // the protocol uses the lastSowTime to determine if soil was sold out or almost sold out. See LibEvaluate.calcDeltaPodDemand.
+        bool soilSoldOut = s.sys.weather.lastSowTime < SOIL_ALMOST_SOLD_OUT;
+        bool soilAlmostSoldOut = s.sys.weather.lastSowTime == SOIL_ALMOST_SOLD_OUT;
 
         // if soil was almost sold out or sold out, and demand for soil is increasing,
         //  set cultivationTemp to the previous season temperature.
