@@ -143,6 +143,8 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             // demand for soil is steady/increasing (but not selling out)
             // or previous season temperature >= cultivation temperature.
             // decrease cultivation factor.
+            // the decrease in cultivation factor is the inverse of the increase in cultivation factor.
+            // See Whitepaper for formula.
             amountChange = 1e12 / amountChange;
             currentValue = LibGaugeHelpers.linear256(
                 currentValue,
