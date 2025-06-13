@@ -205,7 +205,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             Math.min(
                 bs.lpToSupplyRatio.value,
                 s.sys.evaluationParameters.lpToSupplyRatioLowerBound
-            )) / s.sys.evaluationParameters.lpToSupplyRatioOptimal;
+            )) / s.sys.evaluationParameters.lpToSupplyRatioLowerBound;
 
         uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(rollingSeasonsAbovePeg * 1e18 + 1e18)) /
             PRBMathUD60x18.log2(rollingSeasonsAbovePegCap * 1e18 + 1e18);
