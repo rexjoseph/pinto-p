@@ -78,7 +78,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             uint256 maxDeltaCultivationFactor, // max change in cultivation factor
             uint256 minCultivationFactor, // min cultivation factor.
             uint256 maxCultivationFactor, // max cultivation factor.
-            uint256 cultivationTemp, // temperature when soil was selling out and demand for soil was increasing.
+            uint256 cultivationTemp, // temperature when soil was selling out and demand for soil was not decreasing.
             uint256 prevSeasonTemp // temperature of the previous season.
         ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256, uint256));
 
@@ -91,7 +91,7 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         //  set cultivationTemp to the previous season temperature.
         if (
             (soilMostlySoldOut || soilSoldOut) &&
-            bs.deltaPodDemand.value > s.sys.evaluationParameters.deltaPodDemandLowerBound
+            bs.deltaPodDemand.value >= s.sys.evaluationParameters.deltaPodDemandLowerBound
         ) {
             cultivationTemp = prevSeasonTemp;
             gaugeData = abi.encode(
