@@ -306,7 +306,6 @@ contract FieldTest is TestHelper {
         vm.prank(farmers[0]);
         field.sow(beans, 0, LibTransfer.From.EXTERNAL);
         IMockFBeanstalk.Weather memory w = bs.weather();
-        // Verify that `thisSowTime` was set to the max value minus 1. (almost sold out)
         // otherwise, soil is not sold out
         assertEq(uint256(w.thisSowTime), type(uint32).max);
     }

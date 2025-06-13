@@ -899,6 +899,7 @@ contract SunTest is TestHelper {
         );
 
         // Case 10: Soil did not sell out, demand is steady, should decrease cultivationFactor
+        // See Case 6 above for deltaCultivationFactor calculation (podRate and price has not changed since case 6)
         uint256 cultivationFactorBeforeCase10 = abi.decode(
             bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
             (uint256)
@@ -917,6 +918,7 @@ contract SunTest is TestHelper {
         );
 
         // Case 11: Soil did not sell out, demand is increasing, should decrease cultivationFactor
+        // See Case 6 above for deltaCultivationFactor calculation (podRate and price has not changed since case 6)
         season.setLastSowTimeE(type(uint32).max);
         testState.deltaPodDemand = Decimal.from(1e18); // increasing demand
         season.mockStepGauges(testState);
@@ -931,6 +933,7 @@ contract SunTest is TestHelper {
         );
 
         // Case 12: Soil did not sell out, demand is decreasing, and cultivation temp > prevSeasonTemp, should decrease cultivationFactor
+        // See Case 6 above for deltaCultivationFactor calculation (podRate and price has not changed since case 6)
         season.setLastSowTimeE(type(uint32).max);
         testState.deltaPodDemand = Decimal.zero(); //gg decreasing demand
         bs.setPrevSeasonAndCultivationTemp(100e6, 99e6); // temperature is lower then CTemp

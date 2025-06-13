@@ -185,6 +185,11 @@ library LibGaugeHelpers {
 
     /// GAUGE SPECIFIC HELPERS ///
 
+    /**
+     * @notice Updates the cultivation temperature, in the Cultivation Factor Gauge.
+     * @dev The Cultivation Temperature is the temperature at time of invoking this function.
+     * It is set when 
+     */
     function updateCultivationTemperature() internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
         (
@@ -193,17 +198,21 @@ library LibGaugeHelpers {
             uint256 minCf,
             uint256 maxCf,
             ,
-            uint256 prevSeasonTemp
+            uint256 cultivationTemp
         ) = abi.decode(
                 getGaugeData(GaugeId.CULTIVATION_FACTOR),
                 (uint256, uint256, uint256, uint256, uint256, uint256)
             );
         updateGaugeData(
             GaugeId.CULTIVATION_FACTOR,
-            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, s.sys.weather.temp, prevSeasonTemp)
+            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, s.sys.weather.temp, cultivationTemp)
         );
     }
 
+    /**
+     * @notice Updates the previous season temperature, in the Cultivation Factor Gauge.
+     * @param temperature The temperature of the current season.
+     */
     function updatePrevSeasonTemp(uint256 temperature) internal {
         (
             uint256 minDeltaCf,
