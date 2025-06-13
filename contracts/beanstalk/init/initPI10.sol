@@ -26,7 +26,7 @@ contract InitPI10 {
             (uint256, uint256, uint256, uint256)
         );
 
-        // updates the gauge data to the new version, with the cultivation temperature and previous season temperature set to 0.
+        // updates the gauge data to the new version, with the cultivation temperature and previous season temperature set on initialization.
         LibGaugeHelpers.updateGaugeData(
             GaugeId.CULTIVATION_FACTOR,
             abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, cultivationTemp, prevSeasonTemp)
