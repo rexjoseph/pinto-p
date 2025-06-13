@@ -1791,7 +1791,10 @@ task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(as
 });
 
 task("facetAddresses", "Displays current addresses of specified facets on Base mainnet")
-  .addParam("facets", "Comma-separated list of facet names to look up")
+  .addParam(
+    "facets",
+    "Comma-separated list of facet names to look up (ex: 'FieldFacet,SiloFacet,SeasonFacet')"
+  )
   .addFlag("urls", "Show BaseScan URLs for the facets")
   .setAction(async (taskArgs) => {
     const BASESCAN_API_KEY = process.env.ETHERSCAN_KEY_BASE;
