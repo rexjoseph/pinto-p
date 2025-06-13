@@ -50,7 +50,7 @@ library LibDibbler {
     uint256 internal constant L1_BLOCK_TIME = 1200;
     uint256 internal constant L2_BLOCK_TIME = 200;
 
-    uint256 internal constant SOIL_ALMOST_SOLD_OUT_TIME = type(uint32).max - 1;
+    uint32 internal constant SOIL_ALMOST_SOLD_OUT_TIME = type(uint32).max - 1;
 
     /**
      * @notice Emitted from {LibDibbler.sow} when an `account` creates a plot.

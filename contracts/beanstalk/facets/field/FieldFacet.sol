@@ -385,9 +385,9 @@ contract FieldFacet is Invariable, ReentrancyGuard {
      * @return soilAlmostSoldOutThreshold The threshold at which soil is considered almost sold out.
      */
     function getSoilAlmostSoldOutThreshold() external view returns (uint256) {
-        uint256 initialSoil = uint256(s.sys.initialSoil);
-        uint256 soilSoldOutThreshold = LibDibbler.getSoilSoldOutThreshold(initialSoil);
-        return LibDibbler.getSoilAlmostSoldOutThreshold(initialSoil, soilSoldOutThreshold);
+        uint256 startingSoil = uint256(s.sys.initialSoil);
+        uint256 soilSoldOutThreshold = LibDibbler.getSoilSoldOutThreshold(startingSoil);
+        return LibDibbler.getSoilAlmostSoldOutThreshold(startingSoil, soilSoldOutThreshold);
     }
 
     //////////////////// GETTERS: TEMPERATURE ////////////////////
