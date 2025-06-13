@@ -4,9 +4,7 @@ pragma abicoder v2;
 
 import {TestHelper, LibTransfer, IMockFBeanstalk} from "test/foundry/utils/TestHelper.sol";
 import {MockFieldFacet} from "contracts/mocks/mockFacets/MockFieldFacet.sol";
-import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {C} from "contracts/C.sol";
-import "forge-std/console.sol";
 
 contract FieldTest is TestHelper {
     // events
@@ -22,7 +20,7 @@ contract FieldTest is TestHelper {
     function setUp() public {
         initializeBeanstalkTestState(true, false);
 
-        // initalize farmers from farmers (farmer0 == diamond deployer)
+        // initalizes farmers from farmers (farmer0 == diamond deployer)
         farmers.push(users[1]);
         farmers.push(users[2]);
 
@@ -106,28 +104,12 @@ contract FieldTest is TestHelper {
             bs.transferToken(BEAN, farmers[0], soil, 0, 1);
         }
 
-        (, , , , , uint256 prevSeasonTemp) = abi.decode(
-            bs.getGaugeData(GaugeId.CULTIVATION_FACTOR),
-            (uint256, uint256, uint256, uint256, uint256, uint256)
-        );
-
         _beforeEachSow(soil, soil, from == true ? 1 : 0);
         sowAssertEq(farmers[0], beanBalanceBefore, totalBeanSupplyBefore, soil, _minPods(soil));
         assertEq(field.totalSoil(), 0, "total Soil");
 
         // verify sowThisTime is set.
         assertLe(uint256(bs.weather().thisSowTime), type(uint32).max);
-
-        // assert soldOutTemp is set.
-        (, , , , uint256 soldOutTemp, ) = abi.decode(
-            bs.getGaugeData(GaugeId.CULTIVATION_FACTOR),
-            (uint256, uint256, uint256, uint256, uint256, uint256)
-        );
-
-        assertEq(soldOutTemp, bs.maxTemperature());
-
-        // assert temp is not the same as prevSeasonTemp.
-        assertNotEq(soldOutTemp, prevSeasonTemp);
     }
 
     /**
@@ -436,7 +418,7 @@ contract FieldTest is TestHelper {
     }
 
     /**
-     * @notice verfies that a farmer's plot index is updated correctly.
+     * @notice verifies that a farmer's plot index is updated correctly.
      * @dev partial harvests and transfers are tested here. full harvests/transfers can be seen in `test_plotIndexMultiple`.
      */
     function test_plotIndexList(uint256 sowAmount, uint256 portion) public {
@@ -500,7 +482,7 @@ contract FieldTest is TestHelper {
     /**
      * @notice performs a series of actions to verify sows multiple times and verifies that the plot index is updated correctly.
      * 1. sowing properly increments the plot index.
-     * 2. transfering a plot properly decrements the senders' plot index,
+     * 2. transferring a plot properly decrements the senders' plot index,
      * and increments the recipients' plot index.
      * 3. harvesting a plot properly decrements the senders' plot index.
      */

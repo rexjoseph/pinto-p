@@ -733,13 +733,19 @@ contract SunTest is TestHelper {
             bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
             (uint256)
         );
+
         assertEq(initialCultivationFactor, 50e6, "Initial cultivationFactor should be 50e6 (50%)");
 
         // Set cultivationFactor to 50% so tests have room to move up and down
         bs.setCultivationFactor(50e6);
+        bs.setPrevSeasonAndCultivationTemp(100e6, 0);
         initialCultivationFactor = abi.decode(
             bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
             (uint256)
+        );
+        (, , , , uint256 cultivationTemp, uint256 prevSeasonTemp) = abi.decode(
+            bs.getGaugeData(GaugeId.CULTIVATION_FACTOR),
+            (uint256, uint256, uint256, uint256, uint256, uint256)
         );
 
         // Get the actual bounds from evaluation parameters
@@ -749,7 +755,7 @@ contract SunTest is TestHelper {
 
         // Create BeanstalkState with different pod rates and Bean prices to test different scenarios
         LibEvaluate.BeanstalkState memory testState = LibEvaluate.BeanstalkState({
-            deltaPodDemand: Decimal.zero(),
+            deltaPodDemand: Decimal.one(),
             lpToSupplyRatio: Decimal.zero(),
             podRate: Decimal.zero(),
             largestLiqWell: address(0),
@@ -761,6 +767,7 @@ contract SunTest is TestHelper {
         // Case 1: Soil sold out and Pod rate below lower bound - cultivationFactor should increase
         testState.podRate = Decimal.ratio(podRateLowerBound - 1e16, 1e18); // 1% below lower bound
         season.setLastSowTimeE(1); // Set lastSowTime to non-max value to indicate soil sold out
+
         vm.expectEmit(true, false, false, false);
         emit LibGaugeHelpers.Engaged(GaugeId.CULTIVATION_FACTOR, abi.encode(0));
         vm.expectEmit(true, false, false, false);
@@ -770,6 +777,17 @@ contract SunTest is TestHelper {
             bs.getGaugeValue(GaugeId.CULTIVATION_FACTOR),
             (uint256)
         );
+
+        (, , , , uint256 newCultivationTemp, ) = abi.decode(
+            bs.getGaugeData(GaugeId.CULTIVATION_FACTOR),
+            (uint256, uint256, uint256, uint256, uint256, uint256)
+        );
+
+        // when soil sold out and demand is not decreasing (which is the case if soil sells out),
+        // cultivationTemp should be set to the prevSeasonTemp
+        assertEq(prevSeasonTemp, newCultivationTemp);
+        assertNotEq(cultivationTemp, newCultivationTemp);
+
         assertGt(
             cultivationFactorAfterCase1,
             initialCultivationFactor,
@@ -867,17 +885,18 @@ contract SunTest is TestHelper {
             "deltaCultivationFactor should be ~1.111111% with pod rate at midpoint, $0.72 price, and soil not sold out"
         );
 
-        // Case 7: Soil not sold out, sold out temp is higher than prevSeasonTemp,  should not change cultivationFactor
+        // Case 7: Soil not sold out, cultivation temp is higher than previous temp, (and demand is decreasing)  should not change cultivationFactor
         season.setLastSowTimeE(type(uint32).max); // Set soil as not sold out
+        testState.deltaPodDemand = Decimal.zero();
         bs.setPrevSeasonAndCultivationTemp(100e6, 101e6);
         deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
         assertEq(
             deltaCultivationFactor,
             0,
-            "deltaCultivationFactor should be 0 when sold out temp is higher than prevSeasonTemp"
+            "deltaCultivationFactor should be 0 when cultivation temp is higher than prevSeasonTemp"
         );
 
-        // Case 8: Soil sold out, sold out temp is higher than prevSeasonTemp,  should change cultivationFactor
+        // Case 8: Soil sold out,  should change cultivationFactor regardless of prevSeasonTemp
         season.setLastSowTimeE(1); // Set soil as sold out
         for (uint256 i = 0; i < 3; i++) {
             bs.setPrevSeasonAndCultivationTemp(100e6, 99e6 + (i * 1e6)); // 99e6, 100e6, 101e6
