@@ -82,16 +82,16 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             uint256 prevSeasonTemp // temperature of the previous season.
         ) = abi.decode(gaugeData, (uint256, uint256, uint256, uint256, uint256, uint256));
 
-        // determine if soil was sold out or almost sold out.
-        // the protocol uses the lastSowTime to determine if soil was sold out or almost sold out. See LibEvaluate.calcDeltaPodDemand.
+        // determine if soil was sold out or mostly sold out.
+        // the protocol uses the lastSowTime to determine if soil was sold out or mostly sold out. See LibEvaluate.calcDeltaPodDemand.
         bool soilSoldOut = s.sys.weather.lastSowTime < SOIL_ALMOST_SOLD_OUT;
-        bool soilAlmostSoldOut = s.sys.weather.lastSowTime == SOIL_ALMOST_SOLD_OUT;
+        bool soilMostlySoldOut = s.sys.weather.lastSowTime == SOIL_ALMOST_SOLD_OUT;
 
-        // if soil was almost sold out or sold out, and demand for soil is increasing,
+        // if soil was mostly sold out or sold out, and demand for soil is NOT decreasing (i.e. increasing or steady),
         //  set cultivationTemp to the previous season temperature.
         if (
-            (soilAlmostSoldOut || soilSoldOut) &&
-            bs.deltaPodDemand.value > s.sys.evaluationParameters.deltaPodDemandUpperBound
+            (soilMostlySoldOut || soilSoldOut) &&
+            bs.deltaPodDemand.value > s.sys.evaluationParameters.deltaPodDemandLowerBound
         ) {
             cultivationTemp = prevSeasonTemp;
             gaugeData = abi.encode(
@@ -129,8 +129,8 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
                 minCultivationFactor,
                 maxCultivationFactor
             );
-        } else if (soilAlmostSoldOut) {
-            // if soil almost sold out, return unchanged gauge data and value.
+        } else if (soilMostlySoldOut) {
+            // if soil mostly sold out, return unchanged gauge data and value.
             return (abi.encode(currentValue), gaugeData);
         } else if (
             bs.deltaPodDemand.value < s.sys.evaluationParameters.deltaPodDemandLowerBound &&

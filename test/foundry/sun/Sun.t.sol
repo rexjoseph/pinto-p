@@ -889,13 +889,13 @@ contract SunTest is TestHelper {
             );
         }
 
-        // Case 9: Soil almost sold out should not change cultivationFactor
-        season.setLastSowTimeE(type(uint32).max - 1); // Set soil as almost sold out
+        // Case 9: Soil mostly sold out should not change cultivationFactor
+        season.setLastSowTimeE(type(uint32).max - 1); // Set soil as mostly sold out
         deltaCultivationFactor = season.calculateCultivationFactorDeltaE(testState);
         assertEq(
             deltaCultivationFactor,
             0,
-            "deltaCultivationFactor should be 0 when soil is almost sold out "
+            "deltaCultivationFactor should be 0 when soil is mostly sold out "
         );
 
         // Case 10: Soil did not sell out, demand is steady, should decrease cultivationFactor

@@ -284,20 +284,20 @@ contract FieldTest is TestHelper {
     }
 
     /**
-     * Checking next sow time, with more than 1 soil above the dynamic almost sold out threshold.
+     * Checking next sow time, with more than 1 soil above the dynamic mostly sold out threshold.
      * @dev Verifies that `thisSowTime` is at the max value
      */
-    function testComplexDPDMoreThan1SoilAlmostSoldOut(
+    function testComplexDPDMoreThan1SoilMostlySoldOut(
         uint256 initialSoil,
         uint256 farmerSown
     ) public {
         initialSoil = bound(initialSoil, 2e6, type(uint128).max);
         // calculate threshold
         uint256 soilSoldOutThreshold = (initialSoil < 500e6) ? (initialSoil * 0.1e6) / 1e6 : 50e6;
-        uint256 almostSoldOutThreshold = (((initialSoil - soilSoldOutThreshold) * 0.20e6) / 1e6) +
+        uint256 mostlySoldOutThreshold = (((initialSoil - soilSoldOutThreshold) * 0.20e6) / 1e6) +
             soilSoldOutThreshold;
         // ensure at least `soilSoldOutThreshold + 1` remains after sowing
-        farmerSown = bound(farmerSown, 1, initialSoil - (almostSoldOutThreshold + 1));
+        farmerSown = bound(farmerSown, 1, initialSoil - (mostlySoldOutThreshold + 1));
         // set initial soil
         bs.setSoilE(initialSoil);
         bean.mint(farmers[0], farmerSown);
@@ -317,7 +317,7 @@ contract FieldTest is TestHelper {
         initialSoil = bound(initialSoil, 2e6, type(uint128).max);
         // calculate threshold
         uint256 soilSoldOutThreshold = (initialSoil < 500e6) ? (initialSoil * 0.1e6) / 1e6 : 50e6;
-        uint256 almostSoldOutThreshold = (((initialSoil - soilSoldOutThreshold) * 0.20e6) / 1e6) +
+        uint256 mostlySoldOutThreshold = (((initialSoil - soilSoldOutThreshold) * 0.20e6) / 1e6) +
             soilSoldOutThreshold;
         // ensure at least `soilSoldOutThreshold + 1` remains after sowing
         farmerSown = bound(farmerSown, 1, initialSoil - (soilSoldOutThreshold + 1));
@@ -330,8 +330,8 @@ contract FieldTest is TestHelper {
         field.sow(beans, 0, LibTransfer.From.EXTERNAL);
         IMockFBeanstalk.Weather memory w = bs.weather();
 
-        // if user sowed some amount such that soil is almost sold out,
-        if (initialSoil - almostSoldOutThreshold <= farmerSown) {
+        // if user sowed some amount such that soil is mostly sold out,
+        if (initialSoil - mostlySoldOutThreshold <= farmerSown) {
             assertEq(uint256(w.thisSowTime), type(uint32).max - 1);
         } else {
             // Verify that `thisSowTime` was not set

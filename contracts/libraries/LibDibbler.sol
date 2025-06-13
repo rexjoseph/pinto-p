@@ -41,7 +41,7 @@ library LibDibbler {
     uint256 internal constant ONE_HUNDRED_TEMP = 100 * TEMPERATURE_PRECISION;
 
     /// @dev If less than `SOLD_OUT_THRESHOLD_PERCENT`% of the initial soil is left, soil is sold out.
-    /// @dev If less than `ALMOST_SOLD_OUT_THRESHOLD_PERCENT`% of the initial soil is left, soil is almost sold out.
+    /// @dev If less than `ALMOST_SOLD_OUT_THRESHOLD_PERCENT`% of the initial soil is left, soil is mostly sold out.
     uint256 internal constant MAXIMUM_SOIL_SOLD_OUT_THRESHOLD = 50e6;
     uint256 internal constant SOLD_OUT_THRESHOLD_PERCENT = 10e6;
     uint256 internal constant ALMOST_SOLD_OUT_THRESHOLD_PERCENT = 20e6;
@@ -63,9 +63,9 @@ library LibDibbler {
     event Sow(address indexed account, uint256 fieldId, uint256 index, uint256 beans, uint256 pods);
 
     /**
-     * @notice Emitted from {LibDibbler._saveSowTime} when soil is almost sold out.
+     * @notice Emitted from {LibDibbler._saveSowTime} when soil is mostly sold out.
      */
-    event SoilAlmostSoldOut(uint256 secondsSinceStart);
+    event SoilMostlySoldOut(uint256 secondsSinceStart);
 
     /**
      * @notice Emitted from {LibDibbler._saveSowTime} when soil is sold out.
@@ -206,7 +206,7 @@ library LibDibbler {
      *  - `s.sys.soil` was decremented in the upstream {sow} function.
      *  - `s.sys.weather.thisSowTime` is set to `type(uint32).max` during {sunrise}.
      *  - `s.sys.initialSoil` is the initial soil at the start of the season.
-     *  - `s.sys.weather.thisSowTime` is `type(uint32).max` if the soil has not sold out, and `type(uint32).max - 1` if the soil is almost sold out.
+     *  - `s.sys.weather.thisSowTime` is `type(uint32).max` if the soil has not sold out, and `type(uint32).max - 1` if the soil is mostly sold out.
      */
     function _saveSowTime() private {
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -215,21 +215,18 @@ library LibDibbler {
         uint256 thisSowTime = s.sys.weather.thisSowTime;
 
         uint256 soilSoldOutThreshold = getSoilSoldOutThreshold(initialSoil);
-        uint256 soilAlmostSoldOutThreshold = getSoilAlmostSoldOutThreshold(
+        uint256 soilMostlySoldOutThreshold = getSoilMostlySoldOutThreshold(
             initialSoil,
             soilSoldOutThreshold
         );
 
-        if (soil <= soilAlmostSoldOutThreshold && thisSowTime >= SOIL_ALMOST_SOLD_OUT_TIME) {
+        if (soil <= soilMostlySoldOutThreshold && thisSowTime >= SOIL_ALMOST_SOLD_OUT_TIME) {
             if (thisSowTime == type(uint32).max) {
-                // this is the first instance soil has almost sold out or sold out.
-                LibGaugeHelpers.updateCultivationTemperature();
-
-                // if this is the first time in the season soil almost sold out,
+                // if this is the first time in the season soil mostly sold out,
                 // set thisSowTime and emit event.
                 if (soil >= soilSoldOutThreshold) {
                     s.sys.weather.thisSowTime = SOIL_ALMOST_SOLD_OUT_TIME;
-                    emit SoilAlmostSoldOut(block.timestamp.sub(s.sys.season.timestamp));
+                    emit SoilMostlySoldOut(block.timestamp.sub(s.sys.season.timestamp));
                     return;
                 }
             }
@@ -573,13 +570,13 @@ library LibDibbler {
     }
 
     /**
-     * @notice Returns the threshold at which soil is considered almost sold out.
-     * @dev Soil is considered almost sold out if it has less than ALMOST_SOLD_OUT_THRESHOLD_PERCENT% + soilSoldOutThreshold of the initial soil left
+     * @notice Returns the threshold at which soil is considered mostly sold out.
+     * @dev Soil is considered mostly sold out if it has less than ALMOST_SOLD_OUT_THRESHOLD_PERCENT% + soilSoldOutThreshold of the initial soil left
      * @param initialSoil The initial soil at the start of the season.
      * @param soilSoldOutThreshold The threshold at which soil is considered sold out.
-     * @return soilAlmostSoldOutThreshold The threshold at which soil is considered almost sold out.
+     * @return soilMostlySoldOutThreshold The threshold at which soil is considered mostly sold out.
      */
-    function getSoilAlmostSoldOutThreshold(
+    function getSoilMostlySoldOutThreshold(
         uint256 initialSoil,
         uint256 soilSoldOutThreshold
     ) internal view returns (uint256) {
