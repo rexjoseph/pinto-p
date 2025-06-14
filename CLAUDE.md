@@ -153,6 +153,14 @@ yarn test          # Run Hardhat tests
 forge test         # Run Foundry tests
 ```
 
+### Code Formatting
+```bash
+./scripts/format-sol.sh              # Format all Solidity files
+./scripts/format-sol.sh --check      # Check formatting without changes
+./scripts/format-sol.sh --staged     # Format only staged files
+./scripts/format-sol.sh contracts/   # Format specific directory
+```
+
 ### Key Constants (C.sol)
 - `CURRENT_SEASON_PERIOD`: 3600 seconds (1 hour)
 - `PRECISION`: 1e18 for mathematical operations
