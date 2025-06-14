@@ -68,9 +68,31 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Install Prettier and Solidity Plugin
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
         run: |
-          npm install --global prettier prettier-plugin-solidity
+          # Install dependencies from package.json if it exists
+          if [ -f package.json ]; then
+            echo "Installing from package.json..."
+            npm ci || npm install
+          fi
+          
+          # Install Prettier and Solidity plugin globally and locally
+          echo "Installing Prettier and prettier-plugin-solidity..."
+          npm install --global prettier@^3.0.0 prettier-plugin-solidity@^1.1.0
+          npm install prettier@^3.0.0 prettier-plugin-solidity@^1.1.0
+          
+          # Verify installation
+          echo "Verifying installation..."
+          npm list prettier prettier-plugin-solidity || true
+          npx prettier --version
 
       - name: Check current formatting
         id: check-format
@@ -82,9 +104,12 @@ jobs:
           NEEDS_FORMAT=false
           for file in $CHANGED_FILES; do
             if [ -f "$file" ]; then
-              if ! prettier --check "$file" > /dev/null 2>&1; then
+              echo "Checking formatting for: $file"
+              if ! npx prettier --check "$file" > /dev/null 2>&1; then
                 echo "File needs formatting: $file"
                 NEEDS_FORMAT=true
+              else
+                echo "File is already formatted: $file"
               fi
             fi
           done
@@ -109,7 +134,13 @@ jobs:
           for file in $CHANGED_FILES; do
             if [ -f "$file" ]; then
               echo "Formatting: $file"
-              prettier --write "$file"
+              npx prettier --write "$file"
+              if [ $? -eq 0 ]; then
+                echo "Successfully formatted: $file"
+              else
+                echo "Error formatting: $file"
+                exit 1
+              fi
             fi
           done
 
