@@ -97,12 +97,19 @@ jobs:
             // Check for valid @claude mentions with actual requests
             const hasClaudeMention = commentBody.includes('@claude');
             const hasMinLength = commentBody.length > 20; // Minimum meaningful request length
-            const hasCodeKeywords = /\b(code|function|contract|implement|fix|review|test|debug|analyze)\b/i.test(commentBody);
+            const hasCodeKeywords = /\b(code|function|contract|implement|fix|review|test|debug|analyze|facet|diamond|protocol|economic|season|silo|field|gauge|oracle|minting|stablecoin)\b/i.test(commentBody);
             
-            const isValidRequest = hasClaudeMention && hasMinLength && hasCodeKeywords;
+            // Special handling for facet analysis (should use dedicated workflow)
+            const isFacetAnalysis = /\b(facet|diamond)\s+(analyze|analysis|impact|address|change)/i.test(commentBody);
+            
+            const isValidRequest = hasClaudeMention && hasMinLength && hasCodeKeywords && !isFacetAnalysis;
             
             core.setOutput('should-run', isValidRequest);
-            console.log(`Request validation: mention=${hasClaudeMention}, length=${hasMinLength}, keywords=${hasCodeKeywords}, valid=${isValidRequest}`);
+            console.log(`Request validation: mention=${hasClaudeMention}, length=${hasMinLength}, keywords=${hasCodeKeywords}, facetAnalysis=${isFacetAnalysis}, valid=${isValidRequest}`);
+            
+            if (isFacetAnalysis) {
+              console.log('Detected facet analysis request - this should be handled by the facet analyzer workflow');
+            }
 
   claude-code-action:
     needs: security-checks

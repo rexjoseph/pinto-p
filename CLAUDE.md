@@ -173,6 +173,41 @@ forge test         # Run Foundry tests
 
 This protocol represents a sophisticated attempt at creating decentralized, algorithmic money that maintains stability through economic incentives rather than collateral backing.
 
+## AI Agent Workflow Features
+
+### Automated Facet Impact Analysis
+When working on PRs that modify facet contracts, contributors can trigger automated analysis:
+
+**Commands:**
+- `@claude analyze facets` - Analyze which facets changed in the PR
+- `@claude facet impact` - Get impact assessment and current addresses
+- `@claude show facet addresses` - Display current facet addresses on Base
+
+**What it provides:**
+- **Impact Assessment**: Critical/High/Medium/Low based on facet type
+- **Current Addresses**: Live facet addresses from Base mainnet with Basescan links
+- **Security Checklist**: Automated checklist for reviewing facet changes
+- **Economic Impact**: Analysis of which protocol mechanisms are affected
+
+**Example Output:**
+```
+🔍 Facet Impact Analysis
+
+Impact Level: CRITICAL
+
+🚨 Critical Facets Changed
+- SeasonFacet - Core protocol functionality
+
+📍 Current Facet Addresses on Base Mainnet
+📦 SeasonFacet: 0x1234...5678
+   🔗 https://basescan.org/address/0x1234...5678
+
+🛡️ Security Checklist
+- [ ] Impact assessment reviewed
+- [ ] Test coverage verified for changed facets
+- [ ] Gas usage analysis completed
+```
+
 ## AI Agent Workflow Rules
 
 ### Pull Request Management
