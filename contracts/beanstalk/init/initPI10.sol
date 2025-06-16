@@ -20,8 +20,7 @@ contract InitPI10 {
     uint256 internal constant CULTIVATION_TEMP = 748.5e6;
     uint256 internal constant PREV_SEASON_TEMP = 748.5e6;
 
-    function initCultivationFactorGaugeV1_1(
-    ) internal {
+    function initCultivationFactorGaugeV1_1() internal {
         (uint256 minDeltaCf, uint256 maxDeltaCf, uint256 minCf, uint256 maxCf) = abi.decode(
             LibGaugeHelpers.getGaugeData(GaugeId.CULTIVATION_FACTOR),
             (uint256, uint256, uint256, uint256)
