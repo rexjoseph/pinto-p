@@ -30,37 +30,48 @@ contract Pi10ForkTest is TestHelper {
 
     /////////////////// TEST FUNCTIONS ///////////////////
 
-    function test_forkBase_cultivationFactor_noSow() public {
+    function test_forkBase_cultivationFactor_parameters() public {
         bs = IMockFBeanstalk(PINTO);
         uint256 forkBlock = 31599727 - 1;
-        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10Mock");
+        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10");
 
-        uint256 temperatureBeforeUpgrade = bs.weather().temp;
+        // assert that cultivation temp and prev season temp are 0 after upgrade, before sunrise
+        CultivationData memory cultivationDataBeforeSunrise = getCultivationData();
+        assertEq(cultivationDataBeforeSunrise.cultivationTemp, 0);
+        assertEq(cultivationDataBeforeSunrise.prevSeasonTemp, 0);
+        assertEq(
+            cultivationDataBeforeSunrise.cultivationFactor,
+            1e6,
+            "cultivationFactor should be 1e6 (minimum cultivation factor)"
+        );
+
         advanceToNextSeason();
+        uint256 sowTemp = bs.weather().temp;
+        console.log("sowTemp", sowTemp);
+
+        // sow all soil to set cultivation temp
+        sowAll(farmer1);
+        // advance to next season to update gauge
+        stepSeason();
 
         CultivationData memory data = getCultivationData();
 
         assertEq(
             data.cultivationTemp,
-            temperatureBeforeUpgrade,
-            "cultivationTemp should be equal to the previous season temperature"
+            sowTemp,
+            "cultivationTemp should be equal to the temperature before sowing"
         );
         assertEq(
             data.prevSeasonTemp,
-            temperatureBeforeUpgrade,
-            "prevSeasonTemp should be the same as the temperature before upgrade"
-        );
-        assertEq(
-            data.cultivationFactor,
-            1e6,
-            "cultivationFactor should be 1e6 (minimum cultivation factor)"
+            sowTemp,
+            "prevSeasonTemp should be the same as the temperature before sowing"
         );
     }
 
     function test_forkBase_cultivationFactor_oscillate_oneOrder() public {
         bs = IMockFBeanstalk(PINTO);
         uint256 forkBlock = 31599727 - 1;
-        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10Mock");
+        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10");
 
         uint256 temperatureBeforeUpgrade = bs.weather().temp;
         advanceToNextSeason();
@@ -105,7 +116,7 @@ contract Pi10ForkTest is TestHelper {
     function test_forkBase_cultivationFactor_oscillate_twoOrders() public {
         bs = IMockFBeanstalk(PINTO);
         uint256 forkBlock = 31599727 - 1;
-        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10Mock");
+        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10");
 
         uint256 temperatureBeforeUpgrade = bs.weather().temp;
         advanceToNextSeason();
