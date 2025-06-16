@@ -670,7 +670,7 @@ task("PI-7", "Deploys Pinto improvment set 7, Convert Down Penalty").setAction(a
   });
 });
 
-task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setAction(
+task("PI-8", "Deploys Pinto improvement set 8, Tractor, Soil Orderbook").setAction(
   async function () {
     const mock = true;
     let owner;
@@ -800,7 +800,7 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
     });
   }
 );
-task("PI-10", "Deploys Pinto improvment set 10, Cultivation Factor Change").setAction(
+task("PI-10", "Deploys Pinto improvement set 10, Cultivation Factor Change").setAction(
   async function () {
     const mock = true;
     let owner;
