@@ -13,13 +13,14 @@ import {GaugeId} from "contracts/beanstalk/storage/System.sol";
  * @dev Initializes parameters for pinto improvement 10.
  **/
 contract InitPI10 {
-    function init(uint256 soldOutTemperature, uint256 prevSeasonTemperature) external {
-        initCultivationFactorGaugeV1_1(soldOutTemperature, prevSeasonTemperature);
+    function init() external {
+        initCultivationFactorGaugeV1_1();
     }
 
+    uint256 internal constant CULTIVATION_TEMP = 748.5e6;
+    uint256 internal constant PREV_SEASON_TEMP = 748.5e6;
+
     function initCultivationFactorGaugeV1_1(
-        uint256 cultivationTemp,
-        uint256 prevSeasonTemp
     ) internal {
         (uint256 minDeltaCf, uint256 maxDeltaCf, uint256 minCf, uint256 maxCf) = abi.decode(
             LibGaugeHelpers.getGaugeData(GaugeId.CULTIVATION_FACTOR),
@@ -29,7 +30,7 @@ contract InitPI10 {
         // updates the gauge data to the new version, with the cultivation temperature and previous season temperature set on initialization.
         LibGaugeHelpers.updateGaugeData(
             GaugeId.CULTIVATION_FACTOR,
-            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, cultivationTemp, prevSeasonTemp)
+            abi.encode(minDeltaCf, maxDeltaCf, minCf, maxCf, CULTIVATION_TEMP, PREV_SEASON_TEMP)
         );
     }
 }
