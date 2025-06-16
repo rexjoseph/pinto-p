@@ -822,7 +822,8 @@ task("PI-10", "Deploys Pinto improvement set 10, Cultivation Factor Change").set
         "LibShipping",
         "LibWellMinting",
         "LibFlood",
-        "LibGerminate"
+        "LibGerminate",
+        "LibWeather"
       ],
       facetLibraries: {
         SeasonFacet: [
@@ -832,7 +833,8 @@ task("PI-10", "Deploys Pinto improvement set 10, Cultivation Factor Change").set
           "LibShipping",
           "LibWellMinting",
           "LibFlood",
-          "LibGerminate"
+          "LibGerminate",
+          "LibWeather"
         ]
       },
       initArgs: [],
