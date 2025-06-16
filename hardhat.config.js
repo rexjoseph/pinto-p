@@ -800,6 +800,117 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
     });
   }
 );
+task("PI-10", "Deploys Pinto improvment set 10, Cultivation Factor Change").setAction(
+  async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      // await hre.run("updateOracleTimeouts");
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+      console.log("Account address: ", await owner.getAddress());
+    }
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: ["FieldFacet", "SeasonFacet", "GaugeFacet"],
+      libraryNames: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate"
+      ],
+      facetLibraries: {
+        SeasonFacet: [
+          "LibEvaluate",
+          "LibGauge",
+          "LibIncentive",
+          "LibShipping",
+          "LibWellMinting",
+          "LibFlood",
+          "LibGerminate"
+        ]
+      },
+      initArgs: [],
+      initFacetName: "InitPI10",
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  }
+);
+
+task(
+  "PI-11",
+  "Deploys Pinto improvement set 11, Misc. Improvements and convert up bonus"
+).setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    // await hre.run("updateOracleTimeouts");
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  // upgrade facets
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [
+      "FieldFacet",
+      "ConvertFacet",
+      "ConvertGettersFacet",
+      "PipelineConvertFacet",
+      "SiloGettersFacet",
+      "GaugeFacet",
+      "GaugeGettersFacet",
+      "SeasonFacet",
+      "SeasonGettersFacet",
+      "ApprovalFacet"
+    ],
+    libraryNames: [
+      "LibTokenSilo",
+      "LibConvert",
+      "LibPipelineConvert",
+      "LibSilo",
+      "LibEvaluate",
+      "LibGauge",
+      "LibIncentive",
+      "LibShipping",
+      "LibWellMinting",
+      "LibWeather",
+      "LibFlood",
+      "LibGerminate"
+    ],
+    facetLibraries: {
+      ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+      PipelineConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo"],
+      SeasonFacet: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibWeather",
+        "LibFlood",
+        "LibGerminate"
+      ],
+      SeasonGettersFacet: ["LibWellMinting"]
+    },
+    linkedLibraries: {
+      LibConvert: "LibTokenSilo"
+    },
+    object: !mock,
+    verbose: true,
+    account: owner,
+    initArgs: [],
+    initFacetName: "InitPI11"
+  });
+});
 
 task("silo-tractor-fix", "Deploys silo tractor fix").setAction(async function () {
   const mock = true;
@@ -1155,6 +1266,7 @@ task("diamondABI", "Generates ABI file for diamond, includes all ABIs of facets"
       files.push("contracts/libraries/LibEvaluate.sol");
       files.push("contracts/libraries/Silo/LibFlood.sol");
       files.push("contracts/libraries/LibGaugeHelpers.sol");
+      files.push("contracts/libraries/Sun/LibWeather.sol");
     }
     files.forEach((file) => {
       const facetName = getFacetName(file);
@@ -1723,7 +1835,10 @@ task("ecosystemABI", "Generates ABI files for ecosystem contracts").setAction(as
 });
 
 task("facetAddresses", "Displays current addresses of specified facets on Base mainnet")
-  .addParam("facets", "Comma-separated list of facet names to look up")
+  .addParam(
+    "facets",
+    "Comma-separated list of facet names to look up (ex: 'FieldFacet,SiloFacet,SeasonFacet')"
+  )
   .addFlag("urls", "Show BaseScan URLs for the facets")
   .setAction(async (taskArgs) => {
     const BASESCAN_API_KEY = process.env.ETHERSCAN_KEY_BASE;

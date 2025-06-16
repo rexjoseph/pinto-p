@@ -35,6 +35,7 @@ fs_permissions = [
   { access = "read", path = "../" },
   { access = "read", path = "./out" },
   { access = "read-write", path = "./test/generated/" },
+  { access = "read-write", path = "./oscillation_data.csv" },
 ]
 ignored_warnings_from = [
   "test",
@@ -46,7 +47,7 @@ gas_reports = ['*']
 no_storage_caching = false
 
 # Exclude deployment tests so CI works
-no_match_contract = "VerifyDeploymentTest"
+no_match_contract = "Legacy"
 
 [profile.differential]
 match_test = "testDiff"
