@@ -50,7 +50,7 @@ contract Pi10ForkTest is TestHelper {
         console.log("sowTemp", sowTemp);
 
         // sow all soil to set cultivation temp
-        sowAll(farmer1);
+        sowAllAtTemp(farmer1, 0);
         // advance to next season to update gauge
         stepSeason();
 
@@ -79,7 +79,7 @@ contract Pi10ForkTest is TestHelper {
         // 4 seasons of soil selling out, temp goes down to 745%
         uint256 cultivationFactorFlat;
         for (uint256 i = 0; i < 4; i++) {
-            sowAll(farmer1);
+            sowAllAtTemp(farmer1, 746e6);
             stepSeason();
             logSeasonData(i + 1);
 
@@ -105,7 +105,7 @@ contract Pi10ForkTest is TestHelper {
         console.log("Soil sells out again at 746%, cultivation factor should increase");
         console.log("--------------------------------");
 
-        sowAll(farmer1);
+        sowAllAtTemp(farmer1, 746e6);
         stepSeason();
         logSeasonData(1);
 
@@ -124,17 +124,11 @@ contract Pi10ForkTest is TestHelper {
         // Initialize CSV file
         vm.writeFile(CSV_PATH, "step,season,prev_temp,cultivation_factor\n");
 
-        // Step 1: Soil sells out above User1 limit order temp
-        uint256 cultivationFactorFlat = runStep1();
+        // Step 1 and 2: Soil sells out above User1 limit order temp. this increases the cultivation factor, and then oscillates between 744% and 745%
+        runStep1();
 
-        // Step 2: Oscillation between 739% and 740% temp for User1 limit order
-        runStep2();
-
-        // Step 3: User2 order makes cultivation factor decrease
-        runStep3();
-
-        // Step 4: Oscillation with User2 only
-        runStep4();
+        // Step 3 and 4: User2 order makes cultivation factor decrease, Cultivation eventually stabilizes
+        runStep3And4();
     }
 
     /////////////////// HELPER FUNCTIONS ///////////////////
@@ -151,19 +145,24 @@ contract Pi10ForkTest is TestHelper {
         console.log("\n");
 
         uint256 cultivationFactorFlat;
-        for (uint256 i = 0; i < 10; i++) {
-            sowAll(farmer1);
+        for (uint256 i = 0; i < 15; i++) {
+            bool sowed = sowAllAtTemp(farmer1, 745e6);
             stepSeason();
             logSeasonData(i + 1);
 
             CultivationData memory data = getCultivationData();
-            writeToCSV("step1_user1_sow_all", data);
+            if (sowed) {
+                writeToCSV("step1_user1_sow_all", data);
+            } else {
+                writeToCSV("step1_user1_no_sow", data);
+            }
 
             if (i == 9) cultivationFactorFlat = data.cultivationFactor;
         }
         return cultivationFactorFlat;
     }
 
+    // user 1 will alternate between no sow and full sow, due to the min temp of 740e6, but the cultivation factor should increase
     function runStep2() internal {
         console.log("\n");
         console.log("==========================================");
@@ -173,27 +172,25 @@ contract Pi10ForkTest is TestHelper {
         console.log("==========================================");
         console.log("\n");
 
-        for (uint256 i = 0; i < 3; i++) {
-            // 2 seasons of no sowing
-            for (uint256 j = 0; j < 2; j++) {
-                stepSeason();
-                logSeasonData(i * 3 + j + 1);
-
-                CultivationData memory data = getCultivationData();
-                writeToCSV("step2_user1_oscillation_no_sow", data);
-            }
-
+        // for the next 10 seasons, we will alternate between no sow and full sow, due to the min temp of 740e6
+        for (uint256 i = 0; i < 10; i++) {
             // 1 season of full sowing
-            sowAll(farmer1);
+            bool sowed = sowAllAtTemp(farmer1, 740e6);
             stepSeason();
-            logSeasonData(i * 3 + 3);
+            logSeasonData(i);
 
             CultivationData memory data = getCultivationData();
-            writeToCSV("step2_user1_oscillation_full_sow", data);
+            if (sowed) {
+                writeToCSV("step2_user1_oscillation_full_sow", data);
+            } else {
+                writeToCSV("step2_user1_oscillation_no_sow", data);
+            }
         }
     }
 
-    function runStep3() internal {
+    // a new user is sowing at a lower temp, but with a lower capacity. this will cause the cultivation factor to decrease over time
+    // EVEN though there is a first sower, the cultivation factor will decrease over time because of the new order
+    function runStep3And4() internal {
         console.log("\n");
         console.log("==========================================");
         console.log("STEP 3: USER2 INITIAL SOWING");
@@ -202,44 +199,24 @@ contract Pi10ForkTest is TestHelper {
         console.log("==========================================");
         console.log("\n");
 
-        sowAmount(farmer2, 100e6);
-        uint256 soilSownLastSeason = 100e6;
-        stepSeason();
+        for (uint256 i = 0; i < 15; i++) {
+            // original order! Sow all at any temp at 745 and up
+            bool user1Sowed = sowAllAtTemp(farmer1, 745e6);
 
-        for (uint256 i = 0; i < 3; i++) {
-            soilSownLastSeason = sowIncreasing(farmer2, soilSownLastSeason);
+            // new order! sow 100e6 at 737
+            bool user2Sowed = sowAmountAtMinTemp(farmer2, 100e6, 740e6);
             stepSeason();
-            logSeasonData(i + 1);
+            logSeasonData(i);
 
             CultivationData memory data = getCultivationData();
-            writeToCSV("step3_user2_some_sow_at_lower_temp", data);
-        }
-    }
+            if (user1Sowed) {
+                writeToCSV("step3_user1_some_sow", data);
+            }
 
-    function runStep4() internal {
-        console.log("\n");
-        console.log("==========================================");
-        console.log("STEP 4: USER2 OSCILLATION PATTERN");
-        console.log("User2 alternates between selling out all soil and no sowing");
-        console.log("Temperature oscillates around 737%");
-        console.log("==========================================");
-        console.log("\n");
-
-        for (uint256 i = 0; i < 3; i++) {
-            stepSeason();
-            logSeasonData(i * 3 + 1);
-
-            CultivationData memory data = getCultivationData();
-            writeToCSV("step4_user2_oscillation", data);
-
-            sowAll(farmer2);
-
-            for (uint256 j = 0; j < 2; j++) {
-                stepSeason();
-                logSeasonData(i * 3 + j + 2);
-
-                data = getCultivationData();
-                writeToCSV("step4_user2_oscillation", data);
+            if (user2Sowed) {
+                writeToCSV("step3_user2_some_sow", data);
+            } else {
+                writeToCSV("step3_user2_no_sow", data);
             }
         }
     }
@@ -290,35 +267,36 @@ contract Pi10ForkTest is TestHelper {
         bs.sunrise();
     }
 
-    function sowAll(address farmer) internal {
+    function sowAllAtTemp(address farmer, uint256 minTemp) internal returns (bool) {
         uint256 soil = bs.totalSoil();
         deal(L2_PINTO, farmer, soil);
         vm.startPrank(farmer);
         IERC20(L2_PINTO).approve(address(bs), soil);
-        bs.sow(soil, 0, uint8(LibTransfer.From.EXTERNAL));
-        vm.stopPrank();
-    }
-
-    function sowIncreasing(address farmer, uint256 soilSownLastSeason) internal returns (uint256) {
-        uint256 totalSoil = bs.totalSoil();
-        uint256 soilToSow = soilSownLastSeason + ((soilSownLastSeason * 5.1e6) / 100e6);
-        if (soilToSow > totalSoil) {
-            soilToSow = totalSoil;
+        try bs.sow(soil, minTemp, uint8(LibTransfer.From.EXTERNAL)) {
+            console.log("sow successful");
+            return true;
+        } catch {
+            console.log("sow failed");
+            return false;
         }
-        deal(L2_PINTO, farmer, soilToSow);
-        vm.startPrank(farmer);
-        IERC20(L2_PINTO).approve(address(bs), soilToSow);
-        console.log("sowing soil: ", soilToSow);
-        bs.sow(soilToSow, 0, uint8(LibTransfer.From.EXTERNAL));
         vm.stopPrank();
-        return soilToSow;
     }
 
-    function sowAmount(address farmer, uint256 amount) internal {
+    function sowAmountAtMinTemp(
+        address farmer,
+        uint256 amount,
+        uint256 minTemp
+    ) internal returns (bool) {
         deal(L2_PINTO, farmer, amount);
         vm.startPrank(farmer);
         IERC20(L2_PINTO).approve(address(bs), amount);
-        bs.sow(amount, 0, uint8(LibTransfer.From.EXTERNAL));
+        try bs.sowWithMin(amount, minTemp, 0, uint8(LibTransfer.From.EXTERNAL)) {
+            console.log("sow successful");
+            return true;
+        } catch {
+            console.log("sow failed");
+            return false;
+        }
         vm.stopPrank();
     }
 
@@ -326,5 +304,7 @@ contract Pi10ForkTest is TestHelper {
         vm.warp(block.timestamp + 61 minutes);
         vm.roll(block.number + 1);
         bs.sunrise();
+        // skip 301 blocks for morning auction
+        vm.roll(block.number + 301);
     }
 }
