@@ -800,10 +800,53 @@ task("PI-8", "Deploys Pinto improvment set 8, Tractor, Soil Orderbook").setActio
     });
   }
 );
+task("PI-10", "Deploys Pinto improvment set 10, Cultivation Factor Change").setAction(
+  async function () {
+    const mock = true;
+    let owner;
+    if (mock) {
+      // await hre.run("updateOracleTimeouts");
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+      console.log("Account address: ", await owner.getAddress());
+    }
+    await upgradeWithNewFacets({
+      diamondAddress: L2_PINTO,
+      facetNames: ["FieldFacet", "SeasonFacet", "GaugeFacet"],
+      libraryNames: [
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate"
+      ],
+      facetLibraries: {
+        SeasonFacet: [
+          "LibEvaluate",
+          "LibGauge",
+          "LibIncentive",
+          "LibShipping",
+          "LibWellMinting",
+          "LibFlood",
+          "LibGerminate"
+        ]
+      },
+      initArgs: [],
+      initFacetName: "InitPI10",
+      object: !mock,
+      verbose: true,
+      account: owner
+    });
+  }
+);
 
 task(
-  "PI-10",
-  "Deploys Pinto improvement set 10, Misc. Improvements and convert up bonus"
+  "PI-11",
+  "Deploys Pinto improvement set 11, Misc. Improvements and convert up bonus"
 ).setAction(async function () {
   const mock = true;
   let owner;
@@ -864,8 +907,8 @@ task(
     object: !mock,
     verbose: true,
     account: owner,
-    initArgs: [749e6, 749e6],
-    initFacetName: "InitPI10"
+    initArgs: [],
+    initFacetName: "InitPI11"
   });
 });
 
