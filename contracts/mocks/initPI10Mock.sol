@@ -3,22 +3,23 @@
 */
 
 pragma solidity ^0.8.20;
-import "../../libraries/LibAppStorage.sol";
-import {LibGauge} from "../../libraries/LibGauge.sol";
-import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
+import "contracts/libraries/LibAppStorage.sol";
+import {LibGauge} from "contracts/libraries/LibGauge.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 
 /**
- * @title InitPI10
+ * @title InitPI10Mock
  * @dev Initializes parameters for pinto improvement 10.
  **/
-contract InitPI10 {
+contract InitPI10Mock {
     function init() external {
         initCultivationFactorGaugeV1_1();
     }
 
-    uint256 internal constant CULTIVATION_TEMP = 0;
-    uint256 internal constant PREV_SEASON_TEMP = 0;
+    // temps at season 4980
+    uint256 internal constant CULTIVATION_TEMP = 748.5e6;
+    uint256 internal constant PREV_SEASON_TEMP = 748.5e6;
 
     function initCultivationFactorGaugeV1_1() internal {
         (uint256 minDeltaCf, uint256 maxDeltaCf, uint256 minCf, uint256 maxCf) = abi.decode(

@@ -9,6 +9,10 @@ import "forge-std/console.sol";
 import {LibTransfer} from "contracts/libraries/Token/LibTransfer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+/**
+ * @dev forks base and tests different cultivation factor scenarios
+ * InitPI10Mock is used as the init facet to init the cultivation temperatures to 748.5e6 instead of 0
+ **/
 contract Pi10ForkTest is TestHelper {
     address farmer1 = makeAddr("farmer1");
     address farmer2 = makeAddr("farmer2");
@@ -29,7 +33,7 @@ contract Pi10ForkTest is TestHelper {
     function test_forkBase_cultivationFactor_noSow() public {
         bs = IMockFBeanstalk(PINTO);
         uint256 forkBlock = 31599727 - 1;
-        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10");
+        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10Mock");
 
         uint256 temperatureBeforeUpgrade = bs.weather().temp;
         advanceToNextSeason();
@@ -56,7 +60,7 @@ contract Pi10ForkTest is TestHelper {
     function test_forkBase_cultivationFactor_oscillate_oneOrder() public {
         bs = IMockFBeanstalk(PINTO);
         uint256 forkBlock = 31599727 - 1;
-        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10");
+        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10Mock");
 
         uint256 temperatureBeforeUpgrade = bs.weather().temp;
         advanceToNextSeason();
@@ -101,7 +105,7 @@ contract Pi10ForkTest is TestHelper {
     function test_forkBase_cultivationFactor_oscillate_twoOrders() public {
         bs = IMockFBeanstalk(PINTO);
         uint256 forkBlock = 31599727 - 1;
-        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10");
+        forkMainnetAndUpgradeAllFacets(forkBlock, vm.envString("BASE_RPC"), PINTO, "InitPI10Mock");
 
         uint256 temperatureBeforeUpgrade = bs.weather().temp;
         advanceToNextSeason();
