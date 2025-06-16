@@ -238,10 +238,6 @@ jobs:
             npm ci || npm install
           fi
 
-      - name: Install Foundry dependencies
-        run: |
-          forge install
-
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
