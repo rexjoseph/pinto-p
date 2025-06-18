@@ -119,7 +119,7 @@ abstract contract Listing is PodTransfer {
         );
 
         // Round.
-        if (podListing.podAmount - podReceiveAmount <= (1000000 / podListing.pricePerPod)) {
+        if (podListing.podAmount - podReceiveAmount < (1000000 / podListing.pricePerPod)) {
             podReceiveAmount = podListing.podAmount;
         }
 
