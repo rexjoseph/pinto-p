@@ -13,7 +13,6 @@ import {LibWhitelistedTokens} from "../../libraries/Silo/LibWhitelistedTokens.so
  * @dev Dewhitelists tokens and rebalances optimal percent deposited allocation for remaining tokens.
  **/
 contract InitWhitelistRebalance {
-
     // Currently whitelisted tokens
     address internal constant PINTO_WETH_LP = 0x3e11001CfbB6dE5737327c59E10afAB47B82B5d3;
     address internal constant PINTO_CBETH_LP = 0x3e111115A82dF6190e36ADf0d552880663A4dBF1;
