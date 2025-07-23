@@ -37,7 +37,10 @@ contract WhitelistRebalanceForkTest is TestHelper {
             address token = whitelistedTokensBefore[i];
             console.log("Token: ", _getTokenName(token));
             console.log("Stalk Earned Per Season: ", bs.tokenSettings(token).stalkEarnedPerSeason);
-            console.log("Optimal Percent Deposited BDV: ", bs.tokenSettings(token).optimalPercentDepositedBdv);
+            console.log(
+                "Optimal Percent Deposited BDV: ",
+                bs.tokenSettings(token).optimalPercentDepositedBdv
+            );
             console.log("-------------------------------");
         }
 
@@ -92,7 +95,10 @@ contract WhitelistRebalanceForkTest is TestHelper {
             address token = whitelistedTokensBefore[i];
             console.log("Token: ", _getTokenName(token));
             console.log("Stalk Earned Per Season: ", bs.tokenSettings(token).stalkEarnedPerSeason);
-            console.log("Optimal Percent Deposited BDV: ", bs.tokenSettings(token).optimalPercentDepositedBdv);
+            console.log(
+                "Optimal Percent Deposited BDV: ",
+                bs.tokenSettings(token).optimalPercentDepositedBdv
+            );
             console.log("-------------------------------");
         }
 
