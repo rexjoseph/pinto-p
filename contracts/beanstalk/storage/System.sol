@@ -446,6 +446,7 @@ struct EvaluationParameters {
  * @param soilDistributionPeriod The target period (in seconds) over which to distribute soil (e.g., 24*60*60 for 24 hours).
  * @param minSoilIssuance The minimum amount of soil to issue in a season when below peg.
  * @param minSoilSownDemand The minimum amount of soil that must be sown in a season for demand to be measured.
+ * @param convertDownPenaltyRate The rate at which any exchange rate this value is penalized.
  * @param buffer The buffer for future evaluation parameters.
  */
 struct ExtEvaluationParameters {
@@ -456,7 +457,8 @@ struct ExtEvaluationParameters {
     uint256 soilDistributionPeriod;
     uint256 minSoilIssuance;
     uint256 minSoilSownDemand;
-    bytes32[60] buffer;
+    uint256 convertDownPenaltyRate;
+    bytes32[59] buffer;
 }
 
 /**

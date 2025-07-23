@@ -14,6 +14,7 @@ import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title GaugeFacet
@@ -46,6 +47,7 @@ interface IGaugeFacet {
  */
 contract GaugeFacet is GaugeDefault, ReentrancyGuard {
     uint256 internal constant PRICE_PRECISION = 1e6;
+    uint256 internal constant MAX_PENALTY_RATIO = 1e18;
 
     // Cultivation Factor Gauge Constants //
     uint256 internal constant SOIL_ALMOST_SOLD_OUT = type(uint32).max - 1;
@@ -176,28 +178,73 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         bytes memory gaugeData
     ) external view returns (bytes memory, bytes memory) {
         LibEvaluate.BeanstalkState memory bs = abi.decode(systemData, (LibEvaluate.BeanstalkState));
-        (uint256 rollingSeasonsAbovePegRate, uint256 rollingSeasonsAbovePegCap) = abi.decode(
-            gaugeData,
-            (uint256, uint256)
+
+        // decode the value and data.
+        LibGaugeHelpers.ConvertDownPenaltyValue memory gv = abi.decode(
+            value,
+            (LibGaugeHelpers.ConvertDownPenaltyValue)
         );
 
-        (uint256 penaltyRatio, uint256 rollingSeasonsAbovePeg) = abi.decode(
-            value,
-            (uint256, uint256)
+        LibGaugeHelpers.ConvertDownPenaltyData memory gd = abi.decode(
+            gaugeData,
+            (LibGaugeHelpers.ConvertDownPenaltyData)
         );
-        rollingSeasonsAbovePeg = uint256(
+
+        uint256 beansMintedAbovePegThreshold;
+
+        if (bs.twaDeltaB > 0) {
+            // reset the crossed below value target flag when back above peg
+            if (gd.crossedBelowVt) {
+                gd.crossedBelowVt = false;
+            }
+
+            // increment beans minted above peg by the twaDeltaB.
+            gd.beansMintedAbovePeg = gd.beansMintedAbovePeg + uint256(bs.twaDeltaB);
+
+            // calculate the threshold in which the penalty ratio is applied.
+            beansMintedAbovePegThreshold =
+                (IERC20(s.sys.bean).totalSupply() * gd.percentSupplyThreshold) /
+                C.PRECISION;
+
+            if (gd.beansMintedAbovePeg < beansMintedAbovePegThreshold) {
+                // if the beans minted above peg is less than the threshold,
+                // set the penalty ratio to maximum.
+                gv.penaltyRatio = MAX_PENALTY_RATIO;
+                return (abi.encode(gv), abi.encode(gd));
+            }
+            // once the beans minted above peg is greater than the threshold,
+            // the penalty ratio is a function of the rolling count of seasons above peg.
+        } else if (bs.twaDeltaB <= 0) {
+            if (!gd.crossedBelowVt) {
+                // if the system just crossed from above value target to below,
+                // reset the percent supply threshold and minted above peg.
+                gd.percentSupplyThreshold = 0;
+                gd.beansMintedAbovePeg = 0;
+                gd.crossedBelowVt = true;
+            } else {
+                // if the system is below value target, increment the percent supply threshold.
+                gd.percentSupplyThreshold =
+                    gd.percentSupplyThreshold +
+                    gd.percentSupplyThresholdRate;
+            }
+        }
+
+        // increment the rolling count of seasons above peg
+        // the rolling seasons above peg is only incremented after the system
+        // issues more beans above the threshold.
+        gv.rollingSeasonsAbovePeg = uint256(
             LibGaugeHelpers.linear(
-                int256(rollingSeasonsAbovePeg),
+                int256(gv.rollingSeasonsAbovePeg),
                 bs.twaDeltaB > 0 ? true : false,
-                rollingSeasonsAbovePegRate,
+                gd.rollingSeasonsAbovePegRate,
                 0,
-                int256(rollingSeasonsAbovePegCap)
+                int256(gd.rollingSeasonsAbovePegCap)
             )
         );
 
         // Do not update penalty ratio if l2sr failed to compute.
         if (bs.lpToSupplyRatio.value == 0) {
-            return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
+            return (abi.encode(gv), abi.encode(gd));
         }
 
         // Scale L2SR by the optimal L2SR. Cap the current L2SR at the optimal L2SR.
@@ -207,11 +254,11 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
                 s.sys.evaluationParameters.lpToSupplyRatioLowerBound
             )) / s.sys.evaluationParameters.lpToSupplyRatioLowerBound;
 
-        uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(rollingSeasonsAbovePeg * 1e18 + 1e18)) /
-            PRBMathUD60x18.log2(rollingSeasonsAbovePegCap * 1e18 + 1e18);
+        uint256 timeRatio = (1e18 * PRBMathUD60x18.log2(gv.rollingSeasonsAbovePeg * 1e18 + 1e18)) /
+            PRBMathUD60x18.log2(gd.rollingSeasonsAbovePegCap * 1e18 + 1e18);
 
-        penaltyRatio = Math.min(1e18, (l2srRatio * (1e18 - timeRatio)) / 1e18);
-        return (abi.encode(penaltyRatio, rollingSeasonsAbovePeg), gaugeData);
+        gv.penaltyRatio = Math.min(MAX_PENALTY_RATIO, (l2srRatio * (1e18 - timeRatio)) / 1e18);
+        return (abi.encode(gv), abi.encode(gd));
     }
 
     /// GAUGE ADD/REMOVE/UPDATE ///

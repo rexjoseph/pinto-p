@@ -112,7 +112,8 @@ contract PipelineConvertFacet is Invariable, ReentrancyGuard {
             (grownStalk, grownStalkLost) = LibConvert.downPenalizedGrownStalk(
                 outputToken,
                 toBdv,
-                grownStalk
+                grownStalk,
+                fromAmount
             );
             emit LibConvert.ConvertDownPenalty(LibTractor._user(), grownStalkLost, grownStalk);
         }

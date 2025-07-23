@@ -246,6 +246,7 @@ contract ConvertTest is TestHelper {
     }
 
     function test_convertWithDownPenaltyTwice() public {
+        disableRatePenalty();
         bean.mint(farmers[0], 20_000e6);
         bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
         vm.prank(farmers[0]);
@@ -258,7 +259,9 @@ contract ConvertTest is TestHelper {
         for (uint256 i; i < 580; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
-            l2sr = bs.getLiquidityToSupplyRatio();
+            if (i == 579) {
+                l2sr = bs.getLiquidityToSupplyRatio();
+            }
             bs.sunrise();
         }
 
@@ -296,14 +299,13 @@ contract ConvertTest is TestHelper {
             uint256 grownStalk = bs.grownStalkForDeposit(farmers[0], BEAN, int96(0));
             uint256 grownStalkConverting = (beansToConvert *
                 bs.grownStalkForDeposit(farmers[0], BEAN, int96(0))) / amount;
-            uint256 grownStalkLost = LibPRBMathRoundable.mulDiv(
-                expectedPenaltyRatio,
-                grownStalkConverting,
-                1e18,
-                LibPRBMathRoundable.Rounding.Up
-            );
+            uint256 grownStalkLost = (grownStalkConverting * expectedPenaltyRatio) / 1e18;
             assertGt(grownStalkLost, 0, "grownStalkLost should be greater than 0");
-
+            console.log("expected grown stalk lost", grownStalkLost);
+            console.log("grown stalk remaining", grownStalkConverting - grownStalkLost);
+            // expected grown stalk lost 39934951316412442
+            // grown stalk remaining 18265048683587558
+            // emit ConvertDownPenalty(account: Farmer 1: [0x64525e042465D0615F51aBB2982Ce82B8568Bcc4], grownStalkLost: 39934951316412441 [3.993e16], grownStalkKept: 18265048683587559 [1.826e16])
             vm.expectEmit();
             emit ConvertDownPenalty(
                 farmers[0],
@@ -313,6 +315,7 @@ contract ConvertTest is TestHelper {
 
             vm.prank(farmers[0]);
             (int96 toStem, , , , ) = convert.convert(convertData, stems, amounts);
+            console.log("done?");
 
             assertGt(toStem, int96(0), "toStem should be larger than initial");
             uint256 newGrownStalk = bs.grownStalkForDeposit(farmers[0], well, toStem);
@@ -327,6 +330,7 @@ contract ConvertTest is TestHelper {
         warpToNextSeasonAndUpdateOracles();
         vm.roll(block.number + 1800);
         l2sr = bs.getLiquidityToSupplyRatio();
+        disableRatePenalty();
         bs.sunrise();
 
         {
@@ -350,12 +354,7 @@ contract ConvertTest is TestHelper {
             uint256 grownStalk = bs.grownStalkForDeposit(farmers[0], BEAN, int96(0));
             uint256 grownStalkConverting = (beansToConvert *
                 bs.grownStalkForDeposit(farmers[0], BEAN, int96(0))) / amount;
-            uint256 grownStalkLost = LibPRBMathRoundable.mulDiv(
-                penaltyRatio,
-                grownStalkConverting,
-                1e18,
-                LibPRBMathRoundable.Rounding.Up
-            );
+            uint256 grownStalkLost = (grownStalkConverting * penaltyRatio) / 1e18;
             assertGt(grownStalkLost, 0, "grownStalkLost should be greater than 0");
 
             vm.expectEmit();
@@ -379,7 +378,12 @@ contract ConvertTest is TestHelper {
         }
     }
 
+    /**
+     * @notice test that a convert with a penalty will not create a germinating deposit.
+     * @dev rate penalty is disabled for this test to preserve backward compatibility.
+     */
     function test_convertWithDownPenaltyGerminating() public {
+        disableRatePenalty();
         bean.mint(farmers[0], 20_000e6);
         bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
         vm.prank(farmers[0]);
@@ -492,8 +496,10 @@ contract ConvertTest is TestHelper {
 
     /**
      * @notice general convert test and verify down convert penalty.
+     * @dev rate penalty is disabled for this test to preserve backward compatibility.
      */
     function test_convertBeanToWellWithPenalty() public {
+        disableRatePenalty();
         bean.mint(farmers[0], 20_000e6);
         bean.mint(0x0000000000000000000000000000000000000001, 200_000e6);
         vm.prank(farmers[0]);
@@ -506,7 +512,9 @@ contract ConvertTest is TestHelper {
         for (uint256 i; i < 580; i++) {
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
-            l2sr = bs.getLiquidityToSupplyRatio();
+            if (i == 579) {
+                l2sr = bs.getLiquidityToSupplyRatio();
+            }
             bs.sunrise();
         }
 
@@ -570,6 +578,7 @@ contract ConvertTest is TestHelper {
             lastGrownStalkPerBdv = newGrownStalkPerBdv;
             warpToNextSeasonAndUpdateOracles();
             vm.roll(block.number + 1800);
+            disableRatePenalty();
             bs.sunrise();
             require(bs.abovePeg(), "abovePeg should be true");
         }
@@ -615,7 +624,8 @@ contract ConvertTest is TestHelper {
         (uint256 newGrownStalk, uint256 grownStalkLost) = bs.downPenalizedGrownStalk(
             BEAN_ETH_WELL,
             1_000e6,
-            10_000e18
+            10_000e18,
+            1_000e6
         );
         assertEq(grownStalkLost, 0, "no penalty when P > Q");
         assertEq(newGrownStalk, 10_000e18, "stalk same when P > Q");
@@ -1249,5 +1259,12 @@ contract ConvertTest is TestHelper {
         stems[0] = int96(0);
         amounts = new uint256[](1);
         amounts[0] = beansToConvert;
+    }
+
+    /** disables the rate penalty for a convert */
+    function disableRatePenalty() internal {
+        // sets the convert penalty at 1.025e6 (1.025$)
+        bs.setConvertDownPenaltyRate(1.025e6);
+        bs.setBeansMintedAbovePeg(type(uint128).max);
     }
 }

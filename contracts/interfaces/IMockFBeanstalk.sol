@@ -1884,7 +1884,8 @@ interface IMockFBeanstalk {
     function downPenalizedGrownStalk(
         address well,
         uint256 bdvToConvert,
-        uint256 grownStalkToConvert
+        uint256 grownStalkToConvert,
+        uint256 fromAmount
     ) external view returns (uint256 newGrownStalk, uint256 grownStalkLost);
 
     function setLastSeasonAndThisSeasonBeanSown(
@@ -1895,4 +1896,8 @@ interface IMockFBeanstalk {
     function setMinSoilSownDemand(uint256 minSoilSownDemand) external;
 
     function setPrevSeasonAndCultivationTemp(uint256 prevSeasonTemp, uint256 soldOutTemp) external;
+
+    function setConvertDownPenaltyRate(uint256 rate) external;
+
+    function setBeansMintedAbovePeg(uint256 beansMintedAbovePeg) external;
 }

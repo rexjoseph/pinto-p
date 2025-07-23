@@ -8,6 +8,8 @@ import "../../beanstalk/facets/silo/ConvertFacet.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {LibConvert} from "contracts/libraries/Convert/LibConvert.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
+import {GaugeId} from "contracts/beanstalk/storage/System.sol";
 
 /**
  * @title Mock Convert Facet
@@ -26,8 +28,13 @@ contract MockConvertFacet is ConvertFacet {
     ) external {
         LibSilo._mow(msg.sender, token);
         // if (account == address(0)) account = msg.sender;
-        (uint256 stalkRemoved, uint256 bdvRemoved, uint256 deltaRainRoots) = LibConvert
-            ._withdrawTokens(token, stems, amounts, maxTokens, LibTractor._user());
+        (uint256 stalkRemoved, uint256 bdvRemoved, ) = LibConvert._withdrawTokens(
+            token,
+            stems,
+            amounts,
+            maxTokens,
+            LibTractor._user()
+        );
 
         emit MockConvert(stalkRemoved, bdvRemoved);
     }
@@ -75,5 +82,19 @@ contract MockConvertFacet is ConvertFacet {
         account = cp.account;
         decreaseBDV = cp.decreaseBDV;
         IERC20(toToken).safeTransfer(msg.sender, toAmount);
+    }
+
+    function setConvertDownPenaltyRate(uint256 rate) external {
+        s.sys.extEvaluationParameters.convertDownPenaltyRate = rate;
+    }
+
+    function setBeansMintedAbovePeg(uint256 beansMintedAbovePeg) external {
+        LibGaugeHelpers.ConvertDownPenaltyData memory gd = abi.decode(
+            LibGaugeHelpers.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+        gd.beansMintedAbovePeg = beansMintedAbovePeg;
+        gd.percentSupplyThreshold = 0;
+        LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_DOWN_PENALTY, abi.encode(gd));
     }
 }
