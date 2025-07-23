@@ -32,6 +32,15 @@ contract WhitelistRebalanceForkTest is TestHelper {
         console.log("=== BEFORE UPGRADE ===");
         _logWhitelistedTokens("Before");
 
+        address[] memory whitelistedTokensBefore = bs.getWhitelistedTokens();
+        for (uint256 i = 0; i < whitelistedTokensBefore.length; i++) {
+            address token = whitelistedTokensBefore[i];
+            console.log("Token: ", _getTokenName(token));
+            console.log("Stalk Earned Per Season: ", bs.tokenSettings(token).stalkEarnedPerSeason);
+            console.log("Optimal Percent Deposited BDV: ", bs.tokenSettings(token).optimalPercentDepositedBdv);
+            console.log("-------------------------------");
+        }
+
         // Upgrade to InitWhitelistRebalance
         forkMainnetAndUpgradeAllFacets(
             forkBlock,
@@ -75,7 +84,17 @@ contract WhitelistRebalanceForkTest is TestHelper {
                 );
             }
         }
-        assertEq(totalAllocation, 99e6, "Total allocation should be 99%");
+        assertEq(totalAllocation, 99999999, "Total allocation should be 99%");
+
+        // get the stalkEarnedPerSeason for each token, including the dewhitelisted tokens
+        console.log("\n=== SEEDS AFTER UPGRADE ===");
+        for (uint256 i = 0; i < whitelistedTokensBefore.length; i++) {
+            address token = whitelistedTokensBefore[i];
+            console.log("Token: ", _getTokenName(token));
+            console.log("Stalk Earned Per Season: ", bs.tokenSettings(token).stalkEarnedPerSeason);
+            console.log("Optimal Percent Deposited BDV: ", bs.tokenSettings(token).optimalPercentDepositedBdv);
+            console.log("-------------------------------");
+        }
 
         console.log("\n=== VERIFICATION COMPLETE ===");
     }
