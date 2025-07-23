@@ -914,6 +914,27 @@ task(
   });
 });
 
+task("whitelist-rebalance", "Deploys whitelist rebalance").setAction(async function () {
+  const mock = true;
+  let owner;
+  if (mock) {
+    owner = await impersonateSigner(L2_PCM);
+    await mintEth(owner.address);
+  } else {
+    owner = (await ethers.getSigners())[0];
+  }
+  // upgrade facets, no new facets or libraries, only init
+  await upgradeWithNewFacets({
+    diamondAddress: L2_PINTO,
+    facetNames: [],
+    initArgs: [],
+    initFacetName: "InitWhitelistRebalance",
+    object: !mock,
+    verbose: true,
+    account: owner
+  });
+});
+
 task("silo-tractor-fix", "Deploys silo tractor fix").setAction(async function () {
   const mock = true;
   let owner;
