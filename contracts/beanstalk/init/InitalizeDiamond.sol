@@ -99,7 +99,7 @@ contract InitalizeDiamond {
     uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_CAP = 12;
     // Rate at which rolling seasons above peg count changes. If not one, it is not actual count.
     uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_RATE = 1;
-    
+
     // Convert Down Penalty Gauge additional fields
     uint256 internal constant INIT_BEANS_MINTED_ABOVE_PEG = 0;
     uint256 internal constant INIT_PERCENT_SUPPLY_THRESHOLD = 0;
