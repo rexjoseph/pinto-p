@@ -99,12 +99,22 @@ contract InitalizeDiamond {
     uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_CAP = 12;
     // Rate at which rolling seasons above peg count changes. If not one, it is not actual count.
     uint256 internal constant ROLLING_SEASONS_ABOVE_PEG_RATE = 1;
+    
+    // Convert Down Penalty Gauge additional fields
+    uint256 internal constant INIT_BEANS_MINTED_ABOVE_PEG = 0;
+    uint256 internal constant INIT_PERCENT_SUPPLY_THRESHOLD = 0;
+    // 1%/24 = 0.01/24 ≈ 0.0004166667 = 4.1666667e14 (18 decimals)
+    uint256 internal constant PERCENT_SUPPLY_THRESHOLD_RATE = 4166666666666667;
+    bool internal constant INIT_CROSSED_BELOW_VT = false;
 
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
 
     // Min Soil Sown Demand
     uint256 internal constant MIN_SOIL_SOWN_DEMAND = 5e6; // 5
+
+    // Convert Down Penalty Rate (1.0005 with 6 decimals)
+    uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.0005e6;
 
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
@@ -327,6 +337,7 @@ contract InitalizeDiamond {
         // Initialize soilDistributionPeriod to 24 hours (in seconds)
         s.sys.extEvaluationParameters.soilDistributionPeriod = SOIL_DISTRIBUTION_PERIOD;
         s.sys.extEvaluationParameters.minSoilSownDemand = MIN_SOIL_SOWN_DEMAND;
+        s.sys.extEvaluationParameters.convertDownPenaltyRate = CONVERT_DOWN_PENALTY_RATE;
     }
 
     function initalizeFarmAndTractor() internal {
@@ -353,10 +364,24 @@ contract InitalizeDiamond {
         LibGaugeHelpers.addGauge(GaugeId.CULTIVATION_FACTOR, cultivationFactorGauge);
 
         Gauge memory convertDownPenaltyGauge = Gauge(
-            abi.encode(INIT_CONVERT_DOWN_PENALTY_RATIO, INIT_ROLLING_SEASONS_ABOVE_PEG),
+            abi.encode(
+                LibGaugeHelpers.ConvertDownPenaltyValue({
+                    penaltyRatio: INIT_CONVERT_DOWN_PENALTY_RATIO,
+                    rollingSeasonsAbovePeg: INIT_ROLLING_SEASONS_ABOVE_PEG
+                })
+            ),
             address(this),
             IGaugeFacet.convertDownPenaltyGauge.selector,
-            abi.encode(ROLLING_SEASONS_ABOVE_PEG_RATE, ROLLING_SEASONS_ABOVE_PEG_CAP)
+            abi.encode(
+                LibGaugeHelpers.ConvertDownPenaltyData({
+                    rollingSeasonsAbovePegRate: ROLLING_SEASONS_ABOVE_PEG_RATE,
+                    rollingSeasonsAbovePegCap: ROLLING_SEASONS_ABOVE_PEG_CAP,
+                    beansMintedAbovePeg: INIT_BEANS_MINTED_ABOVE_PEG,
+                    percentSupplyThreshold: INIT_PERCENT_SUPPLY_THRESHOLD,
+                    percentSupplyThresholdRate: PERCENT_SUPPLY_THRESHOLD_RATE,
+                    crossedBelowVt: INIT_CROSSED_BELOW_VT
+                })
+            )
         );
         LibGaugeHelpers.addGauge(GaugeId.CONVERT_DOWN_PENALTY, convertDownPenaltyGauge);
     }

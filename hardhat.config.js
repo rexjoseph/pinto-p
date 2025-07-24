@@ -1919,6 +1919,58 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
     console.log("-----------------------------------");
   });
 
+// task("deployPI11", "Deploys and executes InitPI11 to update convert down penalty gauge")
+//   .addOptionalParam("account", "Account to use for deployment (defaults to Pinto owner)")
+//   .addOptionalParam("mock", "Deploy in mock mode", false, types.boolean)
+//   .addOptionalParam("verbose", "Print detailed logs", true, types.boolean)
+//   .setAction(async (taskArgs) => {
+//     const { impersonateBeanstalkOwner, mintEth } = require("./utils");
+//     const { upgradeWithNewFacets } = require("./scripts/diamond.js");
+
+//     console.log("🚀 Deploying PI11...");
+//     console.log("-----------------------------------");
+
+//     // Get the diamond address
+//     const diamondAddress = L2_PINTO;
+//     console.log("💎 Diamond address:", diamondAddress);
+
+//     // Get the account
+//     let account = taskArgs.account;
+//     if (!account) {
+//       console.log("🔑 Impersonating Pinto owner...");
+//       account = await impersonateBeanstalkOwner();
+//       await mintEth(account.address);
+//     }
+
+//     try {
+//       // Deploy and execute InitPI11
+//       console.log("📦 Deploying InitPI11 contract...");
+//       await upgradeWithNewFacets({
+//         diamondAddress: diamondAddress,
+//         facetNames: [], // No new facets, just the init contract
+//         initFacetName: "InitPI11",
+//         initArgs: [], // init() takes no arguments
+//         bip: false,
+//         object: false,
+//         verbose: taskArgs.verbose,
+//         account: account,
+//         verify: false
+//       });
+
+//       console.log("✅ PI11 deployment completed successfully!");
+//       console.log("📊 Convert down penalty gauge has been updated with:");
+//       console.log("   - New fields: beansMintedAbovePeg, percentSupplyThreshold");
+//       console.log("   - percentSupplyThresholdRate: ~0.0416667% (1%/24)");
+//       console.log("   - crossedBelowVt tracking");
+//       console.log("   - convertDownPenaltyRate: 1.0005");
+//     } catch (error) {
+//       console.error("❌ Error deploying PI11:", error);
+//       throw error;
+//     }
+
+//     console.log("-----------------------------------");
+//   });
+
 //////////////////////// CONFIGURATION ////////////////////////
 
 module.exports = {
