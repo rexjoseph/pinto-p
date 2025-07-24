@@ -64,28 +64,28 @@ task("callSunrise", "Calls the sunrise function", async function () {
   const pinto = await ethers.getContractAt("BeanstalkERC20", PINTO);
   const totalSupply = await pinto.totalSupply();
 
-  console.log(
-    "sunrise complete!\ncurrent season:",
-    currentSeason,
-    "\ncurrent blockchain time:",
-    unixTime,
-    "\nhuman readable time:",
-    currentTime,
-    "\ncurrent block:",
-    (await ethers.provider.getBlock("latest")).number,
-    "\ndeltaB:",
-    (await beanstalk.totalDeltaB()).toString(),
-    "\nraining:",
-    raining,
-    "\nlast sop:",
-    lastSop,
-    "\nlast sop season:",
-    lastSopSeason,
-    "\nflooded this season:",
-    floodedThisSeason,
-    "\ncurrent pinto supply:",
-    await ethers.utils.formatUnits(totalSupply, 6)
-  );
+  // console.log(
+  //   "sunrise complete!\ncurrent season:",
+  //   currentSeason,
+  //   "\ncurrent blockchain time:",
+  //   unixTime,
+  //   "\nhuman readable time:",
+  //   currentTime,
+  //   "\ncurrent block:",
+  //   (await ethers.provider.getBlock("latest")).number,
+  //   "\ndeltaB:",
+  //   (await beanstalk.totalDeltaB()).toString(),
+  //   "\nraining:",
+  //   raining,
+  //   "\nlast sop:",
+  //   lastSop,
+  //   "\nlast sop season:",
+  //   lastSopSeason,
+  //   "\nflooded this season:",
+  //   floodedThisSeason,
+  //   "\ncurrent pinto supply:",
+  //   await ethers.utils.formatUnits(totalSupply, 6)
+  // );
 });
 
 task("epi0", async () => {
@@ -1919,57 +1919,80 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
     console.log("-----------------------------------");
   });
 
-// task("deployPI11", "Deploys and executes InitPI11 to update convert down penalty gauge")
-//   .addOptionalParam("account", "Account to use for deployment (defaults to Pinto owner)")
-//   .addOptionalParam("mock", "Deploy in mock mode", false, types.boolean)
-//   .addOptionalParam("verbose", "Print detailed logs", true, types.boolean)
-//   .setAction(async (taskArgs) => {
-//     const { impersonateBeanstalkOwner, mintEth } = require("./utils");
-//     const { upgradeWithNewFacets } = require("./scripts/diamond.js");
+task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gauge").setAction(
+  async function () {
+    // Get the diamond address
+    const diamondAddress = L2_PINTO;
 
-//     console.log("🚀 Deploying PI11...");
-//     console.log("-----------------------------------");
+    const mock = true;
+    let owner;
+    if (mock) {
+      await hre.run("updateOracleTimeouts");
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+      console.log("Account address: ", await owner.getAddress());
+    }
 
-//     // Get the diamond address
-//     const diamondAddress = L2_PINTO;
-//     console.log("💎 Diamond address:", diamondAddress);
-
-//     // Get the account
-//     let account = taskArgs.account;
-//     if (!account) {
-//       console.log("🔑 Impersonating Pinto owner...");
-//       account = await impersonateBeanstalkOwner();
-//       await mintEth(account.address);
-//     }
-
-//     try {
-//       // Deploy and execute InitPI11
-//       console.log("📦 Deploying InitPI11 contract...");
-//       await upgradeWithNewFacets({
-//         diamondAddress: diamondAddress,
-//         facetNames: [], // No new facets, just the init contract
-//         initFacetName: "InitPI11",
-//         initArgs: [], // init() takes no arguments
-//         bip: false,
-//         object: false,
-//         verbose: taskArgs.verbose,
-//         account: account,
-//         verify: false
-//       });
-
-//       console.log("✅ PI11 deployment completed successfully!");
-//       console.log("📊 Convert down penalty gauge has been updated with:");
-//       console.log("   - New fields: beansMintedAbovePeg, percentSupplyThreshold");
-//       console.log("   - percentSupplyThresholdRate: ~0.0416667% (1%/24)");
-//       console.log("   - crossedBelowVt tracking");
-//       console.log("   - convertDownPenaltyRate: 1.0005");
-//     } catch (error) {
-//       console.error("❌ Error deploying PI11:", error);
-//       throw error;
-//     }
-
-//     console.log("-----------------------------------");
-//   });
+    // Deploy and execute InitPI11
+    console.log("📦 Deploying InitPI11 contract...");
+    await upgradeWithNewFacets({
+      diamondAddress: diamondAddress,
+      facetNames: [
+        "ConvertFacet",
+        "ConvertGettersFacet",
+        "PipelineConvertFacet",
+        "GaugeFacet",
+        "ApprovalFacet",
+        "SeasonFacet",
+        "ClaimFacet",
+        "SiloGettersFacet",
+        "GaugeGettersFacet",
+        "OracleFacet",
+        "SeasonGettersFacet"
+      ],
+      libraryNames: [
+        "LibConvert",
+        "LibPipelineConvert",
+        "LibSilo",
+        "LibTokenSilo",
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate",
+        "LibWeather"
+      ],
+      facetLibraries: {
+        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        SeasonFacet: [
+          "LibEvaluate",
+          "LibGauge",
+          "LibIncentive",
+          "LibShipping",
+          "LibWellMinting",
+          "LibFlood",
+          "LibGerminate",
+          "LibWeather"
+        ],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"],
+        SeasonGettersFacet: ["LibWellMinting"]
+      },
+      initFacetName: "InitPI11",
+      selectorsToRemove: [
+        "0x527ec6ba" // `downPenalizedGrownStalk(address,uint256,uint256)`
+      ],
+      bip: false,
+      object: false,
+      verbose: true,
+      account: owner
+    });
+  }
+);
 
 //////////////////////// CONFIGURATION ////////////////////////
 

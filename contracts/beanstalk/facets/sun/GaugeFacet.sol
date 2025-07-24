@@ -191,17 +191,13 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             (LibGaugeHelpers.ConvertDownPenaltyData)
         );
 
-        // if the system is above value target, and the percent supply threshold is greater than 0,
+        // if the system is above value target, and the bean amount above threshold is greater than 0,
         // the penalty ratio is a function of the beans minted above peg.
-        if (bs.twaDeltaB > 0 && gd.percentSupplyThreshold > 0) {
+        if (bs.twaDeltaB > 0 && gd.beanAmountAboveThreshold > 0) {
             // increment beans minted above peg by the twaDeltaB.
             gd.beansMintedAbovePeg = gd.beansMintedAbovePeg + uint256(bs.twaDeltaB);
 
-            // calculate the threshold in which the penalty ratio is applied.
-            uint256 beansMintedAbovePegThreshold = (IERC20(s.sys.bean).totalSupply() *
-                gd.percentSupplyThreshold) / C.PRECISION;
-
-            if (gd.beansMintedAbovePeg < beansMintedAbovePegThreshold) {
+            if (gd.beansMintedAbovePeg < gd.beanAmountAboveThreshold) {
                 // if the beans minted above peg is less than the threshold,
                 // set the penalty ratio to maximum.
                 gv.penaltyRatio = MAX_PENALTY_RATIO;
@@ -209,14 +205,16 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             } else {
                 // once the beans minted above peg is greater than the threshold,
                 // reset the threshold(s).
-                gd.percentSupplyThreshold = 0;
+                gd.beanAmountAboveThreshold = 0;
                 gd.beansMintedAbovePeg = 0;
             }
             // once the beans minted above peg is greater than the threshold,
             // the penalty ratio is a function of the rolling count of seasons above peg.
         } else if (bs.twaDeltaB <= 0) {
-            // if the system is below value target, increment the percent supply threshold.
-            gd.percentSupplyThreshold = gd.percentSupplyThreshold + gd.percentSupplyThresholdRate;
+            // if the system is below value target, increment the bean amount above threshold.
+            uint256 currentSupply = IERC20(s.sys.bean).totalSupply();
+            uint256 additionalBeans = (currentSupply * gd.percentSupplyThresholdRate) / C.PRECISION;
+            gd.beanAmountAboveThreshold = gd.beanAmountAboveThreshold + additionalBeans;
         }
 
         // increment the rolling count of seasons above peg

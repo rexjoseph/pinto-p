@@ -376,7 +376,7 @@ contract InitalizeDiamond {
                     rollingSeasonsAbovePegRate: ROLLING_SEASONS_ABOVE_PEG_RATE,
                     rollingSeasonsAbovePegCap: ROLLING_SEASONS_ABOVE_PEG_CAP,
                     beansMintedAbovePeg: INIT_BEANS_MINTED_ABOVE_PEG,
-                    percentSupplyThreshold: INIT_PERCENT_SUPPLY_THRESHOLD,
+                    beanAmountAboveThreshold: INIT_PERCENT_SUPPLY_THRESHOLD,
                     percentSupplyThresholdRate: PERCENT_SUPPLY_THRESHOLD_RATE
                 })
             )

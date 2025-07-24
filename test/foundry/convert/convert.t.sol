@@ -1342,7 +1342,7 @@ contract ConvertTest is TestHelper {
 
         // Threshold should have increased from staying below peg
         assertGt(
-            updatedData.percentSupplyThreshold,
+            updatedData.beanAmountAboveThreshold,
             0,
             "Threshold should increase when staying below peg"
         );
@@ -1498,7 +1498,7 @@ contract ConvertTest is TestHelper {
 
         // Should treat as below peg
         // Note: threshold reset behavior may vary based on implementation
-        assertLt(updatedData.percentSupplyThreshold, 1e18, "Threshold should be reasonable");
+        assertLt(updatedData.beanAmountAboveThreshold, 1e18, "Threshold should be reasonable");
     }
 
     //////////// INTEGRATION TESTS ////////////

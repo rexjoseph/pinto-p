@@ -94,7 +94,7 @@ contract MockConvertFacet is ConvertFacet {
             (LibGaugeHelpers.ConvertDownPenaltyData)
         );
         gd.beansMintedAbovePeg = beansMintedAbovePeg;
-        gd.percentSupplyThreshold = 0;
+        gd.beanAmountAboveThreshold = 0;
         LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_DOWN_PENALTY, abi.encode(gd));
     }
 }

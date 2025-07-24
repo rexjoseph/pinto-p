@@ -28,14 +28,14 @@ library LibGaugeHelpers {
      * @param rollingSeasonsAbovePegRate The rate at which the rolling count of seasons above peg increases.
      * @param rollingSeasonsAbovePegCap The cap on the rolling count of seasons above peg.
      * @param beansMintedAbovePeg The amount of beans minted above peg after the system crosses value target.
-     * @param percentSupplyThreshold The percent threshold of the supply at which the beansMintedAbovePeg is evaluated against.
-     * @param percentSupplyThresholdRate The rate at which the percent supply threshold increases.
+     * @param beanAmountAboveThreshold The absolute Bean amount that needs to be minted above the threshold before penalty reduction.
+     * @param percentSupplyThresholdRate The rate at which the percent supply threshold increases (used to calculate beanAmountAboveThreshold during below-peg seasons).
      */
     struct ConvertDownPenaltyData {
         uint256 rollingSeasonsAbovePegRate;
         uint256 rollingSeasonsAbovePegCap;
         uint256 beansMintedAbovePeg;
-        uint256 percentSupplyThreshold;
+        uint256 beanAmountAboveThreshold;
         uint256 percentSupplyThresholdRate;
     }
 

@@ -7,6 +7,7 @@ import {AppStorage, LibAppStorage} from "../../libraries/LibAppStorage.sol";
 import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {IGaugeFacet} from "contracts/beanstalk/facets/sun/GaugeFacet.sol";
+import {LibUpdate} from "../../libraries/LibUpdate.sol";
 
 /**
  * @title InitPI11
@@ -22,7 +23,7 @@ contract InitPI11 {
 
     // New fields for convert down penalty gauge
     uint256 internal constant INIT_BEANS_MINTED_ABOVE_PEG = 0;
-    uint256 internal constant INIT_PERCENT_SUPPLY_THRESHOLD = 0;
+    uint256 internal constant INIT_BEAN_AMOUNT_ABOVE_THRESHOLD = 10_000_000e6; // initalize to 10M
     // 1%/24 = 0.01e18/24 ≈ 0.0004166667e18 = 4.1666667e14 (18 decimals)
     uint256 internal constant PERCENT_SUPPLY_THRESHOLD_RATE = 416666666666667; // ~0.000416667e18 with 18 decimals
     uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.0005e6; // $1.0005 convert price.
@@ -45,7 +46,7 @@ contract InitPI11 {
                     rollingSeasonsAbovePegRate: ROLLING_SEASONS_ABOVE_PEG_RATE,
                     rollingSeasonsAbovePegCap: ROLLING_SEASONS_ABOVE_PEG_CAP,
                     beansMintedAbovePeg: INIT_BEANS_MINTED_ABOVE_PEG,
-                    percentSupplyThreshold: INIT_PERCENT_SUPPLY_THRESHOLD,
+                    beanAmountAboveThreshold: INIT_BEAN_AMOUNT_ABOVE_THRESHOLD,
                     percentSupplyThresholdRate: PERCENT_SUPPLY_THRESHOLD_RATE
                 })
             )
@@ -54,5 +55,9 @@ contract InitPI11 {
 
         // Update the convertDownPenaltyRate
         s.sys.extEvaluationParameters.convertDownPenaltyRate = CONVERT_DOWN_PENALTY_RATE;
+        emit LibUpdate.UpdatedExtEvaluationParameters(
+            s.sys.season.current,
+            s.sys.extEvaluationParameters
+        );
     }
 }
