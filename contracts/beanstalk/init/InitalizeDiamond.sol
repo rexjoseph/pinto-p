@@ -105,7 +105,6 @@ contract InitalizeDiamond {
     uint256 internal constant INIT_PERCENT_SUPPLY_THRESHOLD = 0;
     // 1%/24 = 0.01/24 ≈ 0.0004166667 = 4.1666667e14 (18 decimals)
     uint256 internal constant PERCENT_SUPPLY_THRESHOLD_RATE = 4166666666666667;
-    bool internal constant INIT_CROSSED_BELOW_VT = false;
 
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
@@ -378,8 +377,7 @@ contract InitalizeDiamond {
                     rollingSeasonsAbovePegCap: ROLLING_SEASONS_ABOVE_PEG_CAP,
                     beansMintedAbovePeg: INIT_BEANS_MINTED_ABOVE_PEG,
                     percentSupplyThreshold: INIT_PERCENT_SUPPLY_THRESHOLD,
-                    percentSupplyThresholdRate: PERCENT_SUPPLY_THRESHOLD_RATE,
-                    crossedBelowVt: INIT_CROSSED_BELOW_VT
+                    percentSupplyThresholdRate: PERCENT_SUPPLY_THRESHOLD_RATE
                 })
             )
         );

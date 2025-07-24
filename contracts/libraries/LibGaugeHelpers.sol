@@ -30,7 +30,6 @@ library LibGaugeHelpers {
      * @param beansMintedAbovePeg The amount of beans minted above peg after the system crosses value target.
      * @param percentSupplyThreshold The percent threshold of the supply at which the beansMintedAbovePeg is evaluated against.
      * @param percentSupplyThresholdRate The rate at which the percent supply threshold increases.
-     * @param crossedBelowVt Flag indicating if the system has crossed below the value target.
      */
     struct ConvertDownPenaltyData {
         uint256 rollingSeasonsAbovePegRate;
@@ -38,7 +37,6 @@ library LibGaugeHelpers {
         uint256 beansMintedAbovePeg;
         uint256 percentSupplyThreshold;
         uint256 percentSupplyThresholdRate;
-        bool crossedBelowVt;
     }
 
     // Gauge events

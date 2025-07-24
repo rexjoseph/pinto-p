@@ -15,6 +15,7 @@ import {Gauge, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {PRBMathUD60x18} from "@prb/math/contracts/PRBMathUD60x18.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title GaugeFacet
@@ -190,43 +191,32 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
             (LibGaugeHelpers.ConvertDownPenaltyData)
         );
 
-        uint256 beansMintedAbovePegThreshold;
-
-        if (bs.twaDeltaB > 0) {
-            // reset the crossed below value target flag when back above peg
-            if (gd.crossedBelowVt) {
-                gd.crossedBelowVt = false;
-            }
-
+        // if the system is above value target, and the percent supply threshold is greater than 0,
+        // the penalty ratio is a function of the beans minted above peg.
+        if (bs.twaDeltaB > 0 && gd.percentSupplyThreshold > 0) {
             // increment beans minted above peg by the twaDeltaB.
             gd.beansMintedAbovePeg = gd.beansMintedAbovePeg + uint256(bs.twaDeltaB);
 
             // calculate the threshold in which the penalty ratio is applied.
-            beansMintedAbovePegThreshold =
-                (IERC20(s.sys.bean).totalSupply() * gd.percentSupplyThreshold) /
-                C.PRECISION;
+            uint256 beansMintedAbovePegThreshold = (IERC20(s.sys.bean).totalSupply() *
+                gd.percentSupplyThreshold) / C.PRECISION;
 
             if (gd.beansMintedAbovePeg < beansMintedAbovePegThreshold) {
                 // if the beans minted above peg is less than the threshold,
                 // set the penalty ratio to maximum.
                 gv.penaltyRatio = MAX_PENALTY_RATIO;
                 return (abi.encode(gv), abi.encode(gd));
+            } else {
+                // once the beans minted above peg is greater than the threshold,
+                // reset the threshold(s).
+                gd.percentSupplyThreshold = 0;
+                gd.beansMintedAbovePeg = 0;
             }
             // once the beans minted above peg is greater than the threshold,
             // the penalty ratio is a function of the rolling count of seasons above peg.
         } else if (bs.twaDeltaB <= 0) {
-            if (!gd.crossedBelowVt) {
-                // if the system just crossed from above value target to below,
-                // reset the percent supply threshold and minted above peg.
-                gd.percentSupplyThreshold = 0;
-                gd.beansMintedAbovePeg = 0;
-                gd.crossedBelowVt = true;
-            } else {
-                // if the system is below value target, increment the percent supply threshold.
-                gd.percentSupplyThreshold =
-                    gd.percentSupplyThreshold +
-                    gd.percentSupplyThresholdRate;
-            }
+            // if the system is below value target, increment the percent supply threshold.
+            gd.percentSupplyThreshold = gd.percentSupplyThreshold + gd.percentSupplyThresholdRate;
         }
 
         // increment the rolling count of seasons above peg
