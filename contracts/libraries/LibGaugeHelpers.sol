@@ -28,15 +28,19 @@ library LibGaugeHelpers {
      * @param rollingSeasonsAbovePegRate The rate at which the rolling count of seasons above peg increases.
      * @param rollingSeasonsAbovePegCap The cap on the rolling count of seasons above peg.
      * @param beansMintedAbovePeg The amount of beans minted above peg after the system crosses value target.
-     * @param beanAmountAboveThreshold The absolute Bean amount that needs to be minted above the threshold before penalty reduction.
-     * @param percentSupplyThresholdRate The rate at which the percent supply threshold increases (used to calculate beanAmountAboveThreshold during below-peg seasons).
+     * @param beanMintedThreshold The absolute Bean amount that needs to be minted above the threshold before penalty reduction.
+     * @param runningThreshold a threshold used to track subsequent threshold, after the initial threshold is set.
+     * @param percentSupplyThresholdRate The rate at which the percent supply threshold increases (used to calculate beanMintedThreshold during below-peg seasons).
+     * @param thresholdSet Flag indicating if the `beanMintedThreshold` is set. `set` in this instance means that the threshold is "locked" until enough beans are minted.
      */
     struct ConvertDownPenaltyData {
         uint256 rollingSeasonsAbovePegRate;
         uint256 rollingSeasonsAbovePegCap;
         uint256 beansMintedAbovePeg;
-        uint256 beanAmountAboveThreshold;
+        uint256 beanMintedThreshold;
+        uint256 runningThreshold;
         uint256 percentSupplyThresholdRate;
+        bool thresholdSet;
     }
 
     // Gauge events

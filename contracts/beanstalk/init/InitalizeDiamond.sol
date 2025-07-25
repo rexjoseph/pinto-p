@@ -102,9 +102,9 @@ contract InitalizeDiamond {
 
     // Convert Down Penalty Gauge additional fields
     uint256 internal constant INIT_BEANS_MINTED_ABOVE_PEG = 0;
-    uint256 internal constant INIT_PERCENT_SUPPLY_THRESHOLD = 0;
-    // 1%/24 = 0.01/24 ≈ 0.0004166667 = 4.1666667e14 (18 decimals)
-    uint256 internal constant PERCENT_SUPPLY_THRESHOLD_RATE = 4166666666666667;
+    uint256 internal constant INIT_BEAN_AMOUNT_ABOVE_THRESHOLD = 10_000_000e6; // initalize to 10M
+    // 1%/24 = 0.01e18/24 ≈ 0.0004166667e18 = 4.1666667e14 (18 decimals)
+    uint256 internal constant INIT_PERCENT_SUPPLY_THRESHOLD_RATE = 416666666666667; // ~0.000416667e18 with 18 decimals
 
     // Min Soil Issuance
     uint256 internal constant MIN_SOIL_ISSUANCE = 50e6; // 50
@@ -376,8 +376,10 @@ contract InitalizeDiamond {
                     rollingSeasonsAbovePegRate: ROLLING_SEASONS_ABOVE_PEG_RATE,
                     rollingSeasonsAbovePegCap: ROLLING_SEASONS_ABOVE_PEG_CAP,
                     beansMintedAbovePeg: INIT_BEANS_MINTED_ABOVE_PEG,
-                    beanAmountAboveThreshold: INIT_PERCENT_SUPPLY_THRESHOLD,
-                    percentSupplyThresholdRate: PERCENT_SUPPLY_THRESHOLD_RATE
+                    beanMintedThreshold: INIT_BEAN_AMOUNT_ABOVE_THRESHOLD,
+                    runningThreshold: 0,
+                    percentSupplyThresholdRate: INIT_PERCENT_SUPPLY_THRESHOLD_RATE,
+                    thresholdSet: true
                 })
             )
         );

@@ -1869,7 +1869,6 @@ interface IMockFBeanstalk {
         uint256[] memory amounts,
         uint8 mode
     ) external payable;
-
     function withdrawForConvertE(
         address token,
         int96[] memory stems,
@@ -1900,4 +1899,10 @@ interface IMockFBeanstalk {
     function setConvertDownPenaltyRate(uint256 rate) external;
 
     function setBeansMintedAbovePeg(uint256 beansMintedAbovePeg) external;
+
+    function setBeanMintedThreshold(uint256 beanMintedThreshold) external;
+
+    function setThresholdSet(bool thresholdSet) external;
+
+    function setRunningThreshold(uint256 runningThreshold) external;
 }

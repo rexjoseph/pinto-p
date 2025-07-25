@@ -94,7 +94,33 @@ contract MockConvertFacet is ConvertFacet {
             (LibGaugeHelpers.ConvertDownPenaltyData)
         );
         gd.beansMintedAbovePeg = beansMintedAbovePeg;
-        gd.beanAmountAboveThreshold = 0;
+        LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_DOWN_PENALTY, abi.encode(gd));
+    }
+
+    function setBeanMintedThreshold(uint256 beanMintedThreshold) external {
+        LibGaugeHelpers.ConvertDownPenaltyData memory gd = abi.decode(
+            LibGaugeHelpers.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+        gd.beanMintedThreshold = beanMintedThreshold;
+        LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_DOWN_PENALTY, abi.encode(gd));
+    }
+
+    function setThresholdSet(bool thresholdSet) external {
+        LibGaugeHelpers.ConvertDownPenaltyData memory gd = abi.decode(
+            LibGaugeHelpers.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+        gd.thresholdSet = thresholdSet;
+        LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_DOWN_PENALTY, abi.encode(gd));
+    }
+
+    function setRunningThreshold(uint256 runningThreshold) external {
+        LibGaugeHelpers.ConvertDownPenaltyData memory gd = abi.decode(
+            LibGaugeHelpers.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+        gd.runningThreshold = runningThreshold;
         LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_DOWN_PENALTY, abi.encode(gd));
     }
 }
