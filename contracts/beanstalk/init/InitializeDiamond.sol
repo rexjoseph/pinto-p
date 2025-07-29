@@ -20,11 +20,11 @@ import {LibGaugeHelpers} from "../../libraries/LibGaugeHelpers.sol";
 import {C} from "contracts/C.sol";
 
 /**
- * @title InitalizeDiamond
- * @notice InitalizeDiamond provides helper functions to initalize beanstalk.
+ * @title InitializeDiamond
+ * @notice InitializeDiamond provides helper functions to initalize beanstalk.
  **/
 
-contract InitalizeDiamond {
+contract InitializeDiamond {
     AppStorage internal s;
 
     // INITIAL CONSTANTS //
@@ -119,11 +119,11 @@ contract InitalizeDiamond {
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);
 
     /**
-     * @notice Initalizes the diamond with base conditions.
-     * @dev the base initalization initalizes various parameters,
+     * @notice Initializes the diamond with base conditions.
+     * @dev the base initialization initializes various parameters,
      * as well as whitelists the bean and bean:TKN pools.
      */
-    function initalizeDiamond(address bean, address beanTokenWell) internal {
+    function initializeDiamond(address bean, address beanTokenWell) internal {
         addInterfaces();
         initializeTokens(bean);
         initalizeSeason();
@@ -207,7 +207,7 @@ contract InitalizeDiamond {
     }
 
     /**
-     * @notice Initalizes field parameters.
+     * @notice Initializes field parameters.
      */
     function initalizeField() internal {
         s.sys.weather.temp = 1e6;
@@ -218,7 +218,7 @@ contract InitalizeDiamond {
     }
 
     /**
-     * @notice Initalizes season parameters.
+     * @notice Initializes season parameters.
      */
     function initalizeSeason() internal {
         // set current season to 1.
@@ -237,7 +237,7 @@ contract InitalizeDiamond {
             ? (block.timestamp / s.sys.season.period) * s.sys.season.period
             : block.timestamp;
 
-        // initalizes the cases that beanstalk uses
+        // initializes the cases that beanstalk uses
         // to change certain parameters of itself.
         setCases();
 

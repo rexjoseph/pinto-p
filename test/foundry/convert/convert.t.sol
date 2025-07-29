@@ -1610,7 +1610,7 @@ contract ConvertTest is TestHelper {
 
     // verifies that `getMaxAmountInAtRate` returns the correct amount of beans to convert
     // when the penalty rate is higher than the rate at which the user is converting.
-    function test_getMaxAmountInAtRate() public {
+    function test_getMaxAmountInAtRate(uint256 amountIn) public {
         bs.setBeanMintedThreshold(1000e6);
         bs.setBeansMintedAbovePeg(0);
         bs.setPenaltyRatio(1e18); // set penalty ratio to 100%
@@ -1620,13 +1620,10 @@ contract ConvertTest is TestHelper {
         updateAllChainlinkOraclesWithPreviousData();
         updateAllChainlinkOraclesWithPreviousData();
 
-        uint256 maxConvertNoPenalty = bs.getMaxAmountInAtRate(BEAN, BEAN_ETH_WELL, 1.02e6 + 1); // add 1 to avoid stalk loss due to rounding errors
+        uint256 maxConvertNoPenalty = bs.getMaxAmountInAtRate(BEAN, BEAN_ETH_WELL, 1.02e6); // add 1 to avoid stalk loss due to rounding errors
         uint256 maxConvertOverall = bs.getMaxAmountIn(BEAN, BEAN_ETH_WELL);
-        uint256 amountIn = maxConvertNoPenalty + (maxConvertOverall - maxConvertNoPenalty) / 2;
-        console.log("maxConvertNoPenalty", maxConvertNoPenalty);
-        console.log("maxConvertOverall", maxConvertOverall);
-
-        // amountIn = bound(amountIn, 0, maxConvertOverall);
+        uint256 maxBdvPenalized = maxConvertOverall - maxConvertNoPenalty;
+        amountIn = bound(amountIn, 1, maxConvertOverall);
 
         (uint256 newGrownStalk, uint256 grownStalkLost) = bs.downPenalizedGrownStalk(
             BEAN_ETH_WELL,
@@ -1641,33 +1638,30 @@ contract ConvertTest is TestHelper {
         // 3. amountIn > maxConvertOverall: full penalty is applied.
 
         if (amountIn <= maxConvertNoPenalty) {
-            console.log("no penalty");
             assertEq(grownStalkLost, 0, "grownStalkLost should be 0");
             assertEq(newGrownStalk, 10e16, "newGrownStalk should be equal to amountIn");
         } else if (amountIn < maxConvertOverall) {
-            console.log("HEREEEE");
-            (newGrownStalk, grownStalkLost) = bs.downPenalizedGrownStalk(
-                BEAN_ETH_WELL,
-                maxConvertNoPenalty,
-                10e16, // 1000 grown stalk
-                maxConvertNoPenalty
-            );
-            console.log("grownStalkLost", grownStalkLost);
-            console.log("newGrownStalk", newGrownStalk);
+            // user converted from above the rate, to below the rate.
+            // a partial penalty is applied.
+            // penalty is applied as a function of the amount beyond the rate.
+            uint256 amountBeyondRate = amountIn - maxConvertNoPenalty;
+            uint256 calculatedGrownStalkLost = (10e16 * amountBeyondRate) / amountIn;
+            assertEq(grownStalkLost, calculatedGrownStalkLost, "grownStalkLost should be 10e16");
         } else {
-            console.log("full penalty");
+            uint256 calculatedGrownStalkLost = (10e16 * maxBdvPenalized) / amountIn;
             // full penalty is applied.
             assertEq(
                 grownStalkLost,
-                39999985000000000,
+                calculatedGrownStalkLost,
                 "grownStalkLost should be 10 stalk - germination stalk"
             );
             // bean weth has 4 seeds. * (4e6 + 1) * 15000e6 = 60000015000000000
             // convert has a minimum such that the user can still convert moving forward.
-            assertEq(newGrownStalk, 60000015000000000, "newGrownStalk should be 10e16");
+            assertEq(
+                newGrownStalk,
+                10e16 - calculatedGrownStalkLost,
+                "newGrownStalk should be 10e16"
+            );
         }
-        console.log("amountIn", amountIn);
-        console.log("newGrownStalk", newGrownStalk);
-        console.log("grownStalkLost", grownStalkLost);
     }
 }

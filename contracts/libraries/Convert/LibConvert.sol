@@ -690,14 +690,20 @@ library LibConvert {
         reservesAfterAmount[beanIndex] = instantReserves[beanIndex] + amount;
         reservesAfterAmount[tokenIndex] = instantReserves[tokenIndex];
 
-        beansAtRate = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioSwap(
-            reservesAfterAmount,
+        // used to check if the price prior to the convert is higher/lower than the target price.
+        beansAtRate = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioLiquidity(
+            instantReserves,
             beanIndex,
             ratios,
             wellFunction.data
         );
-        console.log("beansAtRate", beansAtRate);
-        console.log("instantReserves[beanIndex]", instantReserves[beanIndex]);
+        console.log(
+            "beansAtRate",
+            beansAtRate,
+            "instantReserves[beanIndex]",
+            instantReserves[beanIndex]
+        );
+        console.log("reservesAfterAmount[beanIndex]", reservesAfterAmount[beanIndex]);
 
         // if the reserves `before` the convert is higher than the beans reserves at `rate`,
         // it means the price `before` the convert is lower than `rate`.
@@ -710,14 +716,14 @@ library LibConvert {
             // the price `before` the convert is higher than `rate`.
 
             if (reservesAfterAmount[beanIndex] < beansAtRate) {
-                console.log("price before convert is higher than the target price");
-                console.log("price after convert is higher than the target price");
+                console.log("price before AND AFTER convert is higher than the target price");
                 // if the reserves `after` the convert is lower than the beans reserves at `rate`,
                 // it means the price `after` the convert is higher than `rate`.
                 return (true, 0);
             } else {
-                console.log("price before convert is higher than the target price");
-                console.log("price after convert is lower than the target price");
+                console.log(
+                    "price before convert is higher than the target price, after convert is lower than the target price"
+                );
                 // if the reserves `after` the convert is higher than the beans reserves at `rate`,
                 // it means the price `after` the convert is lower than `rate`.
                 // then the amount of beans over the rate is the difference between the beans reserves at `rate` and the reserves after the convert.
