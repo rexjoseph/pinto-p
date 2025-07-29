@@ -31,6 +31,7 @@ library LibGaugeHelpers {
      * @param beanMintedThreshold The absolute Bean amount that needs to be minted above the threshold before penalty reduction.
      * @param runningThreshold a threshold used to track subsequent threshold, after the initial threshold is set.
      * @param percentSupplyThresholdRate The rate at which the percent supply threshold increases (used to calculate beanMintedThreshold during below-peg seasons).
+     * @param convertDownPenaltyRate The rate at which any exchange rate below this value is penalized.
      * @param thresholdSet Flag indicating if the `beanMintedThreshold` is set. `set` in this instance means that the threshold is "locked" until enough beans are minted.
      */
     struct ConvertDownPenaltyData {
@@ -40,6 +41,7 @@ library LibGaugeHelpers {
         uint256 beanMintedThreshold;
         uint256 runningThreshold;
         uint256 percentSupplyThresholdRate;
+        uint256 convertDownPenaltyRate;
         bool thresholdSet;
     }
 

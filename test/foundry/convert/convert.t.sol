@@ -1655,8 +1655,6 @@ contract ConvertTest is TestHelper {
                 calculatedGrownStalkLost,
                 "grownStalkLost should be 10 stalk - germination stalk"
             );
-            // bean weth has 4 seeds. * (4e6 + 1) * 15000e6 = 60000015000000000
-            // convert has a minimum such that the user can still convert moving forward.
             assertEq(
                 newGrownStalk,
                 10e16 - calculatedGrownStalkLost,

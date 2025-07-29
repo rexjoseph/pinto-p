@@ -85,7 +85,12 @@ contract MockConvertFacet is ConvertFacet {
     }
 
     function setConvertDownPenaltyRate(uint256 rate) external {
-        s.sys.extEvaluationParameters.convertDownPenaltyRate = rate;
+        LibGaugeHelpers.ConvertDownPenaltyData memory gd = abi.decode(
+            LibGaugeHelpers.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+        gd.convertDownPenaltyRate = rate;
+        LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_DOWN_PENALTY, abi.encode(gd));
     }
 
     function setBeansMintedAbovePeg(uint256 beansMintedAbovePeg) external {

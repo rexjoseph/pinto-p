@@ -14,19 +14,19 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
-import {ConvertCapacity} from "contracts/beanstalk/storage/System.sol";
+import {ConvertCapacity, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
+import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
-import {GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {GerminationSide} from "contracts/beanstalk/storage/System.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title LibConvert
@@ -605,7 +605,6 @@ library LibConvert {
         uint256 grownStalk,
         uint256 fromAmount
     ) internal view returns (uint256 newGrownStalk, uint256 grownStalkLost) {
-        console.log("---- downPenalizedGrownStalk ----");
         AppStorage storage s = LibAppStorage.diamondStorage();
 
         require(bdv > 0 && fromAmount > 0, "Convert: bdv or fromAmount is 0");
@@ -616,13 +615,17 @@ library LibConvert {
             return (grownStalk, 0);
         }
 
+        // Get convertDownPenaltyRate from gauge data.
+        LibGaugeHelpers.ConvertDownPenaltyData memory gd = abi.decode(
+            s.sys.gaugeData.gauges[GaugeId.CONVERT_DOWN_PENALTY].data,
+            (LibGaugeHelpers.ConvertDownPenaltyData)
+        );
+
         (bool greaterThanRate, uint256 penalizedAmount) = pGreaterThanRate(
             well,
-            s.sys.extEvaluationParameters.convertDownPenaltyRate,
+            gd.convertDownPenaltyRate,
             fromAmount
         );
-        console.log("greaterThanRate", greaterThanRate);
-        console.log("penalizedAmount", penalizedAmount);
 
         // If the price of the well is greater than the penalty rate after the convert, there is no penalty.
         if (greaterThanRate) {
@@ -697,33 +700,21 @@ library LibConvert {
             ratios,
             wellFunction.data
         );
-        console.log(
-            "beansAtRate",
-            beansAtRate,
-            "instantReserves[beanIndex]",
-            instantReserves[beanIndex]
-        );
-        console.log("reservesAfterAmount[beanIndex]", reservesAfterAmount[beanIndex]);
 
         // if the reserves `before` the convert is higher than the beans reserves at `rate`,
         // it means the price `before` the convert is lower than `rate`.
         // independent of the amount converted, the price will always be lower than `rate`.
         if (instantReserves[beanIndex] > beansAtRate) {
-            console.log("price before and after convert is lower than the target price");
             return (false, amount);
         } else {
             // reserves `before` the convert is lower than the beans reserves at `rate`.
             // the price `before` the convert is higher than `rate`.
 
             if (reservesAfterAmount[beanIndex] < beansAtRate) {
-                console.log("price before AND AFTER convert is higher than the target price");
                 // if the reserves `after` the convert is lower than the beans reserves at `rate`,
                 // it means the price `after` the convert is higher than `rate`.
                 return (true, 0);
             } else {
-                console.log(
-                    "price before convert is higher than the target price, after convert is lower than the target price"
-                );
                 // if the reserves `after` the convert is higher than the beans reserves at `rate`,
                 // it means the price `after` the convert is lower than `rate`.
                 // then the amount of beans over the rate is the difference between the beans reserves at `rate` and the reserves after the convert.

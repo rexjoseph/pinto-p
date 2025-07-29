@@ -336,7 +336,6 @@ contract InitializeDiamond {
         // Initialize soilDistributionPeriod to 24 hours (in seconds)
         s.sys.extEvaluationParameters.soilDistributionPeriod = SOIL_DISTRIBUTION_PERIOD;
         s.sys.extEvaluationParameters.minSoilSownDemand = MIN_SOIL_SOWN_DEMAND;
-        s.sys.extEvaluationParameters.convertDownPenaltyRate = CONVERT_DOWN_PENALTY_RATE;
     }
 
     function initalizeFarmAndTractor() internal {
@@ -379,6 +378,7 @@ contract InitializeDiamond {
                     beanMintedThreshold: INIT_BEAN_AMOUNT_ABOVE_THRESHOLD,
                     runningThreshold: 0,
                     percentSupplyThresholdRate: INIT_PERCENT_SUPPLY_THRESHOLD_RATE,
+                    convertDownPenaltyRate: CONVERT_DOWN_PENALTY_RATE,
                     thresholdSet: true
                 })
             )
