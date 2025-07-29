@@ -112,8 +112,8 @@ contract InitalizeDiamond {
     // Min Soil Sown Demand
     uint256 internal constant MIN_SOIL_SOWN_DEMAND = 5e6; // 5
 
-    // Convert Down Penalty Rate (1.0005 with 6 decimals)
-    uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.0005e6;
+    // Convert Down Penalty Rate (1.005 with 6 decimals)
+    uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.005e6;
 
     // EVENTS:
     event BeanToMaxLpGpPerBdvRatioChange(uint256 indexed season, uint256 caseId, int80 absChange);

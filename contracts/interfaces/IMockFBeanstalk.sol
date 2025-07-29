@@ -1905,4 +1905,12 @@ interface IMockFBeanstalk {
     function setThresholdSet(bool thresholdSet) external;
 
     function setRunningThreshold(uint256 runningThreshold) external;
+
+    function getMaxAmountInAtRate(
+        address tokenIn,
+        address tokenOut,
+        uint256 rate
+    ) external view returns (uint256 amountIn);
+
+    function setPenaltyRatio(uint256 penaltyRatio) external;
 }

@@ -27,7 +27,7 @@ contract InitPI11 {
     uint256 internal constant INIT_RUNNING_THRESHOLD = 0; // initialize running threshold to 0
     // 1%/24 = 0.01e18/24 ≈ 0.0004166667e18 = 4.1666667e14 (18 decimals)
     uint256 internal constant PERCENT_SUPPLY_THRESHOLD_RATE = 416666666666667; // ~0.000416667e18 with 18 decimals
-    uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.0005e6; // $1.0005 convert price.
+    uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.005e6; // $1.005 convert price.
 
     function init() external {
         AppStorage storage s = LibAppStorage.diamondStorage();

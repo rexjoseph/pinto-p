@@ -123,4 +123,13 @@ contract MockConvertFacet is ConvertFacet {
         gd.runningThreshold = runningThreshold;
         LibGaugeHelpers.updateGaugeData(GaugeId.CONVERT_DOWN_PENALTY, abi.encode(gd));
     }
+
+    function setPenaltyRatio(uint256 penaltyRatio) external {
+        LibGaugeHelpers.ConvertDownPenaltyValue memory gv = abi.decode(
+            LibGaugeHelpers.getGaugeData(GaugeId.CONVERT_DOWN_PENALTY),
+            (LibGaugeHelpers.ConvertDownPenaltyValue)
+        );
+        gv.penaltyRatio = penaltyRatio;
+        LibGaugeHelpers.updateGaugeValue(GaugeId.CONVERT_DOWN_PENALTY, abi.encode(gv));
+    }
 }

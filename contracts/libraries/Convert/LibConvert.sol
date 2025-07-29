@@ -26,6 +26,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {IWell, Call} from "contracts/interfaces/basin/IWell.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title LibConvert
@@ -135,6 +136,8 @@ library LibConvert {
     /**
      * @notice Returns the maximum amount that can be converted of `fromToken` to `toToken` such that the price after the convert is equal to the rate.
      * @dev At time of writing, this is only supported for Bean -> Well LP Token (as it is the only case where applicable).
+     * This function may return a value such that the price after the convert is slightly lower than the rate, due to rounding errors.
+     * Developers should be cautious and provide an appropriate buffer to account for this.
      */
     function getMaxAmountInAtRate(
         address fromToken,
@@ -592,6 +595,7 @@ library LibConvert {
      * @notice Computes new grown stalk after downward convert penalty.
      * No penalty if P > Q or grown stalk below germination threshold.
      * @dev Inbound must not be germinating, will return germinating amount of grown stalk.
+     * this function only supports grown stalk penalties for BEAN -> WELL converts.
      * @return newGrownStalk Amount of grown stalk to assign the deposit.
      * @return grownStalkLost Amount of grown stalk lost to penalty.
      */
@@ -601,7 +605,10 @@ library LibConvert {
         uint256 grownStalk,
         uint256 fromAmount
     ) internal view returns (uint256 newGrownStalk, uint256 grownStalkLost) {
+        console.log("---- downPenalizedGrownStalk ----");
         AppStorage storage s = LibAppStorage.diamondStorage();
+
+        require(bdv > 0 && fromAmount > 0, "Convert: bdv or fromAmount is 0");
 
         // No penalty if output deposit germinating.
         uint256 minGrownStalk = LibTokenSilo.calculateGrownStalkAtNonGerminatingStem(well, bdv);
@@ -609,12 +616,20 @@ library LibConvert {
             return (grownStalk, 0);
         }
 
-        // If the price of the well is greater than the rate after the convert, there is no penalty.
-        if (
-            pGreaterThanRate(well, s.sys.extEvaluationParameters.convertDownPenaltyRate, fromAmount)
-        ) {
+        (bool greaterThanRate, uint256 penalizedAmount) = pGreaterThanRate(
+            well,
+            s.sys.extEvaluationParameters.convertDownPenaltyRate,
+            fromAmount
+        );
+        console.log("greaterThanRate", greaterThanRate);
+        console.log("penalizedAmount", penalizedAmount);
+
+        // If the price of the well is greater than the penalty rate after the convert, there is no penalty.
+        if (greaterThanRate) {
             return (grownStalk, 0);
         }
+
+        // price is lower than the penalty rate.
 
         // Get penalty ratio from gauge.
         (uint256 penaltyRatio, ) = abi.decode(
@@ -622,21 +637,36 @@ library LibConvert {
             (uint256, uint256)
         );
 
-        // the minimum grown stalk is the minimum amount of grown stalk needed to make the deposit non-germinating.
-        newGrownStalk = max(grownStalk - (grownStalk * penaltyRatio) / C.PRECISION, minGrownStalk);
+        // calculate the penalized bdv.
+        // note: if greaterThanRate is false, penalizedAmount should be non-zero.
+        uint256 penalizedBdv = (bdv * penalizedAmount) / fromAmount;
+
+        // calculate the grown stalk that may be lost due to the penalty.
+        uint256 penalizedGrownStalk = (grownStalk * penalizedBdv) / bdv;
+
+        // apply the penalty to the grown stalk via the penalty ratio,
+        // and calculate the new grown stalk of the deposit.
+        newGrownStalk = max(
+            grownStalk - (penalizedGrownStalk * penaltyRatio) / C.PRECISION,
+            minGrownStalk
+        );
+
+        // calculate the amount of grown stalk lost due to the penalty.
         grownStalkLost = grownStalk - newGrownStalk;
     }
 
     /**
      *
      * @notice verifies that the exchange rate of the well is above a rate,
-     * after an pinto -> lp convert has occured with the amount.
+     * after an bean -> lp convert has occured with `amount`.
+     * @return greaterThanRate true if the price after the convert is greater than the rate, false otherwise
+     * @return beansOverRate the amount of beans that exceed the rate. 0 if `greaterThanRate` is true.
      */
     function pGreaterThanRate(
         address well,
         uint256 rate,
         uint256 amount
-    ) internal view returns (bool) {
+    ) internal view returns (bool greaterThanRate, uint256 beansOverRate) {
         // No penalty if P > rate.
         (uint256[] memory ratios, uint256 beanIndex, bool success) = LibWell
             .getRatiosAndBeanIndexAtRate(IWell(well).tokens(), 0, rate);
@@ -654,22 +684,46 @@ library LibConvert {
         );
 
         // increment the amount of beans in reserves by the amount of beans that would be added to liquidity.
-        instantReserves[beanIndex] = instantReserves[beanIndex] + amount;
+        uint256[] memory reservesAfterAmount = new uint256[](instantReserves.length);
+        uint256 tokenIndex = beanIndex == 0 ? 1 : 0;
+
+        reservesAfterAmount[beanIndex] = instantReserves[beanIndex] + amount;
+        reservesAfterAmount[tokenIndex] = instantReserves[tokenIndex];
 
         beansAtRate = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioSwap(
-            instantReserves,
+            reservesAfterAmount,
             beanIndex,
             ratios,
             wellFunction.data
         );
+        console.log("beansAtRate", beansAtRate);
+        console.log("instantReserves[beanIndex]", instantReserves[beanIndex]);
 
-        // if the reserves are lower than the beans at a `rate`, it means the price after the convert is higher than `rate`.
-        if (instantReserves[beanIndex] < beansAtRate) {
-            return true;
+        // if the reserves `before` the convert is higher than the beans reserves at `rate`,
+        // it means the price `before` the convert is lower than `rate`.
+        // independent of the amount converted, the price will always be lower than `rate`.
+        if (instantReserves[beanIndex] > beansAtRate) {
+            console.log("price before and after convert is lower than the target price");
+            return (false, amount);
+        } else {
+            // reserves `before` the convert is lower than the beans reserves at `rate`.
+            // the price `before` the convert is higher than `rate`.
+
+            if (reservesAfterAmount[beanIndex] < beansAtRate) {
+                console.log("price before convert is higher than the target price");
+                console.log("price after convert is higher than the target price");
+                // if the reserves `after` the convert is lower than the beans reserves at `rate`,
+                // it means the price `after` the convert is higher than `rate`.
+                return (true, 0);
+            } else {
+                console.log("price before convert is higher than the target price");
+                console.log("price after convert is lower than the target price");
+                // if the reserves `after` the convert is higher than the beans reserves at `rate`,
+                // it means the price `after` the convert is lower than `rate`.
+                // then the amount of beans over the rate is the difference between the beans reserves at `rate` and the reserves after the convert.
+                return (false, reservesAfterAmount[beanIndex] - beansAtRate);
+            }
         }
-
-        // else, the price after the convert is lower than `rate`.
-        return false;
     }
 
     function abs(int256 a) internal pure returns (uint256) {
