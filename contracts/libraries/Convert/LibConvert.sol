@@ -687,12 +687,8 @@ library LibConvert {
         reservesAfterAmount[tokenIndex] = instantReserves[tokenIndex];
 
         // used to check if the price prior to the convert is higher/lower than the target price.
-        uint256 beansAtRate = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioLiquidity(
-            instantReserves,
-            beanIndex,
-            ratios,
-            wellFunction.data
-        );
+        uint256 beansAtRate = IBeanstalkWellFunction(wellFunction.target)
+            .calcReserveAtRatioLiquidity(instantReserves, beanIndex, ratios, wellFunction.data);
 
         // if the reserves `before` the convert is higher than the beans reserves at `rate`,
         // it means the price `before` the convert is lower than `rate`.
