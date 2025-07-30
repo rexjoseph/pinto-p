@@ -921,57 +921,6 @@ task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gaug
   }
 );
 
-task("thresholdChecking", "Checks the threshold for the convert down penalty").setAction(
-  async function () {
-    const beanstalk = await getBeanstalk(L2_PINTO);
-    for (let i = 0; i < 1000; i++) {
-      console.log("calling sunrise", i);
-      await hre.run("callSunrise");
-
-      const data = await beanstalk.getGaugeData(1);
-      const data2 = await beanstalk.getGaugeValue(1);
-
-      // Manually decode the ABI-encoded struct (tuple) using ethers.utils.defaultAbiCoder
-      const ethers = require("ethers");
-      const decoded = ethers.utils.defaultAbiCoder.decode(
-        [
-          "tuple(uint256 rollingSeasonsAbovePegRate,uint256 rollingSeasonsAbovePegCap,uint256 beansMintedAbovePeg,uint256 beanMintedThreshold,uint256 runningThreshold,uint256 percentSupplyThresholdRate,uint256 convertDownPenaltyRate,bool thresholdSet)"
-        ],
-        data
-      );
-
-      const decoded2 = ethers.utils.defaultAbiCoder.decode(
-        ["tuple(uint256 penaltyRatio,uint256 rollingSeasonsAbovePeg)"],
-        data2
-      );
-
-      // Print each field for clarity
-      const d = decoded[0];
-      console.log("rollingSeasonsAbovePegRate:", d.rollingSeasonsAbovePegRate.toString());
-      console.log("rollingSeasonsAbovePegCap:", d.rollingSeasonsAbovePegCap.toString());
-      console.log("beansMintedAbovePeg:", d.beansMintedAbovePeg.toString());
-      console.log("beanMintedThreshold:", d.beanMintedThreshold.toString());
-      console.log("runningThreshold:", d.runningThreshold.toString());
-      console.log("percentSupplyThresholdRate:", d.percentSupplyThresholdRate.toString());
-      console.log("convertDownPenaltyRate:", d.convertDownPenaltyRate.toString());
-      console.log("thresholdSet:", d.thresholdSet);
-
-      const d2 = decoded2[0];
-      console.log("penaltyRatio:", d2.penaltyRatio.toString());
-      console.log("rollingSeasonsAbovePeg:", d2.rollingSeasonsAbovePeg.toString());
-
-      // // Check if runningThreshold is at least 99% of beanMintedThreshold, stop loop if so
-      // if (d.beanMintedThreshold.gt(0)) {
-      //   const ninetyNinePercent = d.beanMintedThreshold.mul(99).div(100);
-      //   if (d.runningThreshold.gte(ninetyNinePercent)) {
-      //     console.log("Stopping loop: runningThreshold is at least 99% of beanMintedThreshold.");
-      //     break;
-      //   }
-      // }
-    }
-  }
-);
-
 task(
   "PI-12",
   "Deploys Pinto improvement set 12, Misc. Improvements and convert up bonus"
