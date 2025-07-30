@@ -642,26 +642,32 @@ library LibConvert {
         // enforce penalty ratio is not greater than 100%.
         require(penaltyRatio <= C.PRECISION, "Convert: penaltyRatio is greater than 100%");
 
-        // calculate the penalized bdv.
-        // note: if greaterThanRate is false, penalizedAmount should be non-zero.
-        require(
-            penalizedAmount <= fromAmount,
-            "Convert: penalizedAmount is greater than fromAmount"
-        );
-        uint256 penalizedBdv = (bdv * penalizedAmount) / fromAmount;
+        if (penaltyRatio > 0) {
+            // calculate the penalized bdv.
+            // note: if greaterThanRate is false, penalizedAmount could be non-zero.
+            require(
+                penalizedAmount <= fromAmount,
+                "Convert: penalizedAmount is greater than fromAmount"
+            );
+            uint256 penalizedBdv = (bdv * penalizedAmount) / fromAmount;
 
-        // calculate the grown stalk that may be lost due to the penalty.
-        uint256 penalizedGrownStalk = (grownStalk * penalizedBdv) / bdv;
+            // calculate the grown stalk that may be lost due to the penalty.
+            uint256 penalizedGrownStalk = (grownStalk * penalizedBdv) / bdv;
 
-        // apply the penalty to the grown stalk via the penalty ratio,
-        // and calculate the new grown stalk of the deposit.
-        newGrownStalk = max(
-            grownStalk - (penalizedGrownStalk * penaltyRatio) / C.PRECISION,
-            minGrownStalk
-        );
+            // apply the penalty to the grown stalk via the penalty ratio,
+            // and calculate the new grown stalk of the deposit.
+            newGrownStalk = max(
+                grownStalk - (penalizedGrownStalk * penaltyRatio) / C.PRECISION,
+                minGrownStalk
+            );
 
-        // calculate the amount of grown stalk lost due to the penalty.
-        grownStalkLost = grownStalk - newGrownStalk;
+            // calculate the amount of grown stalk lost due to the penalty.
+            grownStalkLost = grownStalk - newGrownStalk;
+        } else {
+            // no penalty was applied.
+            newGrownStalk = grownStalk;
+            grownStalkLost = 0;
+        }
     }
 
     /**

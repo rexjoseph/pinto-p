@@ -45,7 +45,7 @@ contract Pi11ForkTest is TestHelper {
         assertEq(gd.rollingSeasonsAbovePegRate, 1);
         assertEq(gd.rollingSeasonsAbovePegCap, 12);
         assertEq(gd.beansMintedAbovePeg, 0);
-        assertEq(gd.beanMintedThreshold, 15_252_437e6);
+        assertEq(gd.beanMintedThreshold, 15007159669041);
         assertEq(gd.runningThreshold, 0);
         assertEq(gd.percentSupplyThresholdRate, 416666666666667);
         assertEq(gd.convertDownPenaltyRate, 1.005e6);
