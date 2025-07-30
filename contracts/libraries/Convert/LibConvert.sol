@@ -640,9 +640,7 @@ library LibConvert {
         );
 
         // enforce penalty ratio is not greater than 100%.
-        if (penaltyRatio > C.PRECISION) {
-            penaltyRatio = C.PRECISION;
-        }
+        require(penaltyRatio <= C.PRECISION, "Convert: penaltyRatio is greater than 100%");
 
         // calculate the penalized bdv.
         // note: if greaterThanRate is false, penalizedAmount should be non-zero.
