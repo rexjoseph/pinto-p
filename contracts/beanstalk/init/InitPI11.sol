@@ -25,7 +25,7 @@ contract InitPI11 {
     // New fields for convert down penalty gauge
     uint256 internal constant INIT_BEANS_MINTED_ABOVE_PEG = 0;
     uint256 internal constant PERCENT_SUPPLY_THRESHOLD_RATE = 416666666666667; // 1%/24 = 0.01e18/24 ≈ 0.0004166667e18
-    uint256 internal constant INIT_BEAN_AMOUNT_ABOVE_THRESHOLD = 15_252_437e6; // calculation from https://github.com/pinto-org/PI-Data-Analysis.
+    uint256 internal constant INIT_BEAN_AMOUNT_ABOVE_THRESHOLD = 15_007_159_669041; // calculation from https://github.com/pinto-org/PI-Data-Analysis.
     uint256 internal constant INIT_RUNNING_THRESHOLD = 0; // initialize running threshold to 0
     uint256 internal constant CONVERT_DOWN_PENALTY_RATE = 1.005e6; // $1.005 convert price.
 

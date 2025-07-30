@@ -851,7 +851,7 @@ task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gaug
     // Get the diamond address
     const diamondAddress = L2_PINTO;
 
-    const mock = true;
+    const mock = false;
     let owner;
     if (mock) {
       await hre.run("updateOracleTimeouts");
@@ -2049,7 +2049,8 @@ module.exports = {
     base: {
       chainId: 8453,
       url: process.env.BASE_RPC || "",
-      timeout: 100000000
+      timeout: 100000000,
+      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : []
     },
     custom: {
       chainId: 41337,
