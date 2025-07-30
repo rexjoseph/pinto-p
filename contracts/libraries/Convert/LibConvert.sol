@@ -679,13 +679,6 @@ library LibConvert {
 
         Call memory wellFunction = IWell(well).wellFunction();
 
-        uint256 beansAtRate = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioSwap(
-            instantReserves,
-            beanIndex,
-            ratios,
-            wellFunction.data
-        );
-
         // increment the amount of beans in reserves by the amount of beans that would be added to liquidity.
         uint256[] memory reservesAfterAmount = new uint256[](instantReserves.length);
         uint256 tokenIndex = beanIndex == 0 ? 1 : 0;
@@ -694,12 +687,8 @@ library LibConvert {
         reservesAfterAmount[tokenIndex] = instantReserves[tokenIndex];
 
         // used to check if the price prior to the convert is higher/lower than the target price.
-        beansAtRate = IBeanstalkWellFunction(wellFunction.target).calcReserveAtRatioLiquidity(
-            instantReserves,
-            beanIndex,
-            ratios,
-            wellFunction.data
-        );
+        uint256 beansAtRate = IBeanstalkWellFunction(wellFunction.target)
+            .calcReserveAtRatioLiquidity(instantReserves, beanIndex, ratios, wellFunction.data);
 
         // if the reserves `before` the convert is higher than the beans reserves at `rate`,
         // it means the price `before` the convert is lower than `rate`.
