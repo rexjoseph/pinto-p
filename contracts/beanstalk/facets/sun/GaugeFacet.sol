@@ -206,34 +206,31 @@ contract GaugeFacet is GaugeDefault, ReentrancyGuard {
         // `beanMintedThreshold` is set to the running threshold, and
         // the threshold is `unset`.
 
-        if (bs.twaDeltaB > 0) {
+        if (bs.twaDeltaB > 0 && gd.beanMintedThreshold > 0) {
             // reset the running threshold.
             gd.runningThreshold = 0;
+            if (gd.thresholdSet == false) {
+                // if the threshold was not set, set it to true. Threshold is now "locked" until the threshold is hit
+                // (unless the system is below value target for an extended period of time).
+                gd.thresholdSet = true;
+            }
 
-            if (gd.beanMintedThreshold > 0) {
-                if (gd.thresholdSet == false) {
-                    // if the threshold was not set, set it to true. Threshold is now "locked" until the threshold is hit
-                    // (unless the system is below value target for an extended period of time).
-                    gd.thresholdSet = true;
-                }
+            // check whether the system should increment the beanMintedThreshold.
+            // increment the beans minted above peg by the twaDeltaB.
+            gd.beansMintedAbovePeg = gd.beansMintedAbovePeg + uint256(bs.twaDeltaB);
 
-                // check whether the system should increment the beanMintedThreshold.
-                // increment the beans minted above peg by the twaDeltaB.
-                gd.beansMintedAbovePeg = gd.beansMintedAbovePeg + uint256(bs.twaDeltaB);
-
-                if (gd.beansMintedAbovePeg < gd.beanMintedThreshold) {
-                    // if the beans minted above peg is less than the threshold,
-                    // set the penalty ratio to maximum.
-                    gv.penaltyRatio = MAX_PENALTY_RATIO;
-                    return (abi.encode(gv), abi.encode(gd));
-                } else {
-                    // once the beans minted above peg is greater than the threshold,
-                    // reset the threshold(s). reset flag and threshold.
-                    gd.beanMintedThreshold = 0;
-                    gd.beansMintedAbovePeg = 0;
-                    gd.thresholdSet = false;
-                    return (abi.encode(gv), abi.encode(gd));
-                }
+            if (gd.beansMintedAbovePeg < gd.beanMintedThreshold) {
+                // if the beans minted above peg is less than the threshold,
+                // set the penalty ratio to maximum.
+                gv.penaltyRatio = MAX_PENALTY_RATIO;
+                return (abi.encode(gv), abi.encode(gd));
+            } else {
+                // once the beans minted above peg is greater than the threshold,
+                // reset the threshold(s). reset flag and threshold.
+                gd.beanMintedThreshold = 0;
+                gd.beansMintedAbovePeg = 0;
+                gd.thresholdSet = false;
+                return (abi.encode(gv), abi.encode(gd));
             }
             // at this point, the mint penalty is not active.
         } else if (bs.twaDeltaB < 0) {
