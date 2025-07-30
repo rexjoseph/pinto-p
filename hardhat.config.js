@@ -914,7 +914,7 @@ task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gaug
         "0x527ec6ba" // `downPenalizedGrownStalk(address,uint256,uint256)`
       ],
       bip: false,
-      object: false,
+      object: !mock,
       verbose: true,
       account: owner
     });
