@@ -92,7 +92,7 @@ library LibPipelineConvert {
         dbs.afterOverallDeltaB = LibDeltaB.scaledOverallCurrentDeltaB(initialLpSupply);
 
         // modify afterInputTokenDeltaB and afterOutputTokenDeltaB to scale using before/after LP amounts
-        if (LibWell.isWell(inputToken)) {
+        if (LibWhitelistedTokens.wellIsOrWasSoppable(inputToken)) {
             uint256 i = LibWhitelistedTokens.getIndexFromWhitelistedWellLpTokens(inputToken);
             dbs.afterInputTokenDeltaB = LibDeltaB.scaledDeltaB(
                 initialLpSupply[i],
@@ -165,7 +165,10 @@ library LibPipelineConvert {
             } else {
                 (, , fromToken) = convertData.convertWithAddress();
                 toToken = s.sys.bean;
-                require(LibWell.isWell(fromToken), "Convert: Invalid Well");
+                require(
+                    LibWhitelistedTokens.wellIsOrWasSoppable(fromToken),
+                    "Convert: Invalid Well"
+                );
             }
 
             pipeData = populatePipelineConvertData(fromToken, toToken);

@@ -12,6 +12,7 @@ import {Call, IWell} from "contracts/interfaces/basin/IWell.sol";
 import {IBeanstalkWellFunction} from "contracts/interfaces/basin/IBeanstalkWellFunction.sol";
 import {LibAppStorage, AppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {BeanstalkERC20} from "contracts/tokens/ERC20/BeanstalkERC20.sol";
+import {LibWhitelistedTokens} from "contracts/libraries/Silo/LibWhitelistedTokens.sol";
 
 /**
  * @title Well Convert Library
@@ -127,7 +128,9 @@ library LibWellConvert {
         AppStorage storage s = LibAppStorage.diamondStorage();
         (uint256 lp, uint256 minBeans, address well) = convertData.convertWithAddress();
 
-        require(LibWell.isWell(well), "Convert: Invalid Well");
+        // note: the input token does not need to be a currently whitelisted well,
+        // but must be previously whitelisted.
+        require(LibWhitelistedTokens.wellIsOrWasSoppable(well), "Convert: Invalid Well");
 
         tokenOut = s.sys.bean;
         tokenIn = well;

@@ -758,7 +758,7 @@ contract ConvertTest is TestHelper {
             0 // minOut
         );
 
-        vm.expectRevert("Convert: Invalid Well");
+        vm.expectRevert("LibWhitelistedTokens: Token not found");
         convert.convert(convertData, new int96[](1), new uint256[](1));
     }
 

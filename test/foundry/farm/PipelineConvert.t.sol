@@ -751,7 +751,7 @@ contract PipelineConvertTest is TestHelper {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 1000e6;
 
-        vm.expectRevert("Convert: Input token must be Bean or a well");
+        vm.expectRevert("LibWhitelistedTokens: Token not found");
         // convert non-whitelisted asset to lp
         vm.prank(users[1]);
         pipelineConvert.pipelineConvert(

@@ -5,7 +5,7 @@ pragma solidity ^0.8.20;
 import {LibRedundantMath256} from "contracts/libraries/Math/LibRedundantMath256.sol";
 import {LibLambdaConvert} from "./LibLambdaConvert.sol";
 import {LibConvertData} from "./LibConvertData.sol";
-import {LibWellConvert} from "./LibWellConvert.sol";
+import {LibWellConvert, LibWhitelistedTokens} from "./LibWellConvert.sol";
 import {LibWell} from "contracts/libraries/Well/LibWell.sol";
 import {AppStorage, LibAppStorage} from "contracts/libraries/LibAppStorage.sol";
 import {LibWellMinting} from "contracts/libraries/Minting/LibWellMinting.sol";
@@ -127,7 +127,8 @@ library LibConvert {
         if (fromToken == s.sys.bean && toToken.isWell()) return LibWellConvert.beansToPeg(toToken);
 
         // Well LP Token -> Bean
-        if (fromToken.isWell() && toToken == s.sys.bean) return LibWellConvert.lpToPeg(fromToken);
+        if (LibWhitelistedTokens.wellIsOrWasSoppable(fromToken) && toToken == s.sys.bean)
+            return LibWellConvert.lpToPeg(fromToken);
 
         revert("Convert: Tokens not supported");
     }
@@ -170,7 +171,7 @@ library LibConvert {
         }
 
         // Well LP Token -> Bean
-        if (fromToken.isWell() && toToken == s.sys.bean) {
+        if (LibWhitelistedTokens.wellIsOrWasSoppable(fromToken) && toToken == s.sys.bean) {
             return LibWellConvert.getBeanAmountOut(fromToken, fromAmount);
         }
 
