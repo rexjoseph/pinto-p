@@ -14,14 +14,13 @@ import {LibRedundantMathSigned256} from "contracts/libraries/Math/LibRedundantMa
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LibDeltaB} from "contracts/libraries/Oracle/LibDeltaB.sol";
-import {ConvertCapacity, GaugeId} from "contracts/beanstalk/storage/System.sol";
+import {ConvertCapacity, GerminationSide, GaugeId} from "contracts/beanstalk/storage/System.sol";
 import {LibSilo} from "contracts/libraries/Silo/LibSilo.sol";
 import {LibTractor} from "contracts/libraries/LibTractor.sol";
 import {LibGerminate} from "contracts/libraries/Silo/LibGerminate.sol";
 import {LibGaugeHelpers} from "contracts/libraries/LibGaugeHelpers.sol";
 import {LibTokenSilo} from "contracts/libraries/Silo/LibTokenSilo.sol";
 import {LibEvaluate} from "contracts/libraries/LibEvaluate.sol";
-import {GerminationSide} from "contracts/beanstalk/storage/System.sol";
 import {LibBytes} from "contracts/libraries/LibBytes.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Decimal} from "contracts/libraries/Decimal.sol";
@@ -640,8 +639,17 @@ library LibConvert {
             (uint256, uint256)
         );
 
+        // enforce penalty ratio is not greater than 100%.
+        if (penaltyRatio > C.PRECISION) {
+            penaltyRatio = C.PRECISION;
+        }
+
         // calculate the penalized bdv.
         // note: if greaterThanRate is false, penalizedAmount should be non-zero.
+        require(
+            penalizedAmount <= fromAmount,
+            "Convert: penalizedAmount is greater than fromAmount"
+        );
         uint256 penalizedBdv = (bdv * penalizedAmount) / fromAmount;
 
         // calculate the grown stalk that may be lost due to the penalty.
