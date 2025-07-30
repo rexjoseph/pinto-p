@@ -846,9 +846,84 @@ task("PI-10", "Deploys Pinto improvement set 10, Cultivation Factor Change").set
   }
 );
 
+task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gauge").setAction(
+  async function () {
+    // Get the diamond address
+    const diamondAddress = L2_PINTO;
+
+    const mock = true;
+    let owner;
+    if (mock) {
+      await hre.run("updateOracleTimeouts");
+      owner = await impersonateSigner(L2_PCM);
+      await mintEth(owner.address);
+    } else {
+      owner = (await ethers.getSigners())[0];
+      console.log("Account address: ", await owner.getAddress());
+    }
+
+    // Deploy and execute InitPI11
+    console.log("📦 Deploying InitPI11 contract...");
+    await upgradeWithNewFacets({
+      diamondAddress: diamondAddress,
+      facetNames: [
+        "ConvertFacet",
+        "ConvertGettersFacet",
+        "PipelineConvertFacet",
+        "GaugeFacet",
+        "ApprovalFacet",
+        "SeasonFacet",
+        "ClaimFacet",
+        "SiloGettersFacet",
+        "GaugeGettersFacet",
+        "OracleFacet",
+        "SeasonGettersFacet"
+      ],
+      libraryNames: [
+        "LibConvert",
+        "LibPipelineConvert",
+        "LibSilo",
+        "LibTokenSilo",
+        "LibEvaluate",
+        "LibGauge",
+        "LibIncentive",
+        "LibShipping",
+        "LibWellMinting",
+        "LibFlood",
+        "LibGerminate",
+        "LibWeather"
+      ],
+      facetLibraries: {
+        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
+        SeasonFacet: [
+          "LibEvaluate",
+          "LibGauge",
+          "LibIncentive",
+          "LibShipping",
+          "LibWellMinting",
+          "LibFlood",
+          "LibGerminate",
+          "LibWeather"
+        ],
+        ClaimFacet: ["LibSilo", "LibTokenSilo"],
+        SeasonGettersFacet: ["LibWellMinting"]
+      },
+      initFacetName: "InitPI11",
+      selectorsToRemove: [
+        "0x527ec6ba" // `downPenalizedGrownStalk(address,uint256,uint256)`
+      ],
+      bip: false,
+      object: false,
+      verbose: true,
+      account: owner
+    });
+  }
+);
+
 task(
-  "PI-11",
-  "Deploys Pinto improvement set 11, Misc. Improvements and convert up bonus"
+  "PI-12",
+  "Deploys Pinto improvement set 12, Misc. Improvements and convert up bonus"
 ).setAction(async function () {
   const mock = true;
   let owner;
@@ -1918,81 +1993,6 @@ task("facetAddresses", "Displays current addresses of specified facets on Base m
 
     console.log("-----------------------------------");
   });
-
-task("PI-11", "Deploys and executes InitPI11 to update convert down penalty gauge").setAction(
-  async function () {
-    // Get the diamond address
-    const diamondAddress = L2_PINTO;
-
-    const mock = true;
-    let owner;
-    if (mock) {
-      await hre.run("updateOracleTimeouts");
-      owner = await impersonateSigner(L2_PCM);
-      await mintEth(owner.address);
-    } else {
-      owner = (await ethers.getSigners())[0];
-      console.log("Account address: ", await owner.getAddress());
-    }
-
-    // Deploy and execute InitPI11
-    console.log("📦 Deploying InitPI11 contract...");
-    await upgradeWithNewFacets({
-      diamondAddress: diamondAddress,
-      facetNames: [
-        "ConvertFacet",
-        "ConvertGettersFacet",
-        "PipelineConvertFacet",
-        "GaugeFacet",
-        "ApprovalFacet",
-        "SeasonFacet",
-        "ClaimFacet",
-        "SiloGettersFacet",
-        "GaugeGettersFacet",
-        "OracleFacet",
-        "SeasonGettersFacet"
-      ],
-      libraryNames: [
-        "LibConvert",
-        "LibPipelineConvert",
-        "LibSilo",
-        "LibTokenSilo",
-        "LibEvaluate",
-        "LibGauge",
-        "LibIncentive",
-        "LibShipping",
-        "LibWellMinting",
-        "LibFlood",
-        "LibGerminate",
-        "LibWeather"
-      ],
-      facetLibraries: {
-        ConvertFacet: ["LibConvert", "LibPipelineConvert", "LibSilo", "LibTokenSilo"],
-        PipelineConvertFacet: ["LibPipelineConvert", "LibSilo", "LibTokenSilo"],
-        SeasonFacet: [
-          "LibEvaluate",
-          "LibGauge",
-          "LibIncentive",
-          "LibShipping",
-          "LibWellMinting",
-          "LibFlood",
-          "LibGerminate",
-          "LibWeather"
-        ],
-        ClaimFacet: ["LibSilo", "LibTokenSilo"],
-        SeasonGettersFacet: ["LibWellMinting"]
-      },
-      initFacetName: "InitPI11",
-      selectorsToRemove: [
-        "0x527ec6ba" // `downPenalizedGrownStalk(address,uint256,uint256)`
-      ],
-      bip: false,
-      object: false,
-      verbose: true,
-      account: owner
-    });
-  }
-);
 
 //////////////////////// CONFIGURATION ////////////////////////
 

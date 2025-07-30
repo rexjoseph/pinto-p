@@ -1906,7 +1906,7 @@ interface IMockFBeanstalk {
 
     function setRunningThreshold(uint256 runningThreshold) external;
 
-    function getMaxAmountInAtRate(
+function getMaxAmountInAtRate(
         address tokenIn,
         address tokenOut,
         uint256 rate

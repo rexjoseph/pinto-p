@@ -8470,14 +8470,9 @@
             "type": "uint256"
           },
           {
-            "internalType": "uint256",
-            "name": "convertDownPenaltyRate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes32[59]",
+            "internalType": "bytes32[60]",
             "name": "buffer",
-            "type": "bytes32[59]"
+            "type": "bytes32[60]"
           }
         ],
         "internalType": "struct ExtEvaluationParameters",
