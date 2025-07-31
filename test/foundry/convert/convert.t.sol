@@ -1662,4 +1662,81 @@ contract ConvertTest is TestHelper {
             );
         }
     }
+
+    //////////// DEWHITELISTED CONVERT TESTS ////////////
+
+    /**
+     * @notice Test that converting from a dewhitelisted well to Bean succeeds.
+     * This should work because you can always convert to Bean from any existing deposit.
+     */
+    function test_convertDewhitelistedWellToBean(uint256 beanAmount) public {
+        // Setup LP deposits
+        uint256 lpMinted = multipleWellDepositSetup();
+        beanAmount = bound(beanAmount, 100, 1000e6);
+
+        // Set up conditions for well to bean conversion (below  peg)
+        setReserves(well, bean.balanceOf(well) + beanAmount, weth.balanceOf(well));
+
+        // Dewhitelist the well AFTER deposits are made
+        vm.prank(BEANSTALK);
+        bs.dewhitelistToken(well);
+
+        // Verify well is dewhitelisted
+        assertFalse(bs.tokenSettings(well).selector != bytes4(0), "Well should be dewhitelisted");
+
+        // Create encoding for well -> Bean convert
+        bytes memory convertData = convertEncoder(
+            LibConvertData.ConvertKind.WELL_LP_TO_BEANS,
+            well, // dewhitelisted well
+            lpMinted / 4, // amountIn (convert part of deposit)
+            0 // minOut
+        );
+
+        int96[] memory stems = new int96[](1);
+        stems[0] = int96(0); // first deposit stem
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = lpMinted / 4;
+
+        // Convert should succeed
+        vm.prank(farmers[0]);
+        convert.convert(convertData, stems, amounts);
+    }
+
+    /**
+     * @notice Test that converting from Bean to a dewhitelisted well fails.
+     * This should fail because you cannot convert to dewhitelisted tokens.
+     */
+    function test_convertBeanToDewhitelistedWell_fails(uint256 beanAmount) public {
+        // Setup Bean deposits
+        multipleBeanDepositSetup();
+        beanAmount = bound(beanAmount, 1, 1000e6);
+
+        // Set up conditions for bean to well conversion (above peg)
+        setReserves(well, bean.balanceOf(well) - beanAmount, weth.balanceOf(well));
+
+        // Dewhitelist the well AFTER bean deposits are made
+        vm.prank(BEANSTALK);
+        bs.dewhitelistToken(well);
+
+        // Verify well is dewhitelisted
+        assertTrue(bs.tokenSettings(well).selector == bytes4(0), "Well should be dewhitelisted");
+
+        // Create encoding for Bean -> well convert
+        bytes memory convertData = convertEncoder(
+            LibConvertData.ConvertKind.BEANS_TO_WELL_LP,
+            well, // dewhitelisted well
+            1000e6, // amountIn
+            0 // minOut
+        );
+
+        int96[] memory stems = new int96[](1);
+        stems[0] = int96(0); // first deposit stem
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1000e6;
+
+        // Convert should fail with appropriate error
+        vm.expectRevert("Convert: Invalid Well");
+        vm.prank(farmers[0]);
+        convert.convert(convertData, stems, amounts);
+    }
 }
