@@ -65,4 +65,6 @@ interface IWellFunction {
      * @notice Returns the symbol of the Well function.
      */
     function symbol() external view returns (string memory);
+
+    function ratioPrecision(uint256, bytes calldata) external view returns (uint256 precision);
 }
