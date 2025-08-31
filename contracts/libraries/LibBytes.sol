@@ -299,7 +299,10 @@ library LibBytes {
                 assembly {
                     sstore(
                         add(slot, i),
-                        add(mload(add(reserves, add(iByte, 32))), shl(128, mload(add(reserves, add(iByte, 64)))))
+                        add(
+                            mload(add(reserves, add(iByte, 32))),
+                            shl(128, mload(add(reserves, add(iByte, 64))))
+                        )
                     )
                 }
             }
@@ -312,7 +315,10 @@ library LibBytes {
                 assembly {
                     sstore(
                         add(slot, maxI),
-                        add(mload(add(reserves, add(iByte, 32))), shl(128, shr(128, sload(add(slot, maxI)))))
+                        add(
+                            mload(add(reserves, add(iByte, 32))),
+                            shl(128, shr(128, sload(add(slot, maxI))))
+                        )
                     )
                 }
             }
@@ -322,7 +328,10 @@ library LibBytes {
     /**
      * @dev Read `n` packed uint128 reserves at storage position `slot`.
      */
-    function readUint128(bytes32 slot, uint256 n) internal view returns (uint256[] memory reserves) {
+    function readUint128(
+        bytes32 slot,
+        uint256 n
+    ) internal view returns (uint256[] memory reserves) {
         // Initialize array with length `n`, fill it in via assembly
         reserves = new uint256[](n);
 

@@ -11,7 +11,10 @@ contract ClonePlus is Clone {
     /// @param argOffset The offset of the arg in the packed data
     /// @param arrLen Number of elements in the array
     /// @return arr The array
-    function _getArgIERC20Array(uint256 argOffset, uint256 arrLen) internal pure returns (IERC20[] memory arr) {
+    function _getArgIERC20Array(
+        uint256 argOffset,
+        uint256 arrLen
+    ) internal pure returns (IERC20[] memory arr) {
         uint256 offset = _getImmutableArgsOffset() + argOffset;
         arr = new IERC20[](arrLen);
 
@@ -25,7 +28,10 @@ contract ClonePlus is Clone {
     /// @param argOffset The offset of the arg in the packed data
     /// @param bytesLen Number of bytes in the data
     /// @return data the bytes data
-    function _getArgBytes(uint256 argOffset, uint256 bytesLen) internal pure returns (bytes memory data) {
+    function _getArgBytes(
+        uint256 argOffset,
+        uint256 bytesLen
+    ) internal pure returns (bytes memory data) {
         if (bytesLen == 0) return data;
         uint256 offset = _getImmutableArgsOffset() + argOffset;
         data = new bytes(bytesLen);
